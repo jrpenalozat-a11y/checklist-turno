@@ -30,11 +30,12 @@
 
   /* tarjeta de progreso, más clara */
   .progreso{display:flex;align-items:center;gap:12px;margin-top:16px;
-    background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:12px 14px}
+    background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:12px 14px;
+    box-shadow:0 3px 10px rgba(28,26,23,.05)}
   .cuenta{font-size:12px;color:var(--grafito);letter-spacing:.08em;flex:none;white-space:nowrap}
   .cuenta b{color:var(--tinta);font-size:15px}
   .barra{flex:1;height:8px;background:var(--linea);border-radius:99px;overflow:hidden}
-  .barra i{display:block;height:100%;background:var(--hecho);width:0;border-radius:99px;transition:width .35s ease}
+  .barra i{display:block;height:100%;background:linear-gradient(90deg,#2bd07a,#12a552);width:0;border-radius:99px;transition:width .35s ease}
 
   ul{list-style:none;margin:16px 0 0;padding:0}
   li{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--linea)}
@@ -68,23 +69,22 @@
   /* botones con color e ícono, más intuitivos */
   .acciones{display:flex;gap:10px;margin-top:24px}
   .fila2{display:flex;gap:10px;margin-top:10px}
-  button.accion{flex:1;min-width:0;border:1px solid var(--linea);border-radius:10px;
-    font-family:inherit;font-size:12px;letter-spacing:.06em;font-weight:600;
-    color:var(--grafito);background:var(--panel);padding:14px 8px;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;gap:7px;transition:filter .15s,background .15s}
-  button.accion svg{width:16px;height:16px;flex:none}
-  /* botones con color suave (fondo tenue + texto de color) */
-  .wsp{background:#E7F5EC;border-color:#CDE9D6;color:var(--verde-d)}
-  .wsp:active{background:#D6EDDF}
-  .pdf{background:#E8F0F9;border-color:#CFE0F2;color:var(--azul-d)}
-  .pdf:active{background:#D8E5F3}
-  .reset{background:#FBF3E1;border-color:#ECDCBB;color:#9A6410}
-  .reset:active{background:#F5E9CE}
-  .vaciar{background:#FBEAE7;border-color:#F0D3CD;color:#B3392B}
-  .vaciar:active{background:#F6DAD4}
-  .semanal{background:#EFEAFB;border-color:#DAD0F4;color:#5B3FBF}
-  .semanal:active{background:#E6DEF8}
-  .cerrar{background:var(--panel);color:var(--grafito)}
+  button.accion{flex:1;min-width:0;border:0;border-radius:14px;
+    font-family:inherit;font-size:12.5px;letter-spacing:.02em;font-weight:700;
+    color:var(--grafito);background:#EDE8DF;padding:15px 8px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    box-shadow:0 3px 9px rgba(28,26,23,.07);
+    transition:transform .12s ease,box-shadow .12s ease,filter .12s ease}
+  button.accion:active{transform:translateY(1px);filter:brightness(.95);box-shadow:0 2px 6px rgba(28,26,23,.12)}
+  button.accion svg{width:18px;height:18px;flex:none}
+  /* botones con color pleno (degradado + sombra a tono). Selector button.x para ganar especificidad */
+  button.wsp{background:linear-gradient(135deg,#2bd07a,#12a552);color:#fff;box-shadow:0 7px 18px rgba(18,165,82,.36);
+    font-size:14.5px;padding:17px 8px;letter-spacing:.03em}
+  button.pdf{background:linear-gradient(135deg,#5a9bf8,#2563eb);color:#fff;box-shadow:0 6px 15px rgba(37,99,235,.32)}
+  button.semanal{background:linear-gradient(135deg,#a884ff,#7c3aed);color:#fff;box-shadow:0 6px 15px rgba(124,58,237,.32)}
+  button.reset{background:linear-gradient(135deg,#fbc23c,#e08707);color:#fff;box-shadow:0 6px 15px rgba(217,119,6,.30)}
+  button.vaciar{background:linear-gradient(135deg,#fb7a6f,#dc2626);color:#fff;box-shadow:0 6px 15px rgba(220,38,38,.30)}
+  button.cerrar{background:#EDE8DF;color:var(--grafito);box-shadow:none}
 
   /* quién entrega / quién recibe */
   .personas{display:flex;gap:10px;margin-top:14px}
