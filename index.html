@@ -82,6 +82,41 @@
   .reset:active{background:#F5E9CE}
   .vaciar{background:#FBEAE7;border-color:#F0D3CD;color:#B3392B}
   .vaciar:active{background:#F6DAD4}
+  .semanal{background:#EFEAFB;border-color:#DAD0F4;color:#5B3FBF}
+  .semanal:active{background:#E6DEF8}
+  .cerrar{background:var(--panel);color:var(--grafito)}
+
+  /* quién entrega / quién recibe */
+  .personas{display:flex;gap:10px;margin-top:14px}
+  .campo{flex:1;background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:8px 11px;min-width:0}
+  .campo span{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--grafito)}
+  .campo input{width:100%;border:0;background:none;font-family:inherit;font-size:15px;padding:2px 0 0;color:var(--tinta)}
+  .campo input:focus{outline:none}
+  .campo input::placeholder{color:#B8B2A6}
+
+  /* panel del registro semanal */
+  .overlay{position:fixed;inset:0;background:rgba(28,26,23,.55);display:none;
+    align-items:flex-end;justify-content:center;z-index:20}
+  .overlay.on{display:flex}
+  .hoja{background:var(--papel);width:100%;max-width:460px;max-height:88vh;overflow:auto;
+    border-radius:18px 18px 0 0;padding:20px 18px 26px;box-shadow:0 -8px 30px rgba(0,0,0,.2)}
+  .hoja h2{font-size:17px;margin:0}
+  .hoja .rango{font-size:11px;color:var(--grafito);letter-spacing:.08em;text-transform:uppercase;margin:4px 0 14px}
+  .resumen{display:flex;gap:10px}
+  .kpi{flex:1;background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:12px 14px}
+  .kpi .n{font-size:26px;font-weight:700;line-height:1}
+  .kpi .l{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--grafito);margin-top:5px}
+  .dia{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--grafito);
+    margin:16px 0 4px;border-bottom:1px solid var(--linea);padding-bottom:5px}
+  .reg{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--linea);font-size:14px}
+  .reg .hora{color:var(--grafito);font-size:12px;flex:none;width:42px}
+  .reg .quien{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .reg .pct{flex:none;font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px}
+  .pct.ok{background:#E7F5EC;color:var(--verde-d)}
+  .pct.med{background:#FBF3E1;color:#9A6410}
+  .pct.bajo{background:#FBEAE7;color:#B3392B}
+  .sinreg{color:var(--grafito);font-size:13px;text-align:center;padding:26px 6px;line-height:1.5}
+  .hoja .acciones{margin-top:20px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -90,6 +125,13 @@
   <div class="marca">François · La Florida</div>
   <h1 id="titulo" contenteditable="true">Checklist para turno</h1>
   <div class="fecha" id="fecha"></div>
+
+  <div class="personas">
+    <label class="campo"><span>Entrega</span>
+      <input type="text" id="entrega" placeholder="Quién envía" autocomplete="off"></label>
+    <label class="campo"><span>Recibe</span>
+      <input type="text" id="recibe" placeholder="Quién recibe" autocomplete="off"></label>
+  </div>
 
   <div class="progreso">
     <div class="cuenta" id="cuenta"><b>0</b> de 0</div>
@@ -106,11 +148,17 @@
   <div class="acciones">
     <button class="accion wsp" id="wsp">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.3 14c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1-1.4-1-2.6 0-1.3.6-1.9.9-2.1.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.6c-.1.2-.3.3-.1.6.1.2.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.8.8c.3.2.5.3.5.4.1.1.1.7-.1 1.2Z"/></svg>
-      Compartir
+      Registrar y enviar
     </button>
+  </div>
+  <div class="fila2">
     <button class="accion pdf" id="pdf">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
       PDF
+    </button>
+    <button class="accion semanal" id="semanal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 17v-4"/><path d="M13 17V8"/><path d="M18 17v-7"/></svg>
+      Registro semanal
     </button>
   </div>
   <div class="fila2">
@@ -125,8 +173,35 @@
   </div>
 </main>
 
+<div class="overlay" id="ovl">
+  <div class="hoja">
+    <h2>Registro semanal</h2>
+    <div class="rango" id="rango"></div>
+    <div class="resumen">
+      <div class="kpi"><div class="n" id="kpiPct">–</div><div class="l">Efectividad</div></div>
+      <div class="kpi"><div class="n" id="kpiN">0</div><div class="l">Traspasos</div></div>
+    </div>
+    <div id="regLista"></div>
+    <div class="acciones">
+      <button class="accion pdf" id="regPdf">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+        Descargar PDF
+      </button>
+    </div>
+    <div class="fila2">
+      <button class="accion" id="regExport">Exportar</button>
+      <button class="accion" id="regImport">Importar</button>
+    </div>
+    <div class="fila2">
+      <button class="accion vaciar" id="regBorrar">Borrar registro</button>
+      <button class="accion cerrar" id="regCerrar">Cerrar</button>
+    </div>
+    <input type="file" id="regFile" accept="application/json,.json" style="display:none">
+  </div>
+</div>
+
 <script>
-let d = { titulo:"Checklist para turno", tareas:[] };
+let d = { titulo:"Checklist para turno", tareas:[], entrega:"", recibe:"" };
 
 /* ---- estado codificado en la URL (viaja por WhatsApp) ---- */
 function leerURL(){
@@ -142,9 +217,34 @@ function codificar(obj){
 }
 function guardarLocal(){
   try{ localStorage.setItem("checklist.v1", JSON.stringify(d)); }catch(e){}
-  // refleja el estado en la URL sin recargar (por si copian el link del navegador)
+  // refleja SOLO el checklist en la URL del navegador (el registro no, para no engordarla)
   try{ history.replaceState(null,"","#"+codificar(d)); }catch(e){}
 }
+
+/* ---- registro de traspasos (localStorage; se fusiona por el link) ---- */
+const REGKEY = "checklist.reg.v1";
+function cargarReg(){ try{ return JSON.parse(localStorage.getItem(REGKEY)) || []; }catch(e){ return []; } }
+function guardarReg(arr){ try{ localStorage.setItem(REGKEY, JSON.stringify(arr)); }catch(e){} }
+function nuevoId(){ return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,6); }
+function fusionarReg(entrantes){
+  if(!Array.isArray(entrantes) || !entrantes.length) return;
+  const reg = cargarReg();
+  const ids = new Set(reg.map(r => r.id));
+  let cambio = false;
+  entrantes.forEach(r => { if(r && r.id && !ids.has(r.id)){ reg.push(r); ids.add(r.id); cambio = true; } });
+  if(cambio){ reg.sort((a,b) => a.ts - b.ts); guardarReg(reg); }
+}
+// registros de los últimos 14 días: viajan dentro del link para consolidar solos
+function regReciente(){
+  const corte = Date.now() - 14*864e5;
+  return cargarReg().filter(r => r.ts >= corte);
+}
+function inicioSemana(base){
+  const x = new Date(base); x.setHours(0,0,0,0);
+  const lun = (x.getDay()+6)%7; // 0 = lunes
+  x.setDate(x.getDate() - lun); return x;
+}
+function nivel(p){ return p>=80 ? "ok" : p>=50 ? "med" : "bajo"; }
 
 const lista = document.getElementById("lista");
 const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
@@ -203,6 +303,11 @@ tit.addEventListener("blur", e => {
 });
 tit.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); e.target.blur(); } });
 
+const inEntrega = document.getElementById("entrega");
+const inRecibe  = document.getElementById("recibe");
+inEntrega.addEventListener("input", () => { d.entrega = inEntrega.value; guardarLocal(); });
+inRecibe .addEventListener("input", () => { d.recibe  = inRecibe.value;  guardarLocal(); });
+
 document.getElementById("reset").addEventListener("click", () => {
   d.tareas.forEach(x => x.ok=false); pintar(); guardarLocal();
 });
@@ -211,14 +316,33 @@ document.getElementById("vaciar").addEventListener("click", () => {
   d.tareas=[]; pintar(); guardarLocal();
 });
 
-/* ---- Compartir: link con el estado adentro, por WhatsApp ---- */
+/* ---- Registrar y enviar: guarda el traspaso y comparte por WhatsApp ---- */
 document.getElementById("wsp").addEventListener("click", () => {
-  const link = location.origin + location.pathname + "#" + codificar(d);
+  const entrega = (d.entrega||"").trim(), recibe = (d.recibe||"").trim();
+  if(!entrega && !recibe){
+    if(!confirm("No anotaste quién entrega ni quién recibe. ¿Registrar y enviar igual?")){
+      inEntrega.focus(); return;
+    }
+  }
+  const hechas = d.tareas.filter(x=>x.ok).length, total = d.tareas.length;
+  const pct = total ? Math.round(hechas/total*100) : 0;
+
+  // 1) guardar el traspaso en el registro local
+  const reg = cargarReg();
+  reg.push({ id:nuevoId(), ts:Date.now(), entrega, recibe, hechas, total });
+  reg.sort((a,b)=>a.ts-b.ts); guardarReg(reg);
+
+  // 2) armar el link: checklist + registro reciente (para que se fusione solo)
+  const payload = Object.assign({}, d, { __reg: regReciente() });
+  const link = location.origin + location.pathname + "#" + codificar(payload);
+
   const f = new Date().toLocaleDateString("es-CL",{day:"numeric",month:"long"});
+  const quien = (entrega||recibe) ? "\nEntrega: "+(entrega||"—")+"  →  Recibe: "+(recibe||"—") : "";
   const resumen = d.tareas.length
       ? d.tareas.map(x => (x.ok?"✅ ":"⬜ ")+x.t).join("\n")
       : "Sin tareas";
-  const txt = "*"+d.titulo+" — "+f+"*\n\n"+resumen+"\n\nAbrir y seguir marcando:\n"+link;
+  const txt = "*"+d.titulo+" — "+f+"*"+quien+"\nAvance: "+hechas+"/"+total+" ("+pct+"%)\n\n"
+      +resumen+"\n\nAbrir y seguir marcando:\n"+link;
   window.open("https://wa.me/?text="+encodeURIComponent(txt), "_blank");
 });
 
@@ -237,6 +361,9 @@ document.getElementById("pdf").addEventListener("click", () => {
   doc.text(d.titulo, 20, y); y += 8;
   doc.setFontSize(10); doc.setTextColor(110);
   doc.text(fecha + " · " + hora, 20, y); y += 5;
+  if((d.entrega||"").trim() || (d.recibe||"").trim()){
+    doc.text("Entrega: " + (d.entrega||"—") + "    Recibe: " + (d.recibe||"—"), 20, y); y += 5;
+  }
   const h = d.tareas.filter(x=>x.ok).length;
   doc.text(h + " de " + d.tareas.length + " completadas", 20, y); y += 6;
   doc.setDrawColor(200); doc.line(20, y, 190, y); y += 9;
@@ -256,14 +383,114 @@ document.getElementById("pdf").addEventListener("click", () => {
   doc.save(nombre + "_" + sello + ".pdf");
 });
 
+/* ---- Registro semanal (panel + PDF + exportar/importar) ---- */
+const ovl = document.getElementById("ovl");
+function registrosSemana(){
+  const ini = inicioSemana(new Date());
+  const fin = new Date(ini); fin.setDate(fin.getDate()+7);
+  const lista = cargarReg().filter(r => r.ts >= ini.getTime() && r.ts < fin.getTime());
+  const n = lista.length;
+  const prom = n ? Math.round(lista.reduce((a,r)=>a+(r.total?r.hechas/r.total*100:0),0)/n) : 0;
+  return { ini, fin, lista, n, prom };
+}
+function abrirSemanal(){
+  const { ini, fin, lista, n, prom } = registrosSemana();
+  const dm = t => new Date(t).toLocaleDateString("es-CL",{day:"numeric",month:"short"});
+  document.getElementById("rango").textContent = "Semana " + dm(ini.getTime()) + " – " + dm(fin.getTime()-864e5);
+  const kp = document.getElementById("kpiPct");
+  kp.textContent = n ? prom+"%" : "–";
+  kp.style.color = n ? ({ok:"#178a52",med:"#9A6410",bajo:"#B3392B"})[nivel(prom)] : "var(--grafito)";
+  document.getElementById("kpiN").textContent = n;
+
+  const cont = document.getElementById("regLista");
+  if(!n){
+    cont.innerHTML = '<div class="sinreg">Aún no hay traspasos registrados esta semana.<br>Se guardan al tocar «Registrar y enviar».</div>';
+  } else {
+    const porDia = {};
+    lista.slice().sort((a,b)=>b.ts-a.ts).forEach(r => {
+      const k = new Date(r.ts).toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
+      (porDia[k] = porDia[k] || []).push(r);
+    });
+    cont.innerHTML = Object.entries(porDia).map(([dia,rs]) => {
+      const filas = rs.map(r => {
+        const p = r.total ? Math.round(r.hechas/r.total*100) : 0;
+        const hora = new Date(r.ts).toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+        const quien = esc(r.entrega||"—") + " → " + esc(r.recibe||"—");
+        return '<div class="reg"><span class="hora">'+hora+'</span><span class="quien">'+quien
+             + '</span><span class="pct '+nivel(p)+'">'+p+'%</span></div>';
+      }).join("");
+      return '<div class="dia">'+esc(dia)+'</div>'+filas;
+    }).join("");
+  }
+  ovl.classList.add("on");
+}
+document.getElementById("semanal").addEventListener("click", abrirSemanal);
+document.getElementById("regCerrar").addEventListener("click", () => ovl.classList.remove("on"));
+ovl.addEventListener("click", e => { if(e.target === ovl) ovl.classList.remove("on"); });
+
+document.getElementById("regBorrar").addEventListener("click", () => {
+  if(!confirm("¿Borrar TODO el registro de traspasos de este equipo?")) return;
+  guardarReg([]); abrirSemanal();
+});
+
+document.getElementById("regExport").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(cargarReg(),null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "registro_traspasos.json"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+});
+document.getElementById("regImport").addEventListener("click", () => document.getElementById("regFile").click());
+document.getElementById("regFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{ fusionarReg(JSON.parse(rd.result)); abrirSemanal(); alert("Registro importado y fusionado."); }
+    catch(err){ alert("El archivo no es un registro válido."); }
+  };
+  rd.readAsText(f); e.target.value = "";
+});
+
+document.getElementById("regPdf").addEventListener("click", () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  const { ini, fin, lista, n, prom } = registrosSemana();
+  const dm = t => new Date(t).toLocaleDateString("es-CL",{day:"numeric",month:"long"});
+  let y = 22;
+  doc.setFont("courier","normal");
+  doc.setFontSize(9); doc.setTextColor(110); doc.text("FRANÇOIS · LA FLORIDA", 20, y); y += 9;
+  doc.setFontSize(16); doc.setTextColor(20); doc.text("Registro semanal de traspasos", 20, y); y += 7;
+  doc.setFontSize(10); doc.setTextColor(110);
+  doc.text("Semana " + dm(ini.getTime()) + " al " + dm(fin.getTime()-864e5), 20, y); y += 6;
+  doc.text("Traspasos: " + n + "     Efectividad promedio: " + (n ? prom+"%" : "—"), 20, y); y += 6;
+  doc.setDrawColor(200); doc.line(20, y, 190, y); y += 9;
+  if(!n){ doc.setFontSize(11); doc.setTextColor(20); doc.text("Sin traspasos registrados esta semana.", 20, y); }
+  lista.slice().sort((a,b)=>a.ts-b.ts).forEach(r => {
+    if(y > 278){ doc.addPage(); y = 22; }
+    const p = r.total ? Math.round(r.hechas/r.total*100) : 0;
+    const dh = new Date(r.ts).toLocaleString("es-CL",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+    doc.setFontSize(9); doc.setTextColor(110); doc.text(dh, 20, y);
+    doc.setFontSize(11); doc.setTextColor(20);
+    doc.text((r.entrega||"—") + "  ->  " + (r.recibe||"—"), 20, y+5);
+    if(p>=80) doc.setTextColor(30,150,90); else if(p>=50) doc.setTextColor(150,110,20); else doc.setTextColor(180,60,40);
+    doc.text(p + "%  (" + r.hechas + "/" + r.total + ")", 150, y+5);
+    y += 13;
+  });
+  doc.save("registro_semanal_" + ini.toISOString().slice(0,10) + ".pdf");
+});
+
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
 (function init(){
   const desdeURL = leerURL();
-  if(desdeURL){ d = Object.assign(d, desdeURL); }
-  else {
+  if(desdeURL){
+    if(desdeURL.__reg){ fusionarReg(desdeURL.__reg); delete desdeURL.__reg; }
+    d = Object.assign(d, desdeURL);
+  } else {
     try{ const v = localStorage.getItem("checklist.v1"); if(v) d = Object.assign(d, JSON.parse(v)); }catch(e){}
   }
   tit.textContent = d.titulo;
+  inEntrega.value = d.entrega || "";
+  inRecibe.value  = d.recibe  || "";
   pintar();
   guardarLocal();
 })();
