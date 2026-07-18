@@ -17,14 +17,15 @@ es **un solo archivo** (`index.html`).
 
 | Botón | Color | Qué hace |
 |-------|-------|----------|
-| **Registrar y enviar** | verde | **Guarda el traspaso** (quién entrega, quién recibe, fecha/hora y % de avance) y abre WhatsApp con el resumen + un link que lleva todo adentro. Un traspaso = un envío. |
-| **PDF** | azul | Descarga un PDF del checklist actual (con entrega/recibe, fecha y tareas) para archivar. |
-| **Registro semanal** | violeta | Abre el panel con los traspasos de la semana y la **efectividad** (% promedio de avance). Desde ahí se descarga PDF y se exporta/importa. |
-| **Desmarcar** | ámbar | Deja todas las tareas sin marcar para **empezar un turno nuevo** (no borra las tareas). |
-| **Vaciar** | rojo | Borra **todas** las tareas (pide confirmación). |
+| **Registrar y enviar** | verde François | **Guarda el traspaso** (quién entrega, quién recibe, fecha/hora y % de avance) y abre WhatsApp con el resumen + un link que lleva todo adentro. Un traspaso = un envío. |
+| **PDF** | cobre | Descarga un PDF del checklist actual (con entrega/recibe, fecha y tareas) para archivar. |
+| **Registro semanal** | verde pino | Abre el panel con los traspasos de la semana y la **efectividad** (% promedio de avance). Desde ahí se descarga PDF y se exporta/importa. |
+| **Desmarcar** | oro | Deja todas las tareas sin marcar para **empezar un turno nuevo** (no borra las tareas). |
+| **Vaciar** | ladrillo | Borra **todas** las tareas (pide confirmación). |
 
-Colores suaves y por función: verde = acción principal, azul = guardar/descargar,
-violeta = reportes, ámbar = reversible, rojo = destructivo.
+Paleta institucional François (verde bosque + crema + cobre), tipografía Inter y el
+emblema de la taza en el encabezado. Colores por función: verde = acción principal,
+cobre = guardar/descargar, verde pino = reportes, oro = reversible, ladrillo = destructivo.
 
 ## El flujo del traspaso
 
