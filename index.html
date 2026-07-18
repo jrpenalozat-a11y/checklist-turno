@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F5F0">
+<title>Checklist para turno · François</title>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --papel:#F6F4EF; --panel:#FFFFFF; --tinta:#1C1A17; --grafito:#6E6A62;
+    --linea:#E3DFD6; --lapiz:#2B4A7A;
+    /* colores de acción (más intuitivos) */
+    --verde:#1EA463; --verde-d:#178a52;
+    --azul:#2B6CB0; --azul-d:#245c96;
+    --ambar:#B7791F; --rojo:#C0392B; --rojo-suave:#FBEAE7;
+    --hecho:#1EA463;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--papel);color:var(--tinta);min-height:100vh;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    padding:24px 16px 40px;display:flex;justify-content:center}
+  .app{width:100%;max-width:460px}
+
+  .marca{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--grafito)}
+  h1{font-size:22px;font-weight:700;margin:4px 0 0;outline:none;letter-spacing:-.3px}
+  h1:focus{border-bottom:1.5px solid var(--lapiz)}
+  .fecha{font-size:11px;color:var(--grafito);letter-spacing:.1em;text-transform:uppercase;margin-top:6px}
+
+  /* tarjeta de progreso, más clara */
+  .progreso{display:flex;align-items:center;gap:12px;margin-top:16px;
+    background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:12px 14px}
+  .cuenta{font-size:12px;color:var(--grafito);letter-spacing:.08em;flex:none;white-space:nowrap}
+  .cuenta b{color:var(--tinta);font-size:15px}
+  .barra{flex:1;height:8px;background:var(--linea);border-radius:99px;overflow:hidden}
+  .barra i{display:block;height:100%;background:var(--hecho);width:0;border-radius:99px;transition:width .35s ease}
+
+  ul{list-style:none;margin:16px 0 0;padding:0}
+  li{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--linea)}
+  label{display:flex;align-items:center;padding:14px 0;cursor:pointer}
+  input[type=checkbox]{position:absolute;opacity:0;width:0;height:0}
+  .caja{flex:none;width:26px;height:26px;border:1.5px solid #C4BFB4;border-radius:7px;
+    display:grid;place-items:center;background:var(--panel);transition:background .2s,border-color .2s}
+  .caja svg{width:17px;height:17px;stroke:#fff;stroke-width:3;fill:none;
+    stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:30;stroke-dashoffset:30;
+    transition:stroke-dashoffset .25s}
+  input:checked + .caja{background:var(--hecho);border-color:var(--hecho)}
+  input:checked + .caja svg{stroke-dashoffset:0}
+  input:focus-visible + .caja{outline:2px solid var(--lapiz);outline-offset:3px}
+  .texto{flex:1;min-width:0;font-size:17px;line-height:1.35;padding:14px 0;outline:none;word-break:break-word}
+  .texto:focus{border-bottom:1.5px solid var(--lapiz)}
+  .hecha .texto{color:var(--grafito);text-decoration:line-through}
+  .borrar{flex:none;background:none;border:0;color:#CFC9BC;font-size:22px;padding:8px;cursor:pointer;line-height:1;
+    transition:color .15s}
+  .borrar:hover,.borrar:active{color:var(--rojo)}
+  .vacio{padding:30px 0;text-align:center;color:var(--grafito);font-size:13px;border-bottom:1px solid var(--linea)}
+
+  .nueva{display:flex;gap:12px;align-items:center;padding:14px 0}
+  .mas{flex:none;width:26px;height:26px;border:1.5px dashed var(--verde);border-radius:7px;
+    background:none;color:var(--verde);font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;
+    transition:background .15s,color .15s}
+  .mas:active{background:var(--verde);color:#fff}
+  .nueva input{flex:1;border:0;background:none;font-family:inherit;font-size:17px;padding:0;color:var(--tinta)}
+  .nueva input:focus{outline:none}
+  .nueva input::placeholder{color:#AFA99C}
+
+  /* botones con color e ícono, más intuitivos */
+  .acciones{display:flex;gap:10px;margin-top:24px}
+  .fila2{display:flex;gap:10px;margin-top:10px}
+  button.accion{flex:1;min-width:0;border:1px solid var(--linea);border-radius:10px;
+    font-family:inherit;font-size:12px;letter-spacing:.06em;font-weight:600;
+    color:var(--grafito);background:var(--panel);padding:14px 8px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;transition:filter .15s,background .15s}
+  button.accion svg{width:16px;height:16px;flex:none}
+  /* botones con color suave (fondo tenue + texto de color) */
+  .wsp{background:#E7F5EC;border-color:#CDE9D6;color:var(--verde-d)}
+  .wsp:active{background:#D6EDDF}
+  .pdf{background:#E8F0F9;border-color:#CFE0F2;color:var(--azul-d)}
+  .pdf:active{background:#D8E5F3}
+  .reset{background:#FBF3E1;border-color:#ECDCBB;color:#9A6410}
+  .reset:active{background:#F5E9CE}
+  .vaciar{background:#FBEAE7;border-color:#F0D3CD;color:#B3392B}
+  .vaciar:active{background:#F6DAD4}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="marca">François · La Florida</div>
+  <h1 id="titulo" contenteditable="true">Checklist para turno</h1>
+  <div class="fecha" id="fecha"></div>
+
+  <div class="progreso">
+    <div class="cuenta" id="cuenta"><b>0</b> de 0</div>
+    <div class="barra"><i id="fill"></i></div>
+  </div>
+
+  <ul id="lista"></ul>
+
+  <div class="nueva">
+    <button class="mas" id="mas" aria-label="Agregar">+</button>
+    <input type="text" id="nueva" placeholder="Agregar tarea…" autocomplete="off" enterkeyhint="done">
+  </div>
+
+  <div class="acciones">
+    <button class="accion wsp" id="wsp">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.3 14c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1-1.4-1-2.6 0-1.3.6-1.9.9-2.1.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.6c-.1.2-.3.3-.1.6.1.2.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.8.8c.3.2.5.3.5.4.1.1.1.7-.1 1.2Z"/></svg>
+      Compartir
+    </button>
+    <button class="accion pdf" id="pdf">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+      PDF
+    </button>
+  </div>
+  <div class="fila2">
+    <button class="accion reset" id="reset">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      Desmarcar
+    </button>
+    <button class="accion vaciar" id="vaciar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      Vaciar
+    </button>
+  </div>
+</main>
+
+<script>
+let d = { titulo:"Checklist para turno", tareas:[] };
+
+/* ---- estado codificado en la URL (viaja por WhatsApp) ---- */
+function leerURL(){
+  try{
+    const h = location.hash.slice(1);
+    if(!h) return null;
+    const json = decodeURIComponent(escape(atob(decodeURIComponent(h))));
+    return JSON.parse(json);
+  }catch(e){ return null; }
+}
+function codificar(obj){
+  return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(obj)))));
+}
+function guardarLocal(){
+  try{ localStorage.setItem("checklist.v1", JSON.stringify(d)); }catch(e){}
+  // refleja el estado en la URL sin recargar (por si copian el link del navegador)
+  try{ history.replaceState(null,"","#"+codificar(d)); }catch(e){}
+}
+
+const lista = document.getElementById("lista");
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+document.getElementById("fecha").textContent =
+  new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
+
+function pintar(){
+  lista.innerHTML = d.tareas.length
+    ? d.tareas.map((x,i) => `
+      <li class="${x.ok?"hecha":""}">
+        <label>
+          <input type="checkbox" data-i="${i}" ${x.ok?"checked":""}>
+          <span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span>
+        </label>
+        <span class="texto" contenteditable="true" data-i="${i}">${esc(x.t)}</span>
+        <button class="borrar" data-i="${i}" aria-label="Borrar">×</button>
+      </li>`).join("")
+    : '<li class="vacio">Escribe la primera tarea abajo</li>';
+  const h = d.tareas.filter(x=>x.ok).length;
+  document.getElementById("cuenta").innerHTML = "<b>" + h + "</b> de " + d.tareas.length;
+  document.getElementById("fill").style.width =
+    (d.tareas.length ? Math.round(h/d.tareas.length*100) : 0) + "%";
+}
+
+lista.addEventListener("change", e => {
+  if(e.target.type!=="checkbox") return;
+  d.tareas[e.target.dataset.i].ok = e.target.checked; pintar(); guardarLocal();
+});
+lista.addEventListener("click", e => {
+  if(!e.target.classList.contains("borrar")) return;
+  d.tareas.splice(+e.target.dataset.i,1); pintar(); guardarLocal();
+});
+lista.addEventListener("blur", e => {
+  if(!e.target.classList.contains("texto")) return;
+  const t = e.target.textContent.trim();
+  if(t) d.tareas[e.target.dataset.i].t = t; else d.tareas.splice(+e.target.dataset.i,1);
+  pintar(); guardarLocal();
+}, true);
+lista.addEventListener("keydown", e => {
+  if(e.target.classList.contains("texto") && e.key==="Enter"){ e.preventDefault(); e.target.blur(); }
+});
+
+function agregar(){
+  const c = document.getElementById("nueva");
+  const t = c.value.trim(); if(!t) return;
+  d.tareas.push({t, ok:false}); c.value=""; pintar(); guardarLocal(); c.focus();
+}
+document.getElementById("mas").addEventListener("click", agregar);
+document.getElementById("nueva").addEventListener("keydown", e => { if(e.key==="Enter") agregar(); });
+
+const tit = document.getElementById("titulo");
+tit.addEventListener("blur", e => {
+  d.titulo = e.target.textContent.trim() || "Checklist para turno";
+  e.target.textContent = d.titulo; guardarLocal();
+});
+tit.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); e.target.blur(); } });
+
+document.getElementById("reset").addEventListener("click", () => {
+  d.tareas.forEach(x => x.ok=false); pintar(); guardarLocal();
+});
+document.getElementById("vaciar").addEventListener("click", () => {
+  if(!confirm("¿Borrar todas las tareas?")) return;
+  d.tareas=[]; pintar(); guardarLocal();
+});
+
+/* ---- Compartir: link con el estado adentro, por WhatsApp ---- */
+document.getElementById("wsp").addEventListener("click", () => {
+  const link = location.origin + location.pathname + "#" + codificar(d);
+  const f = new Date().toLocaleDateString("es-CL",{day:"numeric",month:"long"});
+  const resumen = d.tareas.length
+      ? d.tareas.map(x => (x.ok?"✅ ":"⬜ ")+x.t).join("\n")
+      : "Sin tareas";
+  const txt = "*"+d.titulo+" — "+f+"*\n\n"+resumen+"\n\nAbrir y seguir marcando:\n"+link;
+  window.open("https://wa.me/?text="+encodeURIComponent(txt), "_blank");
+});
+
+/* ---- Descargar PDF para archivar ---- */
+document.getElementById("pdf").addEventListener("click", () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  const ahora = new Date();
+  const fecha = ahora.toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const hora = ahora.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+  let y = 22;
+  doc.setFont("courier","normal");
+  doc.setFontSize(9); doc.setTextColor(110);
+  doc.text("FRANÇOIS · LA FLORIDA", 20, y); y += 9;
+  doc.setFontSize(17); doc.setTextColor(20);
+  doc.text(d.titulo, 20, y); y += 8;
+  doc.setFontSize(10); doc.setTextColor(110);
+  doc.text(fecha + " · " + hora, 20, y); y += 5;
+  const h = d.tareas.filter(x=>x.ok).length;
+  doc.text(h + " de " + d.tareas.length + " completadas", 20, y); y += 6;
+  doc.setDrawColor(200); doc.line(20, y, 190, y); y += 9;
+  doc.setFontSize(12); doc.setTextColor(20);
+  if(!d.tareas.length){ doc.text("Sin tareas registradas.", 20, y); }
+  d.tareas.forEach(x => {
+    if(y > 280){ doc.addPage(); y = 22; }
+    doc.setTextColor(x.ok ? 30 : 30, x.ok ? 164 : 30, x.ok ? 99 : 30);
+    doc.text(x.ok ? "[X]" : "[  ]", 20, y);
+    doc.setTextColor(x.ok ? 120 : 20);
+    const lineas = doc.splitTextToSize(x.t, 155);
+    doc.text(lineas, 33, y);
+    y += 8 * lineas.length;
+  });
+  const nombre = d.titulo.replace(/[^\w\sáéíóúñ-]/gi,"").trim().replace(/\s+/g,"_") || "checklist";
+  const sello = ahora.toISOString().slice(0,16).replace(/[:T]/g,"-");
+  doc.save(nombre + "_" + sello + ".pdf");
+});
+
+/* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
+(function init(){
+  const desdeURL = leerURL();
+  if(desdeURL){ d = Object.assign(d, desdeURL); }
+  else {
+    try{ const v = localStorage.getItem("checklist.v1"); if(v) d = Object.assign(d, JSON.parse(v)); }catch(e){}
+  }
+  tit.textContent = d.titulo;
+  pintar();
+  guardarLocal();
+})();
+</script>
+</body>
+</html>
