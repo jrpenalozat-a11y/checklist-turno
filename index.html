@@ -231,22 +231,53 @@
 <script>
 let d = { titulo:"Checklist para turno", tareas:[], entrega:"", recibe:"" };
 
-/* ---- estado codificado en la URL (viaja por WhatsApp) ---- */
+/* ---- estado codificado en la URL (viaja por WhatsApp) ----
+   base64url: SOLO letras/números/-/_ (sin %). Así WhatsApp reconoce el link
+   completo y no lo corta (antes %2B/%2F/%3D rompían el enlace → llegaba en blanco). */
+function codificar(obj){
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  return b64.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
 function leerURL(){
   try{
-    const h = location.hash.slice(1);
+    let h = location.hash.slice(1);
     if(!h) return null;
-    const json = decodeURIComponent(escape(atob(decodeURIComponent(h))));
-    return JSON.parse(json);
+    if(h.indexOf("%") >= 0) h = decodeURIComponent(h); // links viejos
+    h = h.replace(/-/g,"+").replace(/_/g,"/");
+    while(h.length % 4) h += "=";
+    return JSON.parse(decodeURIComponent(escape(atob(h))));
   }catch(e){ return null; }
 }
-function codificar(obj){
-  return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(obj)))));
+// formato compacto (claves de 1 letra) para que el link sea corto
+function empaquetar(conReg){
+  const o = { t:d.titulo, e:d.entrega||"", r:d.recibe||"",
+              k:d.tareas.map(x => [x.t, x.ok?1:0]) };
+  if(conReg){
+    const g = regReciente().slice(-40);
+    if(g.length) o.g = g.map(r => [r.id, r.ts, r.entrega||"", r.recibe||"", r.hechas, r.total]);
+  }
+  return o;
+}
+function desempaquetar(o){
+  if(!o || typeof o !== "object") return null;
+  if(Array.isArray(o.k)){ // formato compacto nuevo
+    return {
+      d:{ titulo:o.t || "Checklist para turno", entrega:o.e||"", recibe:o.r||"",
+          tareas:o.k.map(a => ({ t:String(a[0]||""), ok:!!a[1] })) },
+      reg: Array.isArray(o.g) ? o.g.map(a => ({ id:a[0], ts:a[1], entrega:a[2]||"", recibe:a[3]||"", hechas:a[4]||0, total:a[5]||0 })) : null
+    };
+  }
+  if(o.tareas || o.titulo !== undefined){ // formato antiguo (compatibilidad)
+    const reg = Array.isArray(o.__reg) ? o.__reg : null;
+    const dd = Object.assign({}, o); delete dd.__reg;
+    return { d:dd, reg };
+  }
+  return null;
 }
 function guardarLocal(){
   try{ localStorage.setItem("checklist.v1", JSON.stringify(d)); }catch(e){}
   // refleja SOLO el checklist en la URL del navegador (el registro no, para no engordarla)
-  try{ history.replaceState(null,"","#"+codificar(d)); }catch(e){}
+  try{ history.replaceState(null,"","#"+codificar(empaquetar(false))); }catch(e){}
 }
 
 /* ---- registro de traspasos (localStorage; se fusiona por el link) ---- */
@@ -360,9 +391,8 @@ document.getElementById("wsp").addEventListener("click", () => {
   reg.push({ id:nuevoId(), ts:Date.now(), entrega, recibe, hechas, total });
   reg.sort((a,b)=>a.ts-b.ts); guardarReg(reg);
 
-  // 2) armar el link: checklist + registro reciente (para que se fusione solo)
-  const payload = Object.assign({}, d, { __reg: regReciente() });
-  const link = location.origin + location.pathname + "#" + codificar(payload);
+  // 2) armar el link corto y a prueba de WhatsApp (checklist + registro reciente)
+  const link = location.origin + location.pathname + "#" + codificar(empaquetar(true));
 
   const f = new Date().toLocaleDateString("es-CL",{day:"numeric",month:"long"});
   const quien = (entrega||recibe) ? "\nEntrega: "+(entrega||"—")+"  →  Recibe: "+(recibe||"—") : "";
@@ -509,10 +539,10 @@ document.getElementById("regPdf").addEventListener("click", () => {
 
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
 (function init(){
-  const desdeURL = leerURL();
-  if(desdeURL){
-    if(desdeURL.__reg){ fusionarReg(desdeURL.__reg); delete desdeURL.__reg; }
-    d = Object.assign(d, desdeURL);
+  const parsed = desempaquetar(leerURL());
+  if(parsed){
+    if(parsed.reg) fusionarReg(parsed.reg);
+    d = Object.assign(d, parsed.d);
   } else {
     try{ const v = localStorage.getItem("checklist.v1"); if(v) d = Object.assign(d, JSON.parse(v)); }catch(e){}
   }
