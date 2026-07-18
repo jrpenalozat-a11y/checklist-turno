@@ -539,12 +539,18 @@ document.getElementById("regPdf").addEventListener("click", () => {
 
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
 (function init(){
+  const teniaHash = location.hash.length > 1;
   const parsed = desempaquetar(leerURL());
   if(parsed){
     if(parsed.reg) fusionarReg(parsed.reg);
     d = Object.assign(d, parsed.d);
   } else {
     try{ const v = localStorage.getItem("checklist.v1"); if(v) d = Object.assign(d, JSON.parse(v)); }catch(e){}
+    // venía un link pero no se pudo leer: casi siempre WhatsApp lo cortó
+    if(teniaHash){
+      setTimeout(() => alert("⚠️ El link llegó incompleto (WhatsApp a veces lo corta). "
+        + "Pídele a quien te lo envió que lo reenvíe, o que lo pegue como texto en el chat."), 400);
+    }
   }
   tit.textContent = d.titulo;
   inEntrega.value = d.entrega || "";
