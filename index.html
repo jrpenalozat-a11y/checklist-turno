@@ -52,6 +52,32 @@
   body.supervisor button.solo-sup{display:flex}
   #btnSupervisor.on{background:var(--pino);color:var(--crema);border-color:var(--pino)}
 
+  /* pestañas principales */
+  .tabs{display:flex;gap:6px;margin-top:14px;background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:4px}
+  .tab{flex:1;border:0;background:none;font-family:inherit;font-size:12px;font-weight:700;color:var(--grafito);
+    padding:10px 4px;border-radius:9px;cursor:pointer}
+  .tab.on{background:var(--pino);color:var(--crema)}
+  .tab-panel{display:none}
+  .tab-panel.on{display:block}
+  /* guía diaria */
+  li.gsec-li{border-bottom:0;padding:0}
+  .gsec{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grafito);font-weight:700;display:block;margin:16px 0 0}
+  .gtexto{flex:1;min-width:0;font-size:17px;line-height:1.35;padding:14px 0;word-break:break-word}
+  .hecha .gtexto{color:var(--grafito);text-decoration:line-through}
+  /* semanal */
+  .sem-h{font-size:12px;font-weight:700;color:var(--pino);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 4px}
+  .sem-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--linea);font-size:15px}
+  .sem-item .t{flex:1;min-width:0;word-break:break-word}
+  .sem-del{flex:none;background:none;border:0;color:#CFC9BC;font-size:20px;cursor:pointer;padding:2px 6px;line-height:1}
+  .sem-del:active{color:var(--rojo)}
+  .sem-add{display:flex;gap:8px;margin-top:8px}
+  .sem-add input{flex:1;border:1px solid var(--linea);border-radius:9px;background:var(--papel);font-family:inherit;
+    font-size:14px;padding:9px 11px;color:var(--tinta)}
+  .sem-add input:focus{outline:none;border-color:var(--pino)}
+  .sem-add button{flex:none;border:0;border-radius:9px;background:var(--verde-d);color:#fff;font-family:inherit;
+    font-weight:700;font-size:13px;padding:9px 15px;cursor:pointer}
+  .sem-vacio{color:var(--grafito);font-size:12.5px;padding:6px 0;opacity:.75}
+
   h1{font-size:23px;font-weight:800;margin:18px 0 0;outline:none;letter-spacing:-.4px;color:var(--pino)}
   h1:focus{border-bottom:2px solid var(--cobre)}
   .fecha{font-size:11px;color:var(--grafito);letter-spacing:.1em;text-transform:uppercase;margin-top:6px;font-weight:600}
@@ -235,6 +261,13 @@
     <button class="mini" id="btnSupervisor">🔑 Supervisor</button>
   </div>
 
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-tab="turno">📋 Turno</button>
+    <button class="tab" data-tab="guia">📅 Guía diaria</button>
+    <button class="tab" data-tab="semanal">🗓️ Semanal</button>
+  </div>
+
+  <section class="tab-panel on" data-tab="turno">
   <h1 id="titulo" contenteditable="true">Checklist para turno</h1>
   <div class="fecha" id="fecha"></div>
 
@@ -303,6 +336,23 @@
     </div>
     <div id="vfEstado" class="vf-estado"></div>
     <button class="accion vfsup solo-sup" id="vfSup">👀 Supervisión — ver traspasos</button>
+  </section>
+  </section>
+
+  <section class="tab-panel" data-tab="guia">
+    <h1>Guía diaria</h1>
+    <div class="fecha" id="guiaFecha"></div>
+    <div class="progreso">
+      <div class="cuenta" id="guiaCuenta"><b>0</b> de 0</div>
+      <div class="barra"><i id="guiaFill"></i></div>
+    </div>
+    <ul id="guiaLista"></ul>
+  </section>
+
+  <section class="tab-panel" data-tab="semanal">
+    <h1>Semanal</h1>
+    <div class="fecha">Rutina del local · se edita en modo 🔑 supervisor</div>
+    <div id="semanalCont"></div>
   </section>
 </main>
 
@@ -1068,6 +1118,7 @@ function aplicarModoSup(on){
   document.body.classList.toggle("supervisor", on);
   btnSupervisor.classList.toggle("on", on);
   btnSupervisor.textContent = on ? "🔓 Salir supervisor" : "🔑 Supervisor";
+  if(typeof renderSemanal === "function") renderSemanal();  // muestra/oculta controles de edición
 }
 btnSupervisor.addEventListener("click", async () => {
   if(document.body.classList.contains("supervisor")){
@@ -1075,7 +1126,6 @@ btnSupervisor.addEventListener("click", async () => {
   }
   if(await gateSupervisor()) aplicarModoSup(true);
 });
-aplicarModoSup(localStorage.getItem("sup_ok") === "1");
 
 /* ---- Fase 2: foto por tarea (cámara en vivo) ---- */
 const camOvl = document.getElementById("camOvl");
@@ -1170,6 +1220,117 @@ async function cargarChecklistRemoto(cod){
   }
 }
 
+/* ===== Guía diaria + Semanal (rutina del local, compartida vía config) ===== */
+let RUTINA = { base:[], dias:{} };
+const DIAS_SEM = [["Lunes",1],["Martes",2],["Miércoles",3],["Jueves",4],["Viernes",5],["Sábado",6],["Domingo",0]];
+function fechaISO(dt){ const z = n => String(n).padStart(2,"0"); return dt.getFullYear()+"-"+z(dt.getMonth()+1)+"-"+z(dt.getDate()); }
+function nombreDia(wd){ const f = DIAS_SEM.find(x => x[1] === wd); return f ? f[0] : ""; }
+function normalizaRutina(r){ r = r || {}; return { base: Array.isArray(r.base) ? r.base : [], dias: (r.dias && typeof r.dias === "object") ? r.dias : {} }; }
+
+async function cargarRutina(){
+  try{ const c = localStorage.getItem("rutina.cache"); if(c) RUTINA = normalizaRutina(JSON.parse(c)); }catch(e){}
+  const client = getSB();
+  if(client){
+    try{ await vfSesion(client); const v = await getConfig("rutina"); if(v){ RUTINA = normalizaRutina(JSON.parse(v)); localStorage.setItem("rutina.cache", v); } }catch(e){}
+  }
+  renderGuia(); renderSemanal();
+}
+async function guardarRutina(){
+  const s = JSON.stringify(RUTINA);
+  try{ localStorage.setItem("rutina.cache", s); }catch(e){}
+  try{ await setConfig("rutina", s); }
+  catch(e){ alert("Guardado en este equipo, pero no se pudo sincronizar con Supabase: " + ((e && e.message) || e)); }
+  renderGuia(); renderSemanal();
+}
+
+/* ---- Guía diaria: checkeable, reinicia cada día (estado local por fecha) ---- */
+function checkKeyHoy(){ return "guia.check." + fechaISO(new Date()); }
+function cargarCheckHoy(){ try{ return new Set(JSON.parse(localStorage.getItem(checkKeyHoy()) || "[]")); }catch(e){ return new Set(); } }
+function guardarCheckHoy(set){ try{ localStorage.setItem(checkKeyHoy(), JSON.stringify([...set])); }catch(e){} }
+function renderGuia(){
+  const cont = document.getElementById("guiaLista"); if(!cont) return;
+  const wd = new Date().getDay();
+  document.getElementById("guiaFecha").textContent = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
+  const done = cargarCheckHoy();
+  const base = RUTINA.base || [];
+  const dia = (RUTINA.dias && RUTINA.dias[wd]) || [];
+  const total = base.length + dia.length;
+  const hechas = base.concat(dia).filter(x => done.has(x.id)).length;
+  document.getElementById("guiaCuenta").innerHTML = "<b>" + hechas + "</b> de " + total;
+  document.getElementById("guiaFill").style.width = (total ? Math.round(hechas/total*100) : 0) + "%";
+  function sec(titulo, items){
+    if(!items.length) return "";
+    return '<li class="gsec-li"><span class="gsec">' + esc(titulo) + '</span></li>' + items.map(x => {
+      const ok = done.has(x.id);
+      return '<li class="' + (ok ? "hecha" : "") + '"><label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
+        + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label><span class="gtexto">' + esc(x.t) + '</span></li>';
+    }).join("");
+  }
+  cont.innerHTML = total
+    ? sec("Todos los días", base) + sec(nombreDia(wd) + " (hoy)", dia)
+    : '<li class="vacio">Aún no hay tareas en la guía.<br>El supervisor las agrega en la pestaña «Semanal».</li>';
+}
+document.getElementById("guiaLista").addEventListener("change", e => {
+  if(e.target.type !== "checkbox") return;
+  const done = cargarCheckHoy(), id = e.target.dataset.gid;
+  if(e.target.checked) done.add(id); else done.delete(id);
+  guardarCheckHoy(done); renderGuia();
+});
+
+/* ---- Semanal: editar la rutina (solo supervisor) ---- */
+const semanalCont = document.getElementById("semanalCont");
+function renderSemanal(){
+  const semanalCont = document.getElementById("semanalCont");
+  if(!semanalCont) return;
+  const sup = document.body.classList.contains("supervisor");
+  function grupo(titulo, items, tipo, wd){
+    const list = items.length ? items.map(x =>
+      '<div class="sem-item"><span class="t">' + esc(x.t) + '</span>'
+      + (sup ? '<button class="sem-del" data-tipo="' + tipo + '" data-wd="' + (wd === undefined ? "" : wd) + '" data-id="' + x.id + '" aria-label="Borrar">×</button>' : '')
+      + '</div>').join("") : '<div class="sem-vacio">Sin tareas</div>';
+    const add = sup
+      ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off"><button data-tipo="' + tipo + '" data-wd="' + (wd === undefined ? "" : wd) + '">Agregar</button></div>'
+      : '';
+    return '<div class="sem-grupo"><div class="sem-h">' + esc(titulo) + '</div>' + list + add + '</div>';
+  }
+  let html = sup ? "" : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. Para editar, entra en modo 🔑 Supervisor.</div>';
+  html += grupo("Todos los días", RUTINA.base || [], "base");
+  DIAS_SEM.forEach(([nom, wd]) => { html += grupo(nom, (RUTINA.dias && RUTINA.dias[wd]) || [], "dia", wd); });
+  semanalCont.innerHTML = html;
+}
+function listaDe(tipo, wd){
+  if(tipo === "base"){ if(!RUTINA.base) RUTINA.base = []; return RUTINA.base; }
+  if(!RUTINA.dias) RUTINA.dias = {};
+  if(!RUTINA.dias[wd]) RUTINA.dias[wd] = [];
+  return RUTINA.dias[wd];
+}
+if(semanalCont){
+  semanalCont.addEventListener("click", e => {
+    const del = e.target.closest(".sem-del");
+    if(del){ const arr = listaDe(del.dataset.tipo, del.dataset.wd); const i = arr.findIndex(x => x.id === del.dataset.id); if(i >= 0) arr.splice(i,1); guardarRutina(); return; }
+    const addBtn = e.target.closest(".sem-add button");
+    if(addBtn){
+      const inp = addBtn.parentElement.querySelector("input");
+      const t = inp.value.trim(); if(!t) return;
+      listaDe(addBtn.dataset.tipo, addBtn.dataset.wd).push({ id:nuevoId(), t });
+      guardarRutina();
+    }
+  });
+  semanalCont.addEventListener("keydown", e => {
+    if(e.target.matches(".sem-add input") && e.key === "Enter"){ e.preventDefault(); e.target.parentElement.querySelector("button").click(); }
+  });
+}
+
+/* ---- pestañas ---- */
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest(".tab"); if(!b) return;
+  const name = b.dataset.tab;
+  document.querySelectorAll("#tabs .tab").forEach(t => t.classList.toggle("on", t === b));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("on", p.dataset.tab === name));
+  if(name === "guia") renderGuia();
+  if(name === "semanal") renderSemanal();
+});
+
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
 function arranqueLocal(teniaHash){
   const parsed = desempaquetar(leerURL());
@@ -1192,6 +1353,8 @@ function arranqueLocal(teniaHash){
   cargarUsuarios();  // llena el menú de colaboradores (Supabase o respaldo)
 }
 (function init(){
+  aplicarModoSup(localStorage.getItem("sup_ok") === "1");  // aplica modo supervisor (tras cargar todo)
+  cargarRutina();  // guía diaria + semanal (independiente del turno)
   const hash = location.hash.slice(1);
   if(hash.indexOf("c/") === 0){ cargarChecklistRemoto(hash.slice(2)); return; }  // link corto
   arranqueLocal(hash.length > 0);
