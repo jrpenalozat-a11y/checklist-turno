@@ -159,6 +159,8 @@
   .usr-row.off{opacity:.5}
   .usr-n{font-weight:700;font-size:15px;color:var(--tinta)}
   .usr-r{font-size:11px;color:var(--grafito);margin-top:2px}
+  .usr-rol{margin-top:5px;border:1px solid var(--linea);border-radius:8px;background:var(--papel);
+    font-family:inherit;font-size:12px;color:var(--grafito);padding:5px 7px;max-width:100%}
   .usr-toggle{flex:none;border:1px solid var(--linea);background:var(--panel);border-radius:9px;font-family:inherit;
     font-size:12px;font-weight:600;color:var(--grafito);padding:8px 13px;cursor:pointer}
   .usr-add{display:flex;gap:8px;margin:16px 0 4px;flex-wrap:wrap}
@@ -352,6 +354,7 @@
       <input id="usrNombre" type="text" placeholder="Nombre nuevo" autocomplete="off">
       <select id="usrRol">
         <option value="colaborador">Colaborador</option>
+        <option value="jefe de local">Jefe de local</option>
         <option value="encargado">Encargado</option>
         <option value="dueño">Dueño</option>
       </select>
@@ -904,7 +907,17 @@ if("serviceWorker" in navigator){
 }
 
 /* ---- Fase 1: usuarios / roles + clave de supervisor ---- */
-const USUARIOS_DEFAULT = ["María José", "Maximiliano", "Ricardo", "Vanessa", "María", "Ángel Magallanes"];
+const USUARIOS_DEFAULT = [
+  { nombre:"María José", rol:"dueño" }, { nombre:"Maximiliano", rol:"dueño" },
+  { nombre:"Ricardo", rol:"encargado" }, { nombre:"Ángel Magallanes", rol:"jefe de local" },
+  { nombre:"Vanessa", rol:"colaborador" }, { nombre:"María", rol:"colaborador" }
+];
+const ROLES = [["dueño","👑 Dueño"], ["encargado","⭐ Encargado"], ["jefe de local","🏪 Jefe de local"], ["colaborador","Colaborador"]];
+function rolSelect(rol, id){
+  return '<select class="usr-rol" data-id="' + id + '">'
+    + ROLES.map(([v,l]) => '<option value="' + v + '"' + (v === rol ? " selected" : "") + '>' + l + '</option>').join("")
+    + '</select>';
+}
 let USUARIOS = [];
 const usrOvl = document.getElementById("usrOvl");
 const usrLista = document.getElementById("usrLista");
@@ -925,7 +938,7 @@ async function cargarUsuarios(){
       if(!error && data && data.length){ USUARIOS = data; llenarSelectColab(); return; }
     }catch(e){}
   }
-  USUARIOS = USUARIOS_DEFAULT.map(n => ({ nombre:n, rol:"colaborador", activo:true }));  // respaldo antes de correr el SQL
+  USUARIOS = USUARIOS_DEFAULT.map(u => ({ ...u, activo:true }));  // respaldo antes de correr el SQL
   llenarSelectColab();
 }
 
@@ -975,10 +988,9 @@ async function abrirUsuarios(){
     if(error) throw error;
     USUARIOS = data || []; llenarSelectColab();
     usrLista.innerHTML = USUARIOS.length ? USUARIOS.map(u => {
-      const badge = u.rol === "dueño" ? "👑 Dueño" : u.rol === "encargado" ? "⭐ Encargado" : "Colaborador";
       const act = u.activo !== false;
-      return '<div class="usr-row' + (act ? "" : " off") + '"><div><div class="usr-n">' + esc(u.nombre) + '</div>'
-        + '<div class="usr-r">' + badge + '</div></div>'
+      return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>'
+        + rolSelect(u.rol, u.id) + '</div>'
         + '<button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button></div>';
     }).join("") : '<div class="sinreg">Sin usuarios. Corre el SQL de usuarios.</div>';
   }catch(e){
@@ -991,6 +1003,12 @@ usrLista.addEventListener("click", async e => {
   b.disabled = true;
   try{ await client.from("usuarios").update({ activo: b.dataset.activo !== "true" }).eq("id", b.dataset.id); await abrirUsuarios(); }
   catch(err){ alert("No se pudo: " + ((err && err.message) || err)); b.disabled = false; }
+});
+usrLista.addEventListener("change", async e => {
+  const s = e.target.closest(".usr-rol"); if(!s) return;
+  const client = getSB(); if(!client) return;
+  try{ await client.from("usuarios").update({ rol: s.value }).eq("id", s.dataset.id); await abrirUsuarios(); }
+  catch(err){ alert("No se pudo cambiar el rol: " + ((err && err.message) || err)); }
 });
 document.getElementById("usrAgregar").addEventListener("click", async () => {
   const nombre = document.getElementById("usrNombre").value.trim();
