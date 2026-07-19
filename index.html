@@ -47,6 +47,10 @@
     font-size:12px;font-weight:600;color:var(--pino);padding:10px 8px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;gap:6px}
   .mini:active{background:#EDE8DF}
+  /* elementos que solo ve el supervisor (tras desbloquear con la clave) */
+  body button.solo-sup{display:none}
+  body.supervisor button.solo-sup{display:flex}
+  #btnSupervisor.on{background:var(--pino);color:var(--crema);border-color:var(--pino)}
 
   h1{font-size:23px;font-weight:800;margin:18px 0 0;outline:none;letter-spacing:-.4px;color:var(--pino)}
   h1:focus{border-bottom:2px solid var(--cobre)}
@@ -226,8 +230,9 @@
   </header>
 
   <div class="topbar">
-    <button class="mini" id="btnInstalar">📲 Instalar app</button>
-    <button class="mini" id="btnCompartirApp">📤 Compartir app</button>
+    <button class="mini" id="btnInstalar">📲 Instalar</button>
+    <button class="mini" id="btnCompartirApp">📤 Compartir</button>
+    <button class="mini" id="btnSupervisor">🔑 Supervisor</button>
   </div>
 
   <h1 id="titulo" contenteditable="true">Checklist para turno</h1>
@@ -263,7 +268,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
       PDF
     </button>
-    <button class="accion semanal" id="semanal">
+    <button class="accion semanal solo-sup" id="semanal">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 17v-4"/><path d="M13 17V8"/><path d="M18 17v-7"/></svg>
       Registro semanal
     </button>
@@ -297,7 +302,7 @@
       <button class="accion vftomar" id="vfTomar" hidden>Tomar y registrar</button>
     </div>
     <div id="vfEstado" class="vf-estado"></div>
-    <button class="accion vfsup" id="vfSup">👀 Supervisión — ver traspasos</button>
+    <button class="accion vfsup solo-sup" id="vfSup">👀 Supervisión — ver traspasos</button>
   </section>
 </main>
 
@@ -1053,8 +1058,24 @@ usrOvl.addEventListener("click", e => { if(e.target === usrOvl) usrOvl.classList
 document.getElementById("supUsuarios").addEventListener("click", abrirUsuarios);
 document.getElementById("supLock").addEventListener("click", () => {
   localStorage.removeItem("sup_ok"); supOvl.classList.remove("on");
-  alert("Supervisión bloqueada. Pedirá la clave la próxima vez.");
+  aplicarModoSup(false);
+  alert("Supervisión bloqueada. Los botones de supervisor quedaron ocultos.");
 });
+
+/* modo supervisor: muestra/oculta los botones de supervisor según la clave */
+const btnSupervisor = document.getElementById("btnSupervisor");
+function aplicarModoSup(on){
+  document.body.classList.toggle("supervisor", on);
+  btnSupervisor.classList.toggle("on", on);
+  btnSupervisor.textContent = on ? "🔓 Salir supervisor" : "🔑 Supervisor";
+}
+btnSupervisor.addEventListener("click", async () => {
+  if(document.body.classList.contains("supervisor")){
+    localStorage.removeItem("sup_ok"); aplicarModoSup(false); return;
+  }
+  if(await gateSupervisor()) aplicarModoSup(true);
+});
+aplicarModoSup(localStorage.getItem("sup_ok") === "1");
 
 /* ---- Fase 2: foto por tarea (cámara en vivo) ---- */
 const camOvl = document.getElementById("camOvl");
