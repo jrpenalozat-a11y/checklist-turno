@@ -51,6 +51,71 @@ cobre = guardar/descargar, verde pino = reportes, oro = reversible, ladrillo = d
 - **Respaldo manual:** dentro del panel hay **Exportar** (descarga un `.json`) e **Importar**
   (fusiona un `.json`), por si quieren juntar registros de varios equipos a mano.
 
+## Traspaso verificado (foto en vivo + ubicación) — Supabase
+
+Tarjeta **📸 Traspaso verificado**: registra un traspaso con **foto tomada en vivo con la
+cámara** (no se puede elegir de la galería), **ubicación** del momento y **hora puesta por
+el servidor**. Como esta app es vanilla (sin build), usa `supabase-js` cargado por CDN.
+
+### 1) Configura tus credenciales
+En `index.html`, bloque `CONFIG` (busca `SUPABASE_URL`):
+```js
+const SUPABASE_URL      = "https://TU-PROYECTO.supabase.co";
+const SUPABASE_ANON_KEY = "TU_ANON_KEY";   // pública por diseño; la protege RLS
+```
+Hasta configurarlo, la tarjeta muestra “Falta configurar Supabase” y el resto de la app
+funciona igual.
+
+### 2) Crea la tabla
+```sql
+create table if not exists public.traspasos_turno (
+  id           uuid primary key default gen_random_uuid(),
+  archivo      text not null,
+  colaborador  text,
+  turno        text,
+  lat          float8,
+  lng          float8,
+  precision_m  float8,
+  created_at   timestamptz not null default now()   -- la HORA la pone el servidor
+);
+alter table public.traspasos_turno enable row level security;
+
+create policy "insert autenticado" on public.traspasos_turno
+  for insert to authenticated with check (true);
+create policy "select autenticado" on public.traspasos_turno
+  for select to authenticated using (true);
+```
+
+### 3) Crea el bucket de Storage y sus políticas
+```sql
+insert into storage.buckets (id, name, public)
+values ('traspasos','traspasos', false)
+on conflict (id) do nothing;
+
+create policy "subir traspasos" on storage.objects
+  for insert to authenticated with check (bucket_id = 'traspasos');
+create policy "ver traspasos" on storage.objects
+  for select to authenticated using (bucket_id = 'traspasos');
+```
+
+### 4) Habilita sesión anónima
+La app no tiene login; para cumplir el RLS `authenticated` usa **sesión anónima**.
+En Supabase: **Authentication → Sign In / Providers → Anonymous sign-ins = ON**.
+
+### 5) HTTPS obligatorio
+La cámara (`getUserMedia`) y la ubicación (`geolocation`) **solo funcionan en HTTPS**
+(o `localhost`). La app ya está en HTTPS en Vercel, así que ✅.
+
+### Seguridad (por qué así)
+- **Foto:** solo `navigator.mediaDevices.getUserMedia` (cámara en vivo). Sin
+  `<input type="file">` ni `capture` → no se puede subir de la galería.
+- **Hora:** `created_at timestamptz default now()` en el servidor; nunca la fecha del
+  teléfono.
+- **Ubicación:** `getCurrentPosition({enableHighAccuracy:true, timeout:8000})` en el mismo
+  momento de la captura. Si el usuario la niega o expira, el traspaso **igual se registra**
+  con `lat/lng = null` y muestra “sin ubicación”.
+- **Opcional (comentado):** geocerca de 150 m del local para marcar “fuera del local”.
+
 ## Detalles técnicos
 
 - **HTML + CSS + JS puro en un solo `index.html`.** Sin frameworks, sin build, sin backend.
