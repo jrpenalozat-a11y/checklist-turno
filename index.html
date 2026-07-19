@@ -76,6 +76,10 @@
   .texto{flex:1;min-width:0;font-size:17px;line-height:1.35;padding:14px 0;outline:none;word-break:break-word}
   .texto:focus{border-bottom:1.5px solid var(--lapiz)}
   .hecha .texto{color:var(--grafito);text-decoration:line-through}
+  .tfoto{flex:none;background:none;border:0;font-size:18px;padding:6px 4px;cursor:pointer;line-height:1;
+    filter:grayscale(1);opacity:.45;transition:opacity .15s,filter .15s}
+  .tfoto.has{filter:none;opacity:1}
+  #camVideo{width:100%;border-radius:12px;background:#000;aspect-ratio:3/4;object-fit:cover;margin:6px 0 12px}
   .borrar{flex:none;background:none;border:0;color:#CFC9BC;font-size:22px;padding:8px;cursor:pointer;line-height:1;
     transition:color .15s}
   .borrar:hover,.borrar:active{color:var(--rojo)}
@@ -367,6 +371,18 @@
   </div>
 </div>
 
+<div class="overlay" id="camOvl">
+  <div class="hoja">
+    <h2 id="camTitulo">Foto de la tarea</h2>
+    <div class="rango">Foto tomada en vivo (no se puede elegir de la galería)</div>
+    <video id="camVideo" playsinline muted></video>
+    <div class="fila2">
+      <button class="accion vftomar" id="camCapturar">📸 Capturar</button>
+      <button class="accion cerrar" id="camCancelar">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let d = { titulo:"Checklist para turno", tareas:[], entrega:"", recibe:"" };
 
@@ -415,9 +431,11 @@ function desempaquetar(o){
 }
 function guardarLocal(){
   try{ localStorage.setItem("checklist.v1", JSON.stringify(d)); }catch(e){}
-  // refleja SOLO el checklist en la URL del navegador (el registro no, para no engordarla)
-  try{ history.replaceState(null,"","#"+codificar(empaquetar(false))); }catch(e){}
+  // ya NO reflejamos el estado en la URL: se compartía por botón (link corto o largo)
+  // y reflejarlo perdía fotos/código al recargar.
 }
+function codigoNuevo(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
+function asegurarCodigo(){ if(!d.codigo) d.codigo = codigoNuevo(); return d.codigo; }
 
 /* ---- registro de traspasos (localStorage; se fusiona por el link) ---- */
 const REGKEY = "checklist.reg.v1";
@@ -459,6 +477,7 @@ function pintar(){
           <span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span>
         </label>
         <span class="texto" contenteditable="true" data-i="${i}">${esc(x.t)}</span>
+        <button class="tfoto${x.foto?" has":""}" data-i="${i}" aria-label="Foto de la tarea">📷</button>
         <button class="borrar" data-i="${i}" aria-label="Borrar">×</button>
       </li>`).join("")
     : '<li class="vacio">Escribe la primera tarea abajo</li>';
@@ -489,7 +508,7 @@ lista.addEventListener("keydown", e => {
 function agregar(){
   const c = document.getElementById("nueva");
   const t = c.value.trim(); if(!t) return;
-  d.tareas.push({t, ok:false}); c.value=""; pintar(); guardarLocal(); c.focus();
+  d.tareas.push({t, ok:false, id:nuevoId()}); c.value=""; pintar(); guardarLocal(); c.focus();
 }
 document.getElementById("mas").addEventListener("click", agregar);
 document.getElementById("nueva").addEventListener("keydown", e => { if(e.key==="Enter") agregar(); });
@@ -515,7 +534,7 @@ document.getElementById("vaciar").addEventListener("click", () => {
 });
 
 /* ---- Registrar y enviar: guarda el traspaso y comparte por WhatsApp ---- */
-document.getElementById("wsp").addEventListener("click", () => {
+document.getElementById("wsp").addEventListener("click", async () => {
   const entrega = (d.entrega||"").trim(), recibe = (d.recibe||"").trim();
   if(!entrega && !recibe){
     if(!confirm("No anotaste quién entrega ni quién recibe. ¿Registrar y enviar igual?")){
@@ -530,8 +549,11 @@ document.getElementById("wsp").addEventListener("click", () => {
   reg.push({ id:nuevoId(), ts:Date.now(), entrega, recibe, hechas, total });
   reg.sort((a,b)=>a.ts-b.ts); guardarReg(reg);
 
-  // 2) armar el link corto y a prueba de WhatsApp (checklist + registro reciente)
-  const link = location.origin + location.pathname + "#" + codificar(empaquetar(true));
+  // 2) link CORTO vía Supabase (checklist-turno.vercel.app/#c/AB12); si falla, respaldo largo
+  let link = null;
+  try{ const cod = await guardarRemoto(); if(cod) link = location.origin + location.pathname + "#c/" + cod; }
+  catch(e){ link = null; }
+  if(!link) link = location.origin + location.pathname + "#" + codificar(empaquetar(true));
 
   const f = new Date().toLocaleDateString("es-CL",{day:"numeric",month:"long"});
   const quien = (entrega||recibe) ? "\nEntrega: "+(entrega||"—")+"  →  Recibe: "+(recibe||"—") : "";
@@ -540,7 +562,9 @@ document.getElementById("wsp").addEventListener("click", () => {
       : "Sin tareas";
   const txt = "*"+d.titulo+" — "+f+"*"+quien+"\nAvance: "+hechas+"/"+total+" ("+pct+"%)\n\n"
       +resumen+"\n\nAbrir y seguir marcando:\n"+link;
-  window.open("https://wa.me/?text="+encodeURIComponent(txt), "_blank");
+  const wa = "https://wa.me/?text="+encodeURIComponent(txt);
+  const w = window.open(wa, "_blank");
+  if(!w) location.href = wa;
 });
 
 /* ---- Descargar PDF para archivar ---- */
@@ -1032,9 +1056,101 @@ document.getElementById("supLock").addEventListener("click", () => {
   alert("Supervisión bloqueada. Pedirá la clave la próxima vez.");
 });
 
+/* ---- Fase 2: foto por tarea (cámara en vivo) ---- */
+const camOvl = document.getElementById("camOvl");
+const camVideo = document.getElementById("camVideo");
+let camStream = null, camResolve = null;
+function cerrarCam(){
+  if(camStream){ camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  camVideo.srcObject = null; camOvl.classList.remove("on");
+}
+function resolverCam(blob){ const r = camResolve; camResolve = null; if(r) r(blob); }
+function pedirFoto(titulo){
+  return new Promise(async resolve => {
+    camResolve = resolve;
+    document.getElementById("camTitulo").textContent = titulo || "Foto";
+    camOvl.classList.add("on");
+    try{
+      camStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
+      camVideo.srcObject = camStream; await camVideo.play();
+    }catch(e){ cerrarCam(); alert("No se pudo abrir la cámara. Da permiso y verifica que la app esté en HTTPS."); resolverCam(null); }
+  });
+}
+document.getElementById("camCapturar").addEventListener("click", async () => {
+  if(!camStream) return;
+  const w = camVideo.videoWidth, h = camVideo.videoHeight;
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  cv.getContext("2d").drawImage(camVideo, 0, 0, w, h);
+  const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.7));
+  cerrarCam(); resolverCam(blob);
+});
+document.getElementById("camCancelar").addEventListener("click", () => { cerrarCam(); resolverCam(null); });
+camOvl.addEventListener("click", e => { if(e.target === camOvl){ cerrarCam(); resolverCam(null); } });
+
+async function urlFirmada(path){
+  const client = getSB(); if(!client) return null;
+  try{ await vfSesion(client); const { data } = await client.storage.from(SB_BUCKET).createSignedUrl(path, 3600); return data ? data.signedUrl : null; }
+  catch(e){ return null; }
+}
+async function fotoTarea(idx){
+  const t = d.tareas[idx]; if(!t) return;
+  if(t.foto){
+    if(confirm("Esta tarea ya tiene foto.\nAceptar = ver la foto · Cancelar = tomar otra")){
+      const u = await urlFirmada(t.foto); if(u) window.open(u, "_blank"); else alert("No se pudo abrir la foto."); return;
+    }
+  }
+  const client = getSB();
+  if(!client){ alert("Falta configurar Supabase para las fotos por tarea."); return; }
+  const blob = await pedirFoto("Foto: " + (t.t || "tarea"));
+  if(!blob) return;
+  try{
+    await vfSesion(client);
+    const cod = asegurarCodigo();
+    if(!t.id) t.id = nuevoId();
+    const path = "checks/" + cod + "/" + t.id + ".jpg";
+    const up = await client.storage.from(SB_BUCKET).upload(path, blob, { contentType:"image/jpeg", upsert:true });
+    if(up.error) throw up.error;
+    t.foto = path; pintar(); guardarLocal();
+  }catch(e){ alert("No se pudo subir la foto: " + ((e && e.message) || e)); }
+}
+lista.addEventListener("click", e => {
+  const fb = e.target.closest(".tfoto"); if(!fb) return;
+  fotoTarea(+fb.dataset.i);
+});
+
+/* ---- guardar checklist en Supabase para el link corto ---- */
+async function guardarRemoto(){
+  const client = getSB(); if(!client) return null;
+  await vfSesion(client);
+  const cod = asegurarCodigo();
+  const estado = { titulo:d.titulo, entrega:d.entrega||"", recibe:d.recibe||"", tareas:d.tareas };
+  const { error } = await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() });
+  if(error) throw error;
+  guardarLocal();
+  return cod;
+}
+async function cargarChecklistRemoto(cod){
+  const client = getSB();
+  if(!client){ arranqueLocal(false); return; }
+  try{
+    await vfSesion(client);
+    const { data, error } = await client.from("checklists").select("estado").eq("codigo", cod).maybeSingle();
+    if(error || !data) throw (error || new Error("no existe"));
+    d = Object.assign(d, data.estado, { codigo: cod });
+    tit.textContent = d.titulo;
+    inEntrega.value = d.entrega || ""; inRecibe.value = d.recibe || "";
+    pintar();
+    try{ localStorage.setItem("checklist.v1", JSON.stringify(d)); }catch(e){}
+    try{ history.replaceState(null, "", location.pathname); }catch(e){}  // limpia el hash: recargas usan localStorage
+    cargarUsuarios();
+  }catch(e){
+    alert("No se pudo abrir el checklist del link corto (puede no existir o falta internet).");
+    arranqueLocal(false);
+  }
+}
+
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
-(function init(){
-  const teniaHash = location.hash.length > 1;
+function arranqueLocal(teniaHash){
   const parsed = desempaquetar(leerURL());
   if(parsed){
     if(parsed.reg) fusionarReg(parsed.reg);
@@ -1053,6 +1169,11 @@ document.getElementById("supLock").addEventListener("click", () => {
   pintar();
   guardarLocal();
   cargarUsuarios();  // llena el menú de colaboradores (Supabase o respaldo)
+}
+(function init(){
+  const hash = location.hash.slice(1);
+  if(hash.indexOf("c/") === 0){ cargarChecklistRemoto(hash.slice(2)); return; }  // link corto
+  arranqueLocal(hash.length > 0);
 })();
 </script>
 </body>
