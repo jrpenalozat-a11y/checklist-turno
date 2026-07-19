@@ -1,0 +1,16 @@
+{
+  "name": "Checklist para turno · François",
+  "short_name": "Checklist François",
+  "description": "Traspaso de turno de François: checklist, foto verificada y supervisión.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#F3ECDD",
+  "theme_color": "#22402F",
+  "lang": "es",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

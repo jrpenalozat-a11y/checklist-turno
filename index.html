@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#22402F">
 <title>Checklist para turno · François</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Checklist François">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -37,6 +41,12 @@
   .brand .cup svg{width:30px;height:30px}
   .brand-name{font-size:18px;font-weight:800;letter-spacing:.14em;color:var(--crema);line-height:1}
   .brand-sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#C9D8CC;margin-top:4px}
+
+  .topbar{display:flex;gap:8px;margin-top:12px}
+  .mini{flex:1;border:1px solid var(--linea);background:var(--panel);border-radius:10px;font-family:inherit;
+    font-size:12px;font-weight:600;color:var(--pino);padding:10px 8px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:6px}
+  .mini:active{background:#EDE8DF}
 
   h1{font-size:23px;font-weight:800;margin:18px 0 0;outline:none;letter-spacing:-.4px;color:var(--pino)}
   h1:focus{border-bottom:2px solid var(--cobre)}
@@ -197,6 +207,12 @@
       <div class="brand-sub">La Florida</div>
     </div>
   </header>
+
+  <div class="topbar">
+    <button class="mini" id="btnInstalar">📲 Instalar app</button>
+    <button class="mini" id="btnCompartirApp">📤 Compartir app</button>
+  </div>
+
   <h1 id="titulo" contenteditable="true">Checklist para turno</h1>
   <div class="fecha" id="fecha"></div>
 
@@ -811,6 +827,44 @@ document.getElementById("supRefrescar").addEventListener("click", abrirSupervisi
 document.getElementById("supCerrar").addEventListener("click", () => supOvl.classList.remove("on"));
 supOvl.addEventListener("click", e => { if(e.target === supOvl) supOvl.classList.remove("on"); });
 supFiltros.addEventListener("click", e => { const c = e.target.closest(".chip"); if(!c) return; supFiltro = c.dataset.f; renderSup(); });
+
+/* ---- Instalar app (PWA) + Compartir app ---- */
+const APP_URL = "https://checklist-turno.vercel.app";
+const btnInstalar = document.getElementById("btnInstalar");
+const btnCompartirApp = document.getElementById("btnCompartirApp");
+let deferredPrompt = null;
+const yaInstalada = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+if(yaInstalada) btnInstalar.hidden = true;
+
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; });
+window.addEventListener("appinstalled", () => { btnInstalar.hidden = true; deferredPrompt = null; });
+
+btnInstalar.addEventListener("click", async () => {
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if(outcome === "accepted") btnInstalar.hidden = true;
+  } else {
+    const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    alert(iOS
+      ? "Para instalar en iPhone:\n1) Abre esta página en Safari.\n2) Toca el botón Compartir (cuadro con flecha ↑).\n3) «Agregar a inicio»."
+      : "Para instalar:\nAndroid/Chrome: menú ⋮ arriba a la derecha → «Instalar app» / «Agregar a pantalla principal».\nSi no aparece, recarga la página e inténtalo de nuevo.");
+  }
+});
+
+btnCompartirApp.addEventListener("click", async () => {
+  const datos = { title:"Checklist para turno · François", text:"App de traspaso de turno de François", url:APP_URL };
+  if(navigator.share){ try{ await navigator.share(datos); }catch(e){} }
+  else {
+    try{ await navigator.clipboard.writeText(APP_URL); alert("Link de la app copiado:\n"+APP_URL); }
+    catch(e){ prompt("Copia el link de la app:", APP_URL); }
+  }
+});
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
 
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
 (function init(){
