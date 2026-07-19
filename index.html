@@ -117,6 +117,24 @@
   .vf-estado.ok{color:var(--verde-d);font-weight:600}
   .vf-estado.err{color:var(--rojo);font-weight:600}
   .vf-estado.info{color:var(--grafito)}
+  button.vfsup{background:linear-gradient(135deg,#2C4E3A,#1C3728);color:#F0E7D3;box-shadow:0 6px 15px rgba(34,64,47,.30);width:100%;margin-top:12px}
+
+  /* supervisión (tipo Trello): tarjetas de traspasos */
+  .sup-filtros{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .chip{font-size:12px;font-weight:600;padding:7px 13px;border-radius:99px;border:1px solid var(--linea);
+    background:var(--panel);color:var(--grafito);cursor:pointer}
+  .chip.on{background:var(--pino);color:var(--crema);border-color:var(--pino)}
+  .sup-card{display:flex;gap:12px;background:var(--panel);border:1px solid var(--linea);border-radius:14px;
+    padding:10px;margin-bottom:10px;box-shadow:0 2px 8px rgba(28,26,23,.06)}
+  .sup-card img{width:74px;height:98px;object-fit:cover;border-radius:10px;flex:none;background:#000}
+  .sup-noimg{width:74px;height:98px;border-radius:10px;flex:none;background:#EDE8DF;color:var(--grafito);
+    display:grid;place-items:center;font-size:10px;text-align:center}
+  .sup-card .info{flex:1;min-width:0}
+  .sup-card .nom{font-weight:700;font-size:15px;color:var(--tinta)}
+  .sup-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 9px;
+    border-radius:99px;background:#EDE8DF;color:var(--pino);margin-top:4px}
+  .sup-meta{font-size:12.5px;color:var(--grafito);margin-top:7px;line-height:1.6}
+  .sup-meta a{color:var(--cobre);font-weight:600;text-decoration:none}
 
   /* quién entrega / quién recibe */
   .personas{display:flex;gap:10px;margin-top:14px}
@@ -237,6 +255,7 @@
       <button class="accion vftomar" id="vfTomar" hidden>Tomar y registrar</button>
     </div>
     <div id="vfEstado" class="vf-estado"></div>
+    <button class="accion vfsup" id="vfSup">👀 Supervisión — ver traspasos</button>
   </section>
 </main>
 
@@ -264,6 +283,24 @@
       <button class="accion cerrar" id="regCerrar">Cerrar</button>
     </div>
     <input type="file" id="regFile" accept="application/json,.json" style="display:none">
+  </div>
+</div>
+
+<div class="overlay" id="supOvl">
+  <div class="hoja">
+    <h2>👀 Supervisión de traspasos</h2>
+    <div class="rango">Foto verificada · quién · turno · hora del servidor · ubicación</div>
+    <div class="sup-filtros" id="supFiltros">
+      <span class="chip on" data-f="Todos">Todos</span>
+      <span class="chip" data-f="Apertura">Apertura</span>
+      <span class="chip" data-f="Cambio de turno">Cambio</span>
+      <span class="chip" data-f="Cierre">Cierre</span>
+    </div>
+    <div id="supLista"></div>
+    <div class="fila2">
+      <button class="accion" id="supRefrescar">Refrescar</button>
+      <button class="accion cerrar" id="supCerrar">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -701,6 +738,61 @@ function distanciaM(la1,lo1,la2,lo2){
   return 2*R*Math.asin(Math.sqrt(a));
 }
 */
+
+/* ---- Supervisión (tipo Trello): ver los traspasos verificados guardados ---- */
+const supOvl = document.getElementById("supOvl");
+const supLista = document.getElementById("supLista");
+const supFiltros = document.getElementById("supFiltros");
+let supDatos = [];
+let supFiltro = "Todos";
+
+async function abrirSupervision(){
+  supOvl.classList.add("on");
+  supLista.innerHTML = '<div class="sinreg">Cargando…</div>';
+  const client = getSB();
+  if(!client){ supLista.innerHTML = '<div class="sinreg">Falta configurar Supabase (SUPABASE_URL y SUPABASE_ANON_KEY).</div>'; return; }
+  try{
+    await vfSesion(client);
+    const { data, error } = await client.from(SB_TABLA).select("*").order("created_at", { ascending:false }).limit(60);
+    if(error) throw error;
+    supDatos = data || [];
+    // firma las URLs de las fotos del bucket privado (una sola llamada)
+    const paths = supDatos.map(r => r.archivo).filter(Boolean);
+    if(paths.length){
+      const { data:urls } = await client.storage.from(SB_BUCKET).createSignedUrls(paths, 3600);
+      const mapa = {}; (urls || []).forEach(u => { if(u.path) mapa[u.path] = u.signedUrl; });
+      supDatos.forEach(r => { r._url = mapa[r.archivo]; });
+    }
+    renderSup();
+  }catch(e){
+    supLista.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((e && e.message) || String(e)) + '</div>';
+  }
+}
+function renderSup(){
+  [...supFiltros.querySelectorAll(".chip")].forEach(c => c.classList.toggle("on", c.dataset.f === supFiltro));
+  const lista = supFiltro === "Todos" ? supDatos : supDatos.filter(r => r.turno === supFiltro);
+  if(!lista.length){
+    supLista.innerHTML = '<div class="sinreg">Aún no hay traspasos' + (supFiltro !== "Todos" ? ' de «' + esc(supFiltro) + '»' : '') + '.<br>Se registran desde «📸 Traspaso verificado».</div>';
+    return;
+  }
+  supLista.innerHTML = lista.map(r => {
+    const hora = r.created_at ? new Date(r.created_at).toLocaleString("es-CL",
+      { weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }) : "—";
+    const ubic = (r.lat != null && r.lng != null)
+      ? '<a href="https://www.google.com/maps?q=' + r.lat + ',' + r.lng + '" target="_blank" rel="noopener">📍 '
+        + r.lat.toFixed(5) + ', ' + r.lng.toFixed(5) + '</a>' + (r.precision_m ? ' (±' + Math.round(r.precision_m) + ' m)' : '')
+      : '<span style="color:var(--rojo)">📍 sin ubicación</span>';
+    const img = r._url ? '<img src="' + r._url + '" alt="foto" loading="lazy">' : '<div class="sup-noimg">sin foto</div>';
+    return '<div class="sup-card">' + img + '<div class="info"><div class="nom">' + esc(r.colaborador || "—") + '</div>'
+      + '<span class="sup-badge">' + esc(r.turno || "—") + '</span>'
+      + '<div class="sup-meta">🕒 ' + hora + '<br>' + ubic + '</div></div></div>';
+  }).join("");
+}
+document.getElementById("vfSup").addEventListener("click", abrirSupervision);
+document.getElementById("supRefrescar").addEventListener("click", abrirSupervision);
+document.getElementById("supCerrar").addEventListener("click", () => supOvl.classList.remove("on"));
+supOvl.addEventListener("click", e => { if(e.target === supOvl) supOvl.classList.remove("on"); });
+supFiltros.addEventListener("click", e => { const c = e.target.closest(".chip"); if(!c) return; supFiltro = c.dataset.f; renderSup(); });
 
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
 (function init(){
