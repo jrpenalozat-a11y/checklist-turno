@@ -154,6 +154,17 @@
     font-size:13px;color:var(--pino);margin-bottom:10px;letter-spacing:.02em}
   .sup-col-h .n{background:var(--pino);color:var(--crema);font-size:11px;border-radius:99px;padding:2px 9px}
   .sup-vacia{color:var(--grafito);font-size:12px;text-align:center;padding:14px 0;opacity:.7}
+  /* gestión de usuarios */
+  .usr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--linea)}
+  .usr-row.off{opacity:.5}
+  .usr-n{font-weight:700;font-size:15px;color:var(--tinta)}
+  .usr-r{font-size:11px;color:var(--grafito);margin-top:2px}
+  .usr-toggle{flex:none;border:1px solid var(--linea);background:var(--panel);border-radius:9px;font-family:inherit;
+    font-size:12px;font-weight:600;color:var(--grafito);padding:8px 13px;cursor:pointer}
+  .usr-add{display:flex;gap:8px;margin:16px 0 4px;flex-wrap:wrap}
+  .usr-add input,.usr-add select{flex:1;min-width:96px;border:1px solid var(--linea);border-radius:10px;
+    background:var(--papel);font-family:inherit;font-size:14px;padding:10px 11px;color:var(--tinta)}
+  .usr-add button{flex:none;width:auto;padding-left:16px;padding-right:16px}
 
   /* quién entrega / quién recibe */
   .personas{display:flex;gap:10px;margin-top:14px}
@@ -266,7 +277,7 @@
     <h2>📸 Traspaso verificado</h2>
     <div class="vf-sub">Foto tomada en vivo (no se puede elegir de la galería) + ubicación + hora puesta por el servidor.</div>
     <div class="vf-campos">
-      <input id="vfColab" type="text" placeholder="Colaborador" autocomplete="off">
+      <select id="vfColab" aria-label="Colaborador"><option value="">— elegir colaborador —</option></select>
       <select id="vfTurno" aria-label="Turno">
         <option value="Apertura">Apertura</option>
         <option value="Cambio de turno" selected>Cambio de turno</option>
@@ -315,6 +326,10 @@
   <div class="hoja">
     <h2>👀 Supervisión de traspasos</h2>
     <div class="rango">Foto verificada · quién · turno · hora del servidor · ubicación</div>
+    <div class="fila2" style="margin:0 0 12px">
+      <button class="accion" id="supUsuarios">👥 Usuarios</button>
+      <button class="accion" id="supLock">🔒 Bloquear</button>
+    </div>
     <div class="sup-filtros" id="supFiltros">
       <span class="chip on" data-f="todos">Todos</span>
       <span class="chip" data-f="hoy">Hoy</span>
@@ -324,6 +339,27 @@
     <div class="fila2">
       <button class="accion" id="supRefrescar">Refrescar</button>
       <button class="accion cerrar" id="supCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="usrOvl">
+  <div class="hoja">
+    <h2>👥 Usuarios</h2>
+    <div class="rango">Dueños/encargado ven Supervisión · colaboradores registran</div>
+    <div id="usrLista"></div>
+    <div class="usr-add">
+      <input id="usrNombre" type="text" placeholder="Nombre nuevo" autocomplete="off">
+      <select id="usrRol">
+        <option value="colaborador">Colaborador</option>
+        <option value="encargado">Encargado</option>
+        <option value="dueño">Dueño</option>
+      </select>
+      <button class="accion vftomar" id="usrAgregar">Agregar</button>
+    </div>
+    <div class="fila2">
+      <button class="accion" id="usrClave">Cambiar clave</button>
+      <button class="accion cerrar" id="usrCerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -772,6 +808,7 @@ let supFiltro = "todos";
 const SUP_TURNOS = ["Apertura", "Cambio de turno", "Cierre"];
 
 async function abrirSupervision(){
+  if(!(await gateSupervisor())) return;
   supOvl.classList.add("on");
   supBoard.innerHTML = '<div class="sinreg">Cargando…</div>';
   const client = getSB();
@@ -866,6 +903,117 @@ if("serviceWorker" in navigator){
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
 }
 
+/* ---- Fase 1: usuarios / roles + clave de supervisor ---- */
+const USUARIOS_DEFAULT = ["María José", "Maximiliano", "Ricardo", "Vanessa", "María", "Ángel Magallanes"];
+let USUARIOS = [];
+const usrOvl = document.getElementById("usrOvl");
+const usrLista = document.getElementById("usrLista");
+
+function llenarSelectColab(){
+  const activos = USUARIOS.filter(u => u.activo !== false);
+  const prev = vfColab.value;
+  vfColab.innerHTML = '<option value="">— elegir colaborador —</option>'
+    + activos.map(u => '<option>' + esc(u.nombre) + '</option>').join("");
+  if(prev) vfColab.value = prev;
+}
+async function cargarUsuarios(){
+  const client = getSB();
+  if(client){
+    try{
+      await vfSesion(client);
+      const { data, error } = await client.from("usuarios").select("*").order("rol").order("nombre");
+      if(!error && data && data.length){ USUARIOS = data; llenarSelectColab(); return; }
+    }catch(e){}
+  }
+  USUARIOS = USUARIOS_DEFAULT.map(n => ({ nombre:n, rol:"colaborador", activo:true }));  // respaldo antes de correr el SQL
+  llenarSelectColab();
+}
+
+async function sha256(s){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function getConfig(clave){
+  const client = getSB(); if(!client) return null;
+  const { data } = await client.from("config").select("valor").eq("clave", clave).maybeSingle();
+  return data ? data.valor : null;
+}
+async function setConfig(clave, valor){
+  const client = getSB(); if(!client) throw new Error("Falta configurar Supabase");
+  const { error } = await client.from("config").upsert({ clave, valor, updated_at:new Date().toISOString() });
+  if(error) throw error;
+}
+async function gateSupervisor(){
+  if(localStorage.getItem("sup_ok") === "1") return true;
+  const client = getSB();
+  if(!client) return true;
+  try{ await vfSesion(client); }catch(e){}
+  let hash;
+  try{ hash = await getConfig("sup_pin"); }
+  catch(e){ return true; }  // tabla config aún no existe: sin candado todavía (no bloquea)
+  if(!hash){
+    const nuevo = prompt("Primera vez: crea la CLAVE de supervisor (mín. 4 caracteres).\nLa comparten María José, Maximiliano y Ricardo:");
+    if(!nuevo || nuevo.trim().length < 4) return false;
+    try{ await setConfig("sup_pin", await sha256(nuevo.trim())); }
+    catch(e){ alert("No se pudo guardar la clave: " + ((e && e.message) || e)); return false; }
+    localStorage.setItem("sup_ok", "1"); return true;
+  }
+  const intento = prompt("Clave de supervisor:");
+  if(intento == null) return false;
+  if(await sha256(intento.trim()) === hash){ localStorage.setItem("sup_ok", "1"); return true; }
+  alert("Clave incorrecta."); return false;
+}
+
+async function abrirUsuarios(){
+  usrOvl.classList.add("on");
+  usrLista.innerHTML = '<div class="sinreg">Cargando…</div>';
+  const client = getSB();
+  if(!client){ usrLista.innerHTML = '<div class="sinreg">Falta configurar Supabase.</div>'; return; }
+  try{
+    await vfSesion(client);
+    const { data, error } = await client.from("usuarios").select("*").order("rol").order("nombre");
+    if(error) throw error;
+    USUARIOS = data || []; llenarSelectColab();
+    usrLista.innerHTML = USUARIOS.length ? USUARIOS.map(u => {
+      const badge = u.rol === "dueño" ? "👑 Dueño" : u.rol === "encargado" ? "⭐ Encargado" : "Colaborador";
+      const act = u.activo !== false;
+      return '<div class="usr-row' + (act ? "" : " off") + '"><div><div class="usr-n">' + esc(u.nombre) + '</div>'
+        + '<div class="usr-r">' + badge + '</div></div>'
+        + '<button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button></div>';
+    }).join("") : '<div class="sinreg">Sin usuarios. Corre el SQL de usuarios.</div>';
+  }catch(e){
+    usrLista.innerHTML = '<div class="sinreg">No se pudo cargar (¿corriste el SQL de usuarios?):<br>' + esc((e && e.message) || String(e)) + '</div>';
+  }
+}
+usrLista.addEventListener("click", async e => {
+  const b = e.target.closest(".usr-toggle"); if(!b) return;
+  const client = getSB(); if(!client) return;
+  b.disabled = true;
+  try{ await client.from("usuarios").update({ activo: b.dataset.activo !== "true" }).eq("id", b.dataset.id); await abrirUsuarios(); }
+  catch(err){ alert("No se pudo: " + ((err && err.message) || err)); b.disabled = false; }
+});
+document.getElementById("usrAgregar").addEventListener("click", async () => {
+  const nombre = document.getElementById("usrNombre").value.trim();
+  const rol = document.getElementById("usrRol").value;
+  if(!nombre) return;
+  const client = getSB(); if(!client){ alert("Falta configurar Supabase."); return; }
+  try{ await vfSesion(client); await client.from("usuarios").insert({ nombre, rol }); document.getElementById("usrNombre").value = ""; await abrirUsuarios(); }
+  catch(e){ alert("No se pudo agregar (¿corriste el SQL?): " + ((e && e.message) || e)); }
+});
+document.getElementById("usrClave").addEventListener("click", async () => {
+  const nuevo = prompt("Nueva clave de supervisor (mín. 4 caracteres):");
+  if(!nuevo || nuevo.trim().length < 4) return;
+  try{ await setConfig("sup_pin", await sha256(nuevo.trim())); localStorage.setItem("sup_ok", "1"); alert("Clave actualizada."); }
+  catch(e){ alert("No se pudo: " + ((e && e.message) || e)); }
+});
+document.getElementById("usrCerrar").addEventListener("click", () => usrOvl.classList.remove("on"));
+usrOvl.addEventListener("click", e => { if(e.target === usrOvl) usrOvl.classList.remove("on"); });
+document.getElementById("supUsuarios").addEventListener("click", abrirUsuarios);
+document.getElementById("supLock").addEventListener("click", () => {
+  localStorage.removeItem("sup_ok"); supOvl.classList.remove("on");
+  alert("Supervisión bloqueada. Pedirá la clave la próxima vez.");
+});
+
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
 (function init(){
   const teniaHash = location.hash.length > 1;
@@ -886,6 +1034,7 @@ if("serviceWorker" in navigator){
   inRecibe.value  = d.recibe  || "";
   pintar();
   guardarLocal();
+  cargarUsuarios();  // llena el menú de colaboradores (Supabase o respaldo)
 })();
 </script>
 </body>
