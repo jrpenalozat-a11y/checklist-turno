@@ -820,14 +820,24 @@ vfAbrir.addEventListener("click", async () => {
 
 vfTomar.addEventListener("click", async () => {
   if(!vfStream) return;
-  vfTomar.disabled = true; vfMsg("Capturando foto y ubicación…", "info");
-  // a. fotograma actual -> canvas -> JPEG ~0.7
+  vfTomar.disabled = true;
+  // a. UBICACIÓN OBLIGATORIA primero. Si no hay, no registra y la cámara sigue abierta.
+  vfMsg("📍 Obteniendo ubicación… (permite el acceso)", "info");
+  const pos = await vfUbicacion();
+  if(!pos){
+    const ayuda = /denegado/.test(vfUbicError)
+      ? "Actívala en 🔒 (candado junto a la URL) → Permisos → Ubicación: Permitir, y recarga."
+      : "Enciende la ubicación del teléfono y estáte con algo de señal.";
+    vfMsg("⚠️ Ubicación obligatoria para registrar (" + (vfUbicError || "—") + ").\n" + ayuda + "\nLuego toca de nuevo «Tomar y registrar».", "err");
+    vfTomar.disabled = false;
+    return;  // NO registra; la cámara sigue encendida para reintentar
+  }
+  // b. fotograma actual -> canvas -> JPEG ~0.7
+  vfMsg("Capturando…", "info");
   const w = vfVideo.videoWidth, h = vfVideo.videoHeight;
   vfCanvas.width = w; vfCanvas.height = h;
   vfCanvas.getContext("2d").drawImage(vfVideo, 0, 0, w, h);
   const blob = await new Promise(r => vfCanvas.toBlob(r, "image/jpeg", 0.7));
-  // b. ubicación en el mismo momento (no bloquea el traspaso)
-  const pos = await vfUbicacion();
   // c. apaga la cámara
   vfDetener();
   try{
