@@ -771,13 +771,20 @@ async function vfSesion(client){
   const { error } = await client.auth.signInAnonymously();
   if(error) throw error;
 }
+let vfUbicError = "";
 function vfUbicacion(){
   return new Promise(res => {
-    if(!navigator.geolocation) return res(null);
+    vfUbicError = "";
+    if(!navigator.geolocation){ vfUbicError = "sin GPS en el dispositivo"; return res(null); }
     navigator.geolocation.getCurrentPosition(
       p => res({ lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy }),
-      () => res(null),                                   // negó permiso o error -> sin ubicación
-      { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+      err => {
+        vfUbicError = err && err.code === 1 ? "permiso de ubicación denegado"
+                    : err && err.code === 3 ? "tardó demasiado / sin señal"
+                    : "ubicación no disponible";
+        res(null);                                       // no bloquea el traspaso
+      },
+      { enableHighAccuracy:true, timeout:12000, maximumAge:60000 }  // más tiempo + acepta un fix reciente
     );
   });
 }
@@ -844,7 +851,8 @@ vfTomar.addEventListener("click", async () => {
     // f. confirmación con la hora del servidor y la ubicación
     const hora = new Date(ins.data.created_at).toLocaleString("es-CL",
       { weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit" });
-    const ubic = pos ? (pos.lat.toFixed(5) + ", " + pos.lng.toFixed(5) + " (±" + Math.round(pos.acc) + " m)") : "sin ubicación";
+    const ubic = pos ? (pos.lat.toFixed(5) + ", " + pos.lng.toFixed(5) + " (±" + Math.round(pos.acc) + " m)")
+                     : ("sin ubicación" + (vfUbicError ? " (" + vfUbicError + ")" : ""));
     /* OPCIONAL geocerca:
     let aviso = "";
     if(typeof LOCAL_LAT !== "undefined" && pos && distanciaM(pos.lat,pos.lng,LOCAL_LAT,LOCAL_LNG) > RADIO_M){ aviso = "\n⚠️ Fuera del local"; }
