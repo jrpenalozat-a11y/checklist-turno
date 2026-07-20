@@ -186,6 +186,21 @@
     font-size:13px;color:var(--pino);margin-bottom:10px;letter-spacing:.02em}
   .sup-col-h .n{background:var(--pino);color:var(--crema);font-size:11px;border-radius:99px;padding:2px 9px}
   .sup-vacia{color:var(--grafito);font-size:12px;text-align:center;padding:14px 0;opacity:.7}
+  .sup-sub{display:flex;gap:8px;margin-bottom:14px}
+  .ssub{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:9px 6px;border-radius:99px;
+    border:1px solid var(--linea);background:var(--panel);color:var(--grafito);cursor:pointer}
+  .ssub.on{background:var(--coral);color:var(--crema);border-color:var(--coral)}
+  .ck-card{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:12px;margin-bottom:12px;
+    box-shadow:0 2px 8px rgba(28,26,23,.06)}
+  .ck-h{font-size:12px;color:var(--grafito);margin-bottom:8px;line-height:1.4}
+  .ck-h b{color:var(--tinta);font-size:14px}
+  .ck-t{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--linea)}
+  .ck-chk{flex:none;width:18px;height:18px;border-radius:5px;border:1.5px solid #C4BFB4}
+  .ck-chk.on{background:var(--coral);border-color:var(--coral)}
+  .ck-txt{flex:1;min-width:0;font-size:14px;word-break:break-word}
+  .ck-thumb{flex:none;width:44px;height:44px;object-fit:cover;border-radius:8px;background:#EADCC8;
+    border:1px solid var(--linea);cursor:pointer}
+  .ck-nofoto{flex:none;font-size:11px;color:var(--grafito);opacity:.6}
   /* gestión de usuarios */
   .usr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--linea)}
   .usr-row.off{opacity:.5}
@@ -377,12 +392,21 @@
       <button class="accion" id="supUsuarios">👥 Usuarios</button>
       <button class="accion" id="supLock">🔒 Bloquear</button>
     </div>
-    <div class="sup-filtros" id="supFiltros">
-      <span class="chip on" data-f="todos">Todos</span>
-      <span class="chip" data-f="hoy">Hoy</span>
-      <span class="chip" data-f="semana">7 días</span>
+    <div class="sup-sub" id="supSub">
+      <span class="ssub on" data-sub="traspasos">📸 Traspasos</span>
+      <span class="ssub" data-sub="checklists">📋 Fotos por tarea</span>
     </div>
-    <div class="sup-board" id="supBoard"></div>
+    <div id="supPanelTraspasos">
+      <div class="sup-filtros" id="supFiltros">
+        <span class="chip on" data-f="todos">Todos</span>
+        <span class="chip" data-f="hoy">Hoy</span>
+        <span class="chip" data-f="semana">7 días</span>
+      </div>
+      <div class="sup-board" id="supBoard"></div>
+    </div>
+    <div id="supPanelChecklists" style="display:none">
+      <div id="supChecklists"></div>
+    </div>
     <div class="fila2">
       <button class="accion" id="supRefrescar">Refrescar</button>
       <button class="accion cerrar" id="supCerrar">Cerrar</button>
@@ -946,10 +970,70 @@ function renderSup(){
   }).join("");
 }
 document.getElementById("vfSup").addEventListener("click", abrirSupervision);
-document.getElementById("supRefrescar").addEventListener("click", abrirSupervision);
+document.getElementById("supRefrescar").addEventListener("click", () => {
+  if(document.getElementById("supPanelChecklists").style.display !== "none") cargarChecklists();
+  else abrirSupervision();
+});
 document.getElementById("supCerrar").addEventListener("click", () => supOvl.classList.remove("on"));
 supOvl.addEventListener("click", e => { if(e.target === supOvl) supOvl.classList.remove("on"); });
 supFiltros.addEventListener("click", e => { const c = e.target.closest(".chip"); if(!c) return; supFiltro = c.dataset.f; renderSup(); });
+
+/* ---- Supervisión · sub-pestaña «Fotos por tarea» (checklists guardados) ---- */
+const fotoCache = {};  // path -> URL firmada
+async function firmarFotos(paths){
+  const faltan = [...new Set(paths.filter(p => p && !fotoCache[p]))];
+  if(!faltan.length) return;
+  const client = getSB(); if(!client) return;
+  try{
+    await vfSesion(client);
+    const { data } = await client.storage.from(SB_BUCKET).createSignedUrls(faltan, 3600);
+    (data || []).forEach(u => { if(u.path && u.signedUrl) fotoCache[u.path] = u.signedUrl; });
+  }catch(e){}
+}
+async function cargarChecklists(){
+  const cont = document.getElementById("supChecklists");
+  cont.innerHTML = '<div class="sinreg">Cargando…</div>';
+  const client = getSB();
+  if(!client){ cont.innerHTML = '<div class="sinreg">Falta configurar Supabase.</div>'; return; }
+  try{
+    await vfSesion(client);
+    const { data, error } = await client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false }).limit(40);
+    if(error) throw error;
+    const conFoto = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas) && r.estado.tareas.some(t => t.foto));
+    if(!conFoto.length){
+      cont.innerHTML = '<div class="sinreg">Aún no hay tareas con foto.<br>Aparecen aquí cuando alguien adjunta una foto (📷) a una tarea del checklist y luego «Registrar y enviar».</div>';
+      return;
+    }
+    const paths = []; conFoto.forEach(r => r.estado.tareas.forEach(t => { if(t.foto) paths.push(t.foto); }));
+    await firmarFotos(paths);
+    cont.innerHTML = conFoto.map(r => {
+      const e = r.estado;
+      const quien = (e.entrega || "—") + " → " + (e.recibe || "—");
+      const fecha = new Date(r.updated_at).toLocaleString("es-CL", { weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
+      const tareas = e.tareas.map(t => {
+        const thumb = t.foto
+          ? '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || "") + '" alt="foto" loading="lazy">'
+          : '<span class="ck-nofoto">sin foto</span>';
+        return '<div class="ck-t"><span class="ck-chk' + (t.ok ? " on" : "") + '"></span><span class="ck-txt">' + esc(t.t || "") + '</span>' + thumb + '</div>';
+      }).join("");
+      return '<div class="ck-card"><div class="ck-h"><b>' + esc(e.titulo || "Checklist") + '</b><br>' + esc(quien) + ' · ' + fecha + '</div>' + tareas + '</div>';
+    }).join("");
+  }catch(err){
+    cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((err && err.message) || String(err)) + '</div>';
+  }
+}
+document.getElementById("supChecklists").addEventListener("click", e => {
+  const im = e.target.closest(".ck-thumb"); if(!im || !im.dataset.url) return;
+  window.open(im.dataset.url, "_blank");
+});
+document.getElementById("supSub").addEventListener("click", e => {
+  const b = e.target.closest(".ssub"); if(!b) return;
+  const sub = b.dataset.sub;
+  document.querySelectorAll("#supSub .ssub").forEach(x => x.classList.toggle("on", x === b));
+  document.getElementById("supPanelTraspasos").style.display = sub === "traspasos" ? "" : "none";
+  document.getElementById("supPanelChecklists").style.display = sub === "checklists" ? "" : "none";
+  if(sub === "checklists") cargarChecklists();
+});
 
 /* ---- Instalar app (PWA) + Compartir app ---- */
 const APP_URL = "https://checklist-turno.vercel.app";
@@ -1186,6 +1270,7 @@ async function fotoTarea(idx){
     const up = await client.storage.from(SB_BUCKET).upload(path, blob, { contentType:"image/jpeg", upsert:true });
     if(up.error) throw up.error;
     t.foto = path; pintar(); guardarLocal();
+    guardarRemoto().catch(()=>{});   // sincroniza el checklist para que el supervisor vea la foto
   }catch(e){ alert("No se pudo subir la foto: " + ((e && e.message) || e)); }
 }
 lista.addEventListener("click", e => {
