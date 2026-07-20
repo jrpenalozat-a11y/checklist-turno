@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#22402F">
+<meta name="theme-color" content="#EA5650">
 <title>Checklist para turno · François</title>
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
@@ -12,35 +12,33 @@
 <meta name="apple-mobile-web-app-title" content="Checklist François">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
-    /* identidad François: verde bosque + crema + cobre */
-    --papel:#F3ECDD; --panel:#FFFDF8; --tinta:#26231C; --grafito:#5A564C;
-    --linea:#E6DCC9; --lapiz:#22402F;
-    --pino:#22402F; --pino-2:#2C4E3A; --crema:#F0E7D3;
-    --cobre:#A6551F; --cobre-2:#C06A28;
-    /* colores de acción */
-    --verde:#2E8B57; --verde-d:#1F7A49;
-    --ambar:#B7791F; --rojo:#B0432E; --rojo-suave:#F6E3DC;
-    --hecho:#1F7A49;
+    /* identidad François (carta): coral + crema, tipografía Avenir */
+    --papel:#FCEEDA; --panel:#FFF7EC; --tinta:#3B2E2A; --grafito:#7A5C50;
+    --linea:#EBD8C1; --lapiz:#EA5650;
+    --coral:#EA5650; --coral-d:#D8463F; --crema:#FEECD6;
+    /* variables reutilizadas por estilos previos, remapeadas a coral */
+    --pino:#EA5650; --pino-2:#D8463F;
+    --cobre:#D8463F; --cobre-2:#EA5650;
+    --verde:#EA5650; --verde-d:#D8463F;
+    --ambar:#B7791F; --rojo:#B0392E; --rojo-suave:#F6E1DC;
+    --hecho:#EA5650;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--papel);color:var(--tinta);min-height:100vh;
-    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-family:"Avenir Next","Avenir","Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     padding:20px 16px 40px;display:flex;justify-content:center}
   .app{width:100%;max-width:460px}
 
-  /* encabezado institucional */
-  .brand{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#2C4E3A,#1C3728);
-    border-radius:16px;padding:14px 16px;box-shadow:0 6px 18px rgba(34,64,47,.22)}
-  .brand .cup{flex:none;width:44px;height:44px;border-radius:12px;background:#1C3728;
-    display:grid;place-items:center}
-  .brand .cup svg{width:30px;height:30px}
-  .brand-name{font-size:18px;font-weight:800;letter-spacing:.14em;color:var(--crema);line-height:1}
-  .brand-sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#C9D8CC;margin-top:4px}
+  /* encabezado institucional (carta François) */
+  .brand{background:var(--coral);border-radius:18px;padding:22px 16px 16px;text-align:center;
+    box-shadow:0 8px 22px rgba(234,86,80,.28)}
+  .brand-logo{height:50px;width:auto;max-width:82%;display:block;margin:0 auto}
+  .brand-sub{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--crema);margin-top:9px;opacity:.92}
 
   .topbar{display:flex;gap:8px;margin-top:12px}
   .mini{flex:1;border:1px solid var(--linea);background:var(--panel);border-radius:10px;font-family:inherit;
@@ -89,7 +87,7 @@
   .cuenta{font-size:12px;color:var(--grafito);letter-spacing:.08em;flex:none;white-space:nowrap}
   .cuenta b{color:var(--tinta);font-size:15px}
   .barra{flex:1;height:8px;background:var(--linea);border-radius:99px;overflow:hidden}
-  .barra i{display:block;height:100%;background:linear-gradient(90deg,#3AA06A,#1F7A49);width:0;border-radius:99px;transition:width .35s ease}
+  .barra i{display:block;height:100%;background:var(--coral);width:0;border-radius:99px;transition:width .35s ease}
 
   ul{list-style:none;margin:16px 0 0;padding:0}
   li{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--linea)}
@@ -136,15 +134,15 @@
   button.accion:active{transform:translateY(1px);filter:brightness(.95);box-shadow:0 2px 6px rgba(28,26,23,.12)}
   button.accion svg{width:18px;height:18px;flex:none}
   /* botones con color pleno (degradado + sombra a tono). Selector button.x para ganar especificidad */
-  button.wsp{background:linear-gradient(135deg,#3AA06A,#1F7A49);color:#fff;box-shadow:0 7px 18px rgba(31,122,73,.34);
+  button.wsp{background:var(--coral);color:var(--crema);box-shadow:0 6px 16px rgba(234,86,80,.30);
     font-size:14.5px;padding:17px 8px;letter-spacing:.03em}
-  button.pdf{background:linear-gradient(135deg,#C06A28,#9A4E1B);color:#fff;box-shadow:0 6px 15px rgba(166,85,31,.32)}
-  button.semanal{background:linear-gradient(135deg,#35604A,#22402F);color:#F0E7D3;box-shadow:0 6px 15px rgba(34,64,47,.34)}
-  button.reset{background:linear-gradient(135deg,#D9A441,#B27E22);color:#fff;box-shadow:0 6px 15px rgba(178,126,34,.30)}
-  button.vaciar{background:linear-gradient(135deg,#C0563B,#9E3F28);color:#fff;box-shadow:0 6px 15px rgba(158,63,40,.30)}
-  button.cerrar{background:#EAE1CF;color:var(--grafito);box-shadow:none}
-  button.vfabrir{background:linear-gradient(135deg,#35604A,#22402F);color:#F0E7D3;box-shadow:0 6px 15px rgba(34,64,47,.30)}
-  button.vftomar{background:linear-gradient(135deg,#C06A28,#9A4E1B);color:#fff;box-shadow:0 6px 15px rgba(166,85,31,.32)}
+  button.pdf{background:var(--panel);color:var(--coral-d);border:1.5px solid #F1CDC6;box-shadow:none}
+  button.semanal{background:var(--panel);color:var(--coral-d);border:1.5px solid #F1CDC6;box-shadow:none}
+  button.reset{background:var(--panel);color:var(--coral-d);border:1.5px solid #F1CDC6;box-shadow:none}
+  button.vaciar{background:var(--rojo);color:#fff;box-shadow:0 6px 15px rgba(176,57,46,.28)}
+  button.cerrar{background:#F0E0CC;color:var(--tinta);box-shadow:none}
+  button.vfabrir{background:var(--coral);color:var(--crema);box-shadow:0 6px 15px rgba(234,86,80,.28)}
+  button.vftomar{background:var(--coral-d);color:var(--crema);box-shadow:0 6px 15px rgba(216,70,63,.30)}
 
   /* traspaso verificado (foto + ubicación) */
   .verificado{margin-top:22px;background:var(--panel);border:1px solid var(--linea);border-radius:16px;
@@ -161,7 +159,7 @@
   .vf-estado.ok{color:var(--verde-d);font-weight:600}
   .vf-estado.err{color:var(--rojo);font-weight:600}
   .vf-estado.info{color:var(--grafito)}
-  button.vfsup{background:linear-gradient(135deg,#2C4E3A,#1C3728);color:#F0E7D3;box-shadow:0 6px 15px rgba(34,64,47,.30);width:100%;margin-top:12px}
+  button.vfsup{background:var(--coral);color:var(--crema);box-shadow:0 6px 15px rgba(234,86,80,.28);width:100%;margin-top:12px}
 
   /* supervisión (tipo Trello): tarjetas de traspasos */
   .sup-filtros{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
@@ -239,20 +237,8 @@
 <body>
 <main class="app">
   <header class="brand">
-    <div class="cup">
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M9 3c-.6.6-.6 1.2 0 1.8s.6 1.2 0 1.8" stroke="#C06A28" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M12.6 3c-.6.6-.6 1.2 0 1.8s.6 1.2 0 1.8" stroke="#C06A28" stroke-width="1.5" stroke-linecap="round"/>
-        <ellipse cx="12" cy="19.3" rx="7.6" ry="1.7" fill="#A6551F"/>
-        <path d="M6.6 9h8.8v5a3 3 0 0 1-3 3H9.6a3 3 0 0 1-3-3V9Z" fill="#F0E7D3"/>
-        <path d="M15.4 10.4h1.3a2 2 0 0 1 0 4h-1.3" stroke="#C06A28" stroke-width="1.6" fill="none"/>
-        <ellipse cx="11" cy="9" rx="4.4" ry="1" fill="#F8F2E4"/>
-      </svg>
-    </div>
-    <div>
-      <div class="brand-name">FRANÇOIS</div>
-      <div class="brand-sub">La Florida</div>
-    </div>
+    <img class="brand-logo" src="logo-francois.png" alt="françois · pastelería clásica">
+    <div class="brand-sub">La Florida</div>
   </header>
 
   <div class="topbar">

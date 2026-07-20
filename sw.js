@@ -1,8 +1,8 @@
 /* Service worker mínimo para François Checklist.
    HTML: network-first (siempre lo más nuevo con conexión).
    Íconos/otros locales: cache-first. No cachea CDNs ni Supabase. */
-const CACHE = "cf-v1";
-const CORE = ["./manifest.json", "./icon-192.png", "./icon-512.png"];
+const CACHE = "cf-v2";
+const CORE = ["./manifest.json", "./icon-192.png", "./icon-512.png", "./logo-francois.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
