@@ -107,6 +107,7 @@
   .tfoto{flex:none;background:none;border:0;font-size:18px;padding:6px 4px;cursor:pointer;line-height:1;
     filter:grayscale(1);opacity:.45;transition:opacity .15s,filter .15s}
   .tfoto.has{filter:none;opacity:1}
+  .tthumb{flex:none;width:38px;height:38px;object-fit:cover;border-radius:8px;background:#EADCC8;border:1px solid var(--linea);cursor:pointer}
   #camVideo{width:100%;border-radius:12px;background:#000;aspect-ratio:3/4;object-fit:cover;margin:6px 0 12px}
   .borrar{flex:none;background:none;border:0;color:#CFC9BC;font-size:22px;padding:8px;cursor:pointer;line-height:1;
     transition:color .15s}
@@ -1333,37 +1334,93 @@ async function guardarRutina(){
 }
 
 /* ---- Guía diaria: checkeable, reinicia cada día (estado local por fecha) ---- */
-function checkKeyHoy(){ return "guia.check." + fechaISO(new Date()); }
-function cargarCheckHoy(){ try{ return new Set(JSON.parse(localStorage.getItem(checkKeyHoy()) || "[]")); }catch(e){ return new Set(); } }
-function guardarCheckHoy(set){ try{ localStorage.setItem(checkKeyHoy(), JSON.stringify([...set])); }catch(e){} }
+/* helpers de fotos compartidos (guía y semanal) */
+function deviceId(){ let v = localStorage.getItem("dev.id"); if(!v){ v = Math.random().toString(36).slice(2,8); localStorage.setItem("dev.id", v); } return v; }
+async function subirFoto(path, blob){
+  const client = getSB(); if(!client) throw new Error("Falta configurar Supabase");
+  await vfSesion(client);
+  const up = await client.storage.from(SB_BUCKET).upload(path, blob, { contentType:"image/jpeg", upsert:true });
+  if(up.error) throw up.error;
+  delete fotoCache[path];
+  return path;
+}
+async function firmarThumbs(sel){
+  const imgs = [...document.querySelectorAll(sel + " img[data-foto]")];
+  await firmarFotos(imgs.map(im => im.dataset.foto));
+  imgs.forEach(im => { const u = fotoCache[im.dataset.foto]; if(u) im.src = u; });
+}
+
+/* Guía diaria: check + FOTO DEL DÍA (prueba), estado local por fecha */
+function claveDia(){ return "guia.dia." + fechaISO(new Date()); }
+function cargarDia(){
+  try{ const o = JSON.parse(localStorage.getItem(claveDia()) || "{}");
+    if(Array.isArray(o)) return { done:new Set(o), fotos:{} };
+    return { done:new Set(o.done || []), fotos:o.fotos || {} };
+  }catch(e){ return { done:new Set(), fotos:{} }; }
+}
+function guardarDia(st){ try{ localStorage.setItem(claveDia(), JSON.stringify({ done:[...st.done], fotos:st.fotos })); }catch(e){} }
+async function syncGuiaRemoto(){
+  const client = getSB(); if(!client) return;
+  const wd = new Date().getDay();
+  const st = cargarDia();
+  const items = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
+  const tareas = items.map(x => ({ id:x.id, t:x.t, ok:st.done.has(x.id), foto:st.fotos[x.id] || undefined }));
+  const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
+  const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:"", recibe:"", tareas };
+  try{ await vfSesion(client); await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() }); }catch(e){}
+}
 function renderGuia(){
   const cont = document.getElementById("guiaLista"); if(!cont) return;
   const wd = new Date().getDay();
   document.getElementById("guiaFecha").textContent = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
-  const done = cargarCheckHoy();
+  const st = cargarDia();
   const base = RUTINA.base || [];
   const dia = (RUTINA.dias && RUTINA.dias[wd]) || [];
   const total = base.length + dia.length;
-  const hechas = base.concat(dia).filter(x => done.has(x.id)).length;
+  const hechas = base.concat(dia).filter(x => st.done.has(x.id)).length;
   document.getElementById("guiaCuenta").innerHTML = "<b>" + hechas + "</b> de " + total;
   document.getElementById("guiaFill").style.width = (total ? Math.round(hechas/total*100) : 0) + "%";
+  function foto(x){
+    const p = st.fotos[x.id];
+    return p ? '<img class="tthumb" data-gid="' + x.id + '" data-foto="' + esc(p) + '" src="" alt="foto">'
+             : '<button class="tfoto" data-gid="' + x.id + '" aria-label="Foto del día">📷</button>';
+  }
   function sec(titulo, items){
     if(!items.length) return "";
     return '<li class="gsec-li"><span class="gsec">' + esc(titulo) + '</span></li>' + items.map(x => {
-      const ok = done.has(x.id);
+      const ok = st.done.has(x.id);
       return '<li class="' + (ok ? "hecha" : "") + '"><label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
-        + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label><span class="gtexto">' + esc(x.t) + '</span></li>';
+        + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
+        + '<span class="gtexto">' + esc(x.t) + '</span>' + foto(x) + '</li>';
     }).join("");
   }
   cont.innerHTML = total
     ? sec("Todos los días", base) + sec(nombreDia(wd) + " (hoy)", dia)
     : '<li class="vacio">Aún no hay tareas en la guía.<br>El supervisor las agrega en la pestaña «Semanal».</li>';
+  firmarThumbs("#guiaLista");
 }
 document.getElementById("guiaLista").addEventListener("change", e => {
   if(e.target.type !== "checkbox") return;
-  const done = cargarCheckHoy(), id = e.target.dataset.gid;
-  if(e.target.checked) done.add(id); else done.delete(id);
-  guardarCheckHoy(done); renderGuia();
+  const st = cargarDia(), id = e.target.dataset.gid;
+  if(e.target.checked) st.done.add(id); else st.done.delete(id);
+  guardarDia(st); renderGuia(); syncGuiaRemoto();
+});
+document.getElementById("guiaLista").addEventListener("click", async e => {
+  const fb = e.target.closest(".tfoto, .tthumb"); if(!fb) return;
+  const id = fb.dataset.gid; const st = cargarDia();
+  if(st.fotos[id]){
+    if(confirm("Esta tarea ya tiene foto de hoy.\nAceptar = ver · Cancelar = tomar otra")){
+      const u = await urlFirmada(st.fotos[id]); if(u) window.open(u, "_blank"); else alert("No se pudo abrir la foto."); return;
+    }
+  }
+  const client = getSB(); if(!client){ alert("Falta configurar Supabase para las fotos."); return; }
+  const blob = await pedirFoto("Foto de hoy"); if(!blob) return;
+  try{
+    const path = "guia/" + fechaISO(new Date()) + "/" + id + ".jpg";
+    await subirFoto(path, blob);
+    const st2 = cargarDia(); st2.fotos[id] = path; guardarDia(st2);
+    renderGuia(); syncGuiaRemoto();
+  }catch(err){ alert("No se pudo subir la foto: " + ((err && err.message) || err)); }
 });
 
 /* ---- Semanal: editar la rutina (solo supervisor) ---- */
@@ -1373,12 +1430,16 @@ function renderSemanal(){
   if(!semanalCont) return;
   const sup = document.body.classList.contains("supervisor");
   function grupo(titulo, items, tipo, wd){
-    const list = items.length ? items.map(x =>
-      '<div class="sem-item"><span class="t">' + esc(x.t) + '</span>'
-      + (sup ? '<button class="sem-del" data-tipo="' + tipo + '" data-wd="' + (wd === undefined ? "" : wd) + '" data-id="' + x.id + '" aria-label="Borrar">×</button>' : '')
-      + '</div>').join("") : '<div class="sem-vacio">Sin tareas</div>';
+    const w = (wd === undefined ? "" : wd);
+    const list = items.length ? items.map(x => {
+      const dref = 'data-tipo="' + tipo + '" data-wd="' + w + '" data-id="' + x.id + '"';
+      const thumb = x.foto ? '<img class="tthumb" ' + dref + ' data-foto="' + esc(x.foto) + '" src="" alt="ref">' : "";
+      const cam = sup ? '<button class="tfoto" ' + dref + ' aria-label="Foto de referencia">📷</button>' : "";
+      const del = sup ? '<button class="sem-del" ' + dref + ' aria-label="Borrar">×</button>' : "";
+      return '<div class="sem-item"><span class="t">' + esc(x.t) + '</span>' + thumb + cam + del + '</div>';
+    }).join("") : '<div class="sem-vacio">Sin tareas</div>';
     const add = sup
-      ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off"><button data-tipo="' + tipo + '" data-wd="' + (wd === undefined ? "" : wd) + '">Agregar</button></div>'
+      ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off"><button data-tipo="' + tipo + '" data-wd="' + w + '">Agregar</button></div>'
       : '';
     return '<div class="sem-grupo"><div class="sem-h">' + esc(titulo) + '</div>' + list + add + '</div>';
   }
@@ -1386,6 +1447,7 @@ function renderSemanal(){
   html += grupo("Todos los días", RUTINA.base || [], "base");
   DIAS_SEM.forEach(([nom, wd]) => { html += grupo(nom, (RUTINA.dias && RUTINA.dias[wd]) || [], "dia", wd); });
   semanalCont.innerHTML = html;
+  firmarThumbs("#semanalCont");
 }
 function listaDe(tipo, wd){
   if(tipo === "base"){ if(!RUTINA.base) RUTINA.base = []; return RUTINA.base; }
@@ -1394,7 +1456,26 @@ function listaDe(tipo, wd){
   return RUTINA.dias[wd];
 }
 if(semanalCont){
-  semanalCont.addEventListener("click", e => {
+  semanalCont.addEventListener("click", async e => {
+    // foto de referencia (ver / capturar-reemplazar)
+    const cam = e.target.closest(".tfoto, .tthumb");
+    if(cam){
+      const arr = listaDe(cam.dataset.tipo, cam.dataset.wd);
+      const x = arr.find(t => t.id === cam.dataset.id); if(!x) return;
+      const sup = document.body.classList.contains("supervisor");
+      if(x.foto && cam.classList.contains("tthumb")){
+        if(!sup){ const u = await urlFirmada(x.foto); if(u) window.open(u, "_blank"); return; }
+        if(confirm("Foto de referencia.\nAceptar = ver · Cancelar = reemplazar")){
+          const u = await urlFirmada(x.foto); if(u) window.open(u, "_blank"); return;
+        }
+      }
+      if(!sup) return;
+      const client = getSB(); if(!client){ alert("Falta configurar Supabase."); return; }
+      const blob = await pedirFoto("Foto de referencia: " + (x.t || "tarea")); if(!blob) return;
+      try{ x.foto = "rutina/" + x.id + ".jpg"; await subirFoto(x.foto, blob); await guardarRutina(); }
+      catch(err){ alert("No se pudo subir: " + ((err && err.message) || err)); }
+      return;
+    }
     const del = e.target.closest(".sem-del");
     if(del){ const arr = listaDe(del.dataset.tipo, del.dataset.wd); const i = arr.findIndex(x => x.id === del.dataset.id); if(i >= 0) arr.splice(i,1); guardarRutina(); return; }
     const addBtn = e.target.closest(".sem-add button");
