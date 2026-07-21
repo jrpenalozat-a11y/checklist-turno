@@ -221,8 +221,8 @@
   .personas{display:flex;gap:10px;margin-top:14px}
   .campo{flex:1;background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:8px 11px;min-width:0}
   .campo span{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--grafito)}
-  .campo input{width:100%;border:0;background:none;font-family:inherit;font-size:15px;padding:2px 0 0;color:var(--tinta)}
-  .campo input:focus{outline:none}
+  .campo input,.campo select{width:100%;border:0;background:none;font-family:inherit;font-size:15px;padding:2px 0 0;color:var(--tinta)}
+  .campo input:focus,.campo select:focus{outline:none}
   .campo input::placeholder{color:#7C766B}
 
   /* panel del registro semanal */
@@ -299,9 +299,9 @@
 
   <div class="personas">
     <label class="campo"><span>Entrega</span>
-      <input type="text" id="entrega" placeholder="Quién envía" autocomplete="off"></label>
+      <select id="entrega"><option value="">— quién envía —</option></select></label>
     <label class="campo"><span>Recibe</span>
-      <input type="text" id="recibe" placeholder="Quién recibe" autocomplete="off"></label>
+      <select id="recibe"><option value="">— quién recibe —</option></select></label>
   </div>
 
   <div class="progreso">
@@ -703,8 +703,8 @@ tit.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); 
 
 const inEntrega = document.getElementById("entrega");
 const inRecibe  = document.getElementById("recibe");
-inEntrega.addEventListener("input", () => { d.entrega = inEntrega.value; guardarLocal(); });
-inRecibe .addEventListener("input", () => { d.recibe  = inRecibe.value;  guardarLocal(); });
+inEntrega.addEventListener("change", () => { d.entrega = inEntrega.value; guardarLocal(); });
+inRecibe .addEventListener("change", () => { d.recibe  = inRecibe.value;  guardarLocal(); });
 
 document.getElementById("reset").addEventListener("click", () => {
   d.tareas.forEach(x => x.ok=false); pintar(); guardarLocal();
@@ -1220,6 +1220,13 @@ let USUARIOS = [];
 const usrOvl = document.getElementById("usrOvl");
 const usrLista = document.getElementById("usrLista");
 
+function llenarPersona(sel, placeholder, actual){
+  const nombres = USUARIOS.filter(u => u.activo !== false).map(u => u.nombre);
+  if(actual && nombres.indexOf(actual) < 0) nombres.push(actual);  // nombre de un link/estado antiguo
+  sel.innerHTML = '<option value="">' + placeholder + '</option>'
+    + nombres.map(n => '<option>' + esc(n) + '</option>').join("");
+  sel.value = actual || "";
+}
 function llenarSelectColab(){
   const activos = USUARIOS.filter(u => u.activo !== false);
   const prev = vfColab.value;
@@ -1227,6 +1234,9 @@ function llenarSelectColab(){
     + activos.map(u => '<option>' + esc(u.nombre) + '</option>').join("");
   if(prev) vfColab.value = prev;
   if(!vfColab.value && quienActual()) vfColab.value = quienActual();          // preselecciona la identidad
+  // Entrega / Recibe también se eligen del roster
+  llenarPersona(inEntrega, "— quién envía —", (d.entrega || "").trim());
+  llenarPersona(inRecibe,  "— quién recibe —", (d.recibe  || "").trim());
   if(quienOvl.classList.contains("on")) renderQuien();                        // refresca la pantalla de inicio
 }
 async function cargarUsuarios(){
