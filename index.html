@@ -258,6 +258,8 @@
     display:flex;justify-content:space-between;align-items:center;gap:8px}
   .quien-btn:active{background:#F6E9D4;border-color:var(--coral)}
   .quien-btn small{font-weight:600;color:var(--grafito);font-size:11px}
+  .quien-btn.sel{background:var(--coral);border-color:var(--coral);color:var(--crema)}
+  .quien-btn.sel small{color:var(--crema)}
   .quien-skip{margin-top:14px;font-size:12px;color:var(--grafito);background:none;border:0;text-decoration:underline;cursor:pointer;font-family:inherit}
   /* guías integradas (ayuda / manual) */
   .guia-doc{font-size:13.5px;line-height:1.55;color:var(--tinta)}
@@ -483,10 +485,18 @@
 <div class="overlay centro" id="quienOvl">
   <div class="hoja quien-hoja">
     <img class="quien-logo" src="logo-francois.png" alt="françois">
-    <h2>¿Quién está entrando?</h2>
-    <div class="rango" style="margin-bottom:0">Elige tu nombre: tu trabajo queda registrado a tu nombre</div>
-    <div class="quien-grid" id="quienLista"><div class="sinreg">Cargando…</div></div>
-    <button class="quien-skip" id="quienSkip">Entrar sin identificarme</button>
+    <div id="quienPaso1">
+      <h2>¿Quién está entrando?</h2>
+      <div class="rango" style="margin-bottom:0">Elige tu nombre: tu trabajo queda registrado a tu nombre</div>
+      <div class="quien-grid" id="quienLista"><div class="sinreg">Cargando…</div></div>
+      <button class="quien-skip" id="quienSkip">Entrar sin identificarme</button>
+    </div>
+    <div id="quienPaso2" hidden>
+      <h2 id="puestoTitulo">¿En qué puesto estarás hoy?</h2>
+      <div class="rango" style="margin-bottom:0">Puedes marcar más de uno</div>
+      <div class="quien-grid" id="puestoLista"></div>
+      <button class="accion vfabrir" id="puestoListo" style="margin-top:14px;width:100%">Continuar</button>
+    </div>
   </div>
 </div>
 
@@ -496,7 +506,7 @@
     <div class="rango">Cómo usar la app en el día a día</div>
     <div class="guia-doc">
       <h3>👤 Al entrar</h3>
-      <p>Elige <b>tu nombre</b> en la pantalla de inicio. Así tus registros quedan a tu nombre. Puedes cambiarlo con el botón 👤 de arriba.</p>
+      <p>Elige <b>tu nombre</b> y luego <b>tu(s) puesto(s) de hoy</b> (Cocina, Caja, Barismo/Vitrina, Terminados — puedes marcar varios). Se pregunta cada día y queda en tus registros. Puedes cambiarlo con el botón 👤 de arriba.</p>
       <h3>📋 Pestaña Turno</h3>
       <ul>
         <li><b>Escribe tareas</b> abajo (＋ o Enter) y márcalas al hacerlas.</li>
@@ -1018,7 +1028,12 @@ vfTomar.addEventListener("click", async () => {
       lng: pos ? pos.lng : null,
       precision_m: pos ? pos.acc : null
     };
-    const ins = await client.from(SB_TABLA).insert(fila).select("created_at,lat,lng,precision_m").single();
+    const ps = puestosHoy(); if(ps) fila.puesto = ps.join(", ");
+    let ins = await client.from(SB_TABLA).insert(fila).select("created_at,lat,lng,precision_m").single();
+    if(ins.error && fila.puesto && /puesto/i.test(ins.error.message || "")){
+      delete fila.puesto;  // la columna puesto aún no existe en la base: registra sin ella
+      ins = await client.from(SB_TABLA).insert(fila).select("created_at,lat,lng,precision_m").single();
+    }
     if(ins.error) throw ins.error;
     // f. confirmación con la hora del servidor y la ubicación
     const hora = new Date(ins.data.created_at).toLocaleString("es-CL",
@@ -1087,7 +1102,8 @@ function supCard(r){
     : '<span style="color:var(--rojo)">📍 sin ubicación</span>';
   const img = r._url ? '<img src="' + r._url + '" alt="foto" loading="lazy">' : '<div class="sup-noimg">sin foto</div>';
   const u = USUARIOS.find(x => x.nombre === r.colaborador);
-  const puesto = (u && u.puesto) ? '<span class="sup-badge">' + esc(u.puesto) + '</span>' : "";
+  const pu = r.puesto || (u && u.puesto) || "";  // el del turno registrado; si no, el habitual
+  const puesto = pu ? '<span class="sup-badge">' + esc(pu) + '</span>' : "";
   return '<div class="sup-card">' + img + '<div class="info"><div class="nom">' + esc(r.colaborador || "—") + '</div>' + puesto
     + '<div class="sup-meta">🕒 ' + hora + '<br>' + ubic + '</div></div></div>';
 }
@@ -1396,13 +1412,26 @@ btnSupervisor.addEventListener("click", async () => {
   if(await gateSupervisor()) aplicarModoSup(true);
 });
 
-/* ---- ¿Quién está entrando? (identidad del dispositivo) ---- */
+/* ---- ¿Quién está entrando? + ¿en qué puesto(s) hoy? (identidad del dispositivo) ---- */
 const quienOvl = document.getElementById("quienOvl");
 const btnQuien = document.getElementById("btnQuien");
+const quienPaso1 = document.getElementById("quienPaso1");
+const quienPaso2 = document.getElementById("quienPaso2");
 function quienActual(){ try{ return localStorage.getItem("quien.actual") || ""; }catch(e){ return ""; } }
+function puestosHoy(){
+  try{
+    const o = JSON.parse(localStorage.getItem("quien.puestos") || "null");
+    if(o && o.fecha === fechaISO(new Date()) && Array.isArray(o.p) && o.p.length) return o.p;
+  }catch(e){}
+  return null;  // hoy aún no elige puesto
+}
+function setPuestosHoy(arr){
+  try{ localStorage.setItem("quien.puestos", JSON.stringify({ fecha: fechaISO(new Date()), p: arr })); }catch(e){}
+  actualizarQuienUI();
+}
 function actualizarQuienUI(){
-  const n = quienActual();
-  btnQuien.textContent = n ? "👤 " + n : "👤 ¿Quién eres?";
+  const n = quienActual(), ps = puestosHoy();
+  btnQuien.textContent = n ? "👤 " + n + (ps ? " · " + ps.join(", ") : "") : "👤 ¿Quién eres?";
 }
 function renderQuien(){
   const cont = document.getElementById("quienLista");
@@ -1414,7 +1443,19 @@ function renderQuien(){
     + rolTxt(u.rol) + (u.puesto ? " · " + esc(u.puesto) : "") + '</small></button>'
   ).join("");
 }
-function abrirQuien(){ renderQuien(); quienOvl.classList.add("on"); }
+function renderPuestos(){
+  const n = quienActual();
+  document.getElementById("puestoTitulo").textContent = n ? (n + ", ¿en qué puesto estarás hoy?") : "¿En qué puesto estarás hoy?";
+  let pre = puestosHoy() || [];
+  if(!pre.length){ const u = USUARIOS.find(x => x.nombre === n); if(u && u.puesto) pre = [u.puesto]; }  // sugiere su puesto habitual
+  document.getElementById("puestoLista").innerHTML = PUESTOS.map(p =>
+    '<button class="quien-btn' + (pre.indexOf(p) >= 0 ? " sel" : "") + '" data-p="' + p + '"><span>' + p + '</span></button>').join("");
+}
+function abrirQuien(paso2){
+  if(paso2){ quienPaso1.hidden = true; quienPaso2.hidden = false; renderPuestos(); }
+  else { quienPaso1.hidden = false; quienPaso2.hidden = true; renderQuien(); }
+  quienOvl.classList.add("on");
+}
 document.getElementById("quienLista").addEventListener("click", e => {
   const b = e.target.closest(".quien-btn"); if(!b) return;
   const n = b.dataset.n;
@@ -1423,10 +1464,20 @@ document.getElementById("quienLista").addEventListener("click", e => {
   // rellena lo que corresponda con la identidad
   if(!(d.entrega || "").trim()){ d.entrega = n; inEntrega.value = n; guardarLocal(); }
   if(!vfColab.value) vfColab.value = n;
+  abrirQuien(true);  // paso 2: ¿en qué puesto(s) hoy?
+});
+document.getElementById("puestoLista").addEventListener("click", e => {
+  const b = e.target.closest(".quien-btn"); if(!b) return;
+  b.classList.toggle("sel");  // multi-selección
+});
+document.getElementById("puestoListo").addEventListener("click", () => {
+  const sel = [...document.querySelectorAll("#puestoLista .quien-btn.sel")].map(b => b.dataset.p);
+  if(!sel.length){ alert("Elige al menos un puesto (puedes marcar varios)."); return; }
+  setPuestosHoy(sel);
   quienOvl.classList.remove("on");
 });
 document.getElementById("quienSkip").addEventListener("click", () => quienOvl.classList.remove("on"));
-btnQuien.addEventListener("click", abrirQuien);
+btnQuien.addEventListener("click", () => abrirQuien(false));
 
 /* ---- guías integradas: Ayuda (todos) + Manual (solo supervisor) ---- */
 const ayudaOvl = document.getElementById("ayudaOvl");
@@ -1591,7 +1642,9 @@ async function syncGuiaRemoto(){
   const items = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
   const tareas = items.map(x => ({ id:x.id, t:x.t, ok:st.done.has(x.id), foto:st.fotos[x.id] || undefined }));
   const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
-  const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:quienActual(), recibe:"", tareas };
+  const ps = puestosHoy();
+  const quien = quienActual() + (ps ? " (" + ps.join(", ") + ")" : "");
+  const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:quien, recibe:"", tareas };
   try{ await vfSesion(client); await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() }); }catch(e){}
 }
 function renderGuia(){
@@ -1763,7 +1816,8 @@ function limpiarDiasViejos(){
 (async function init(){
   aplicarModoSup(localStorage.getItem("sup_ok") === "1");  // aplica modo supervisor (tras cargar todo)
   actualizarQuienUI();
-  if(!quienActual()) setTimeout(abrirQuien, 350);          // pantalla de inicio: ¿quién está entrando?
+  if(!quienActual()) setTimeout(() => abrirQuien(false), 350);       // 1º: ¿quién está entrando?
+  else if(!puestosHoy()) setTimeout(() => abrirQuien(true), 350);    // nuevo día: ¿en qué puesto(s) hoy?
   limpiarDiasViejos();
   cargarRutina();  // pinta al tiro con el cache local; se refresca cuando SB esté listo
   const hash = location.hash.slice(1);
