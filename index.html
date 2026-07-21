@@ -458,7 +458,7 @@
       <input id="usrNombre" type="text" placeholder="Nombre nuevo" autocomplete="off">
       <select id="usrRol">
         <option value="colaborador">Colaborador</option>
-        <option value="jefe de local">Jefe de local</option>
+        <option value="encargado de local">Encargado de local</option>
         <option value="encargado">Encargado</option>
         <option value="dueño">Dueño</option>
       </select>
@@ -557,7 +557,8 @@
     <div class="guia-doc">
       <h3>🔑 Modo supervisor</h3>
       <ul>
-        <li>Se entra con el botón <b>🔑 Supervisor</b> y la <b>clave compartida</b> (María José, Maximiliano, Ricardo y a quien se la den).</li>
+        <li>Son <b>supervisores</b>: los dueños (María José, Maximiliano), el encargado (Ricardo) y el encargado de local (Ángel).</li>
+        <li>Se entra con el botón <b>🔑 Supervisor</b> y la <b>clave compartida</b> entre ellos (y a quien decidan darle).</li>
         <li>Al desbloquear aparecen: Registro semanal, Supervisión y este manual. <b>🔓 Salir supervisor</b> los vuelve a ocultar.</li>
         <li>La clave se cambia en <b>Supervisión → 👥 Usuarios → Cambiar clave</b>.</li>
       </ul>
@@ -568,7 +569,7 @@
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
       <h3>👥 Usuarios</h3>
-      <p>Agregar personas, cambiar su <b>rol</b> (dueño, encargado, jefe de local, colaborador) y su <b>puesto</b> (Cocina, Caja, Barismo/Vitrina, Terminados), y <b>activar/desactivar</b>. Los activos aparecen en todos los menús de la app con su puesto.</p>
+      <p>Agregar personas, cambiar su <b>rol</b> (dueño, encargado, encargado de local, colaborador) y su <b>puesto</b> (Cocina, Caja, Barismo/Vitrina, Terminados), y <b>activar/desactivar</b>. Los roles dueño, encargado y encargado de local tienen nivel <b>supervisor</b>. Los activos aparecen en todos los menús de la app con su puesto.</p>
       <h3>🗓️ Definir la rutina (Semanal)</h3>
       <ul>
         <li>En modo supervisor, la pestaña Semanal permite <b>agregar/borrar tareas</b>: «Todos los días» + cada día de la semana. Al agregar, elige el <b>puesto</b> (Todos / Cocina / Caja / Barismo-Vitrina / Terminados): así cada colaborador ve las suyas en la Guía diaria.</li>
@@ -1242,14 +1243,18 @@ if("serviceWorker" in navigator){
 /* ---- Fase 1: usuarios / roles + clave de supervisor ---- */
 const USUARIOS_DEFAULT = [
   { nombre:"María José", rol:"dueño" }, { nombre:"Maximiliano", rol:"dueño" },
-  { nombre:"Ricardo", rol:"encargado" }, { nombre:"Ángel Magallanes", rol:"jefe de local" },
+  { nombre:"Ricardo", rol:"encargado" }, { nombre:"Ángel Magallanes", rol:"encargado de local" },
   { nombre:"Vanessa", rol:"colaborador" }, { nombre:"María", rol:"colaborador" }
 ];
-const ROLES = [["dueño","👑 Dueño"], ["encargado","⭐ Encargado"], ["jefe de local","🏪 Jefe de local"], ["colaborador","Colaborador"]];
+const ROLES = [["dueño","👑 Dueño"], ["encargado","⭐ Encargado"], ["encargado de local","🏪 Encargado de local"], ["colaborador","Colaborador"]];
+const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // roles con nivel supervisor
 const PUESTOS = ["Cocina", "Caja", "Barismo/Vitrina", "Terminados"];
+function rolNorm(r){ return r === "jefe de local" ? "encargado de local" : (r || "colaborador"); }  // compat rol viejo
+function rolLabel(r){ const f = ROLES.find(x => x[0] === rolNorm(r)); return f ? f[1] : "Colaborador"; }
 function rolSelect(rol, id){
+  const rn = rolNorm(rol);
   return '<select class="usr-rol" data-id="' + id + '">'
-    + ROLES.map(([v,l]) => '<option value="' + v + '"' + (v === rol ? " selected" : "") + '>' + l + '</option>').join("")
+    + ROLES.map(([v,l]) => '<option value="' + v + '"' + (v === rn ? " selected" : "") + '>' + l + '</option>').join("")
     + '</select>';
 }
 function puestoSelect(p, id){
@@ -1324,7 +1329,7 @@ async function gateSupervisor(){
   }
   const hash = data ? data.valor : null;
   if(!hash){
-    const nuevo = prompt("Primera vez: crea la CLAVE de supervisor (mín. 4 caracteres).\nLa comparten María José, Maximiliano y Ricardo:");
+    const nuevo = prompt("Primera vez: crea la CLAVE de supervisor (mín. 4 caracteres).\nLa comparten dueños, encargado y encargado de local:");
     if(!nuevo || nuevo.trim().length < 4) return false;
     const { error:e2 } = await client.from("config").upsert({ clave:"sup_pin", valor: await sha256(nuevo.trim()), updated_at:new Date().toISOString() });
     if(e2){ alert("No se pudo guardar la clave: " + e2.message); return false; }
@@ -1447,10 +1452,9 @@ function renderQuien(){
   const cont = document.getElementById("quienLista");
   const activos = USUARIOS.filter(u => u.activo !== false);
   if(!activos.length){ cont.innerHTML = '<div class="sinreg">Cargando…</div>'; return; }
-  const rolTxt = r => r === "dueño" ? "👑 Dueño" : r === "encargado" ? "⭐ Encargado" : r === "jefe de local" ? "🏪 Jefe de local" : "Colaborador";
   cont.innerHTML = activos.map(u =>
     '<button class="quien-btn" data-n="' + esc(u.nombre) + '"><span>' + esc(u.nombre) + '</span><small>'
-    + rolTxt(u.rol) + (u.puesto ? " · " + esc(u.puesto) : "") + '</small></button>'
+    + rolLabel(u.rol) + (u.puesto ? " · " + esc(u.puesto) : "") + '</small></button>'
   ).join("");
 }
 function renderPuestos(){
