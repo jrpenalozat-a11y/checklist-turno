@@ -306,6 +306,7 @@
   <section class="tab-panel on" data-tab="turno">
   <h1 id="titulo" contenteditable="true">Checklist para turno</h1>
   <div class="fecha" id="fecha"></div>
+  <div class="vf-sub" style="margin-top:8px">Pendientes que dejas al <b>próximo turno</b> (ej. recibir pedido, hablar con proveedor, comprar producto). Cualquiera puede agregar, marcar o borrar.</div>
 
   <div class="personas">
     <label class="campo"><span>Entrega</span>
@@ -323,7 +324,7 @@
 
   <div class="nueva">
     <button class="mas" id="mas" aria-label="Agregar">+</button>
-    <input type="text" id="nueva" placeholder="Agregar tarea…" autocomplete="off" enterkeyhint="done">
+    <input type="text" id="nueva" placeholder="Dejar pendiente al próximo turno…" autocomplete="off" enterkeyhint="done">
   </div>
 
   <div class="acciones">
@@ -522,6 +523,7 @@
       <p>Elige <b>tu nombre</b> y luego <b>tu(s) puesto(s) de hoy</b> (Cocina, Caja, Barismo/Vitrina, Terminados — puedes marcar varios). Se pregunta cada día y queda en tus registros. Puedes cambiarlo con el botón 👤 de arriba.</p>
       <h3>📋 Pestaña Turno</h3>
       <ul>
+        <li>Es para <b>dejar pendientes al próximo turno</b> (ej. recibir pedido, hablar con proveedor, comprar producto). <b>Cualquiera</b> puede agregar, marcar o borrar.</li>
         <li><b>Escribe tareas</b> abajo (＋ o Enter) y márcalas al hacerlas.</li>
         <li><b>📷 junto a cada tarea</b>: adjunta una foto en vivo como respaldo (ej. «aseo de vitrinas»). Tócala de nuevo para verla o repetirla.</li>
         <li><b>Entrega / Recibe</b>: quién sale y quién entra del turno.</li>
@@ -562,8 +564,9 @@
     <div class="guia-doc">
       <h3>🔑 Modo supervisor</h3>
       <ul>
-        <li>Son <b>supervisores</b>: los dueños (María José, Maximiliano), el encargado (Ricardo) y el encargado de local (Ángel).</li>
-        <li>Se entra con el botón <b>🔑 Supervisor</b> y la <b>clave compartida</b> entre ellos (y a quien decidan darle).</li>
+        <li>Se entra con el botón <b>🔑 Supervisor</b> y la <b>clave compartida</b>. Da acceso a ver Supervisión y el Registro semanal.</li>
+        <li><b>Solo los dueños y el encargado</b> (María José, Maximiliano, Ricardo) pueden <b>editar la rutina</b> (Guía diaria / Semanal) y <b>gestionar usuarios</b>. Deben estar identificados con su nombre y en modo supervisor.</li>
+        <li>Ángel (encargado de local) trabaja con un <b>puesto</b> como el resto y ve la rutina, pero no la edita.</li>
         <li>Al desbloquear aparecen: Registro semanal, Supervisión y este manual. <b>🔓 Salir supervisor</b> los vuelve a ocultar.</li>
         <li>La clave se cambia en <b>Supervisión → 👥 Usuarios → Cambiar clave</b>.</li>
       </ul>
@@ -1255,6 +1258,15 @@ const ROLES = [["dueño","👑 Dueño"], ["encargado","⭐ Encargado"], ["encarg
 const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // roles con nivel supervisor
 const PUESTO_SUP_ROLES = ["dueño", "encargado"];  // entran con puesto «Supervisor» (no operativo)
 const PUESTOS = ["Cocina", "Caja", "Barismo/Vitrina", "Terminados"];
+/* ADMIN = solo dueños + encargado (María José, Maximiliano, Ricardo): editan rutina y usuarios.
+   Requiere clave (modo supervisor) Y estar identificado con ese rol. Ángel NO es admin. */
+function esAdmin(){
+  if(!document.body.classList.contains("supervisor")) return false;
+  const n = (function(){ try{ return localStorage.getItem("quien.actual") || ""; }catch(e){ return ""; } })();
+  if(!n) return false;
+  const u = USUARIOS.find(x => x.nombre === n);
+  return u ? PUESTO_SUP_ROLES.indexOf(rolNorm(u.rol)) >= 0 : false;
+}
 function rolNorm(r){ return r === "jefe de local" ? "encargado de local" : (r || "colaborador"); }  // compat rol viejo
 function rolLabel(r){ const f = ROLES.find(x => x[0] === rolNorm(r)); return f ? f[1] : "Colaborador"; }
 function rolSelect(rol, id){
@@ -1357,13 +1369,21 @@ async function abrirUsuarios(){
     const { data, error } = await client.from("usuarios").select("*").order("rol").order("nombre");
     if(error) throw error;
     USUARIOS = data || []; llenarSelectColab();
-    usrLista.innerHTML = USUARIOS.length ? USUARIOS.map(u => {
+    const admin = esAdmin();
+    const addBox = usrOvl.querySelector(".usr-add"); if(addBox) addBox.style.display = admin ? "flex" : "none";
+    const claveBtn = document.getElementById("usrClave"); if(claveBtn) claveBtn.style.display = admin ? "" : "none";
+    const aviso = admin ? "" : '<div class="sem-vacio" style="margin-bottom:8px">👀 Solo lectura. A los usuarios los gestionan los dueños y el encargado (María José, Maximiliano, Ricardo).</div>';
+    usrLista.innerHTML = USUARIOS.length ? (aviso + USUARIOS.map(u => {
       const act = u.activo !== false;
-      return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>'
-        + rolSelect(u.rol, u.id) + ' ' + puestoSelect(u.puesto || "", u.id) + '</div>'
-        + '<div class="usr-acc"><button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>'
-        + '<button class="usr-del" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" aria-label="Eliminar" title="Eliminar">🗑</button></div></div>';
-    }).join("") : '<div class="sinreg">Sin usuarios. Corre el SQL de usuarios.</div>';
+      const info = admin
+        ? rolSelect(u.rol, u.id) + ' ' + puestoSelect(u.puesto || "", u.id)
+        : '<div class="usr-r">' + esc(rolLabel(u.rol)) + (u.puesto ? " · " + esc(u.puesto) : "") + '</div>';
+      const acc = admin
+        ? '<div class="usr-acc"><button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>'
+          + '<button class="usr-del" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" aria-label="Eliminar" title="Eliminar">🗑</button></div>'
+        : "";
+      return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>' + info + '</div>' + acc + '</div>';
+    }).join("")) : '<div class="sinreg">Sin usuarios. Corre el SQL de usuarios.</div>';
   }catch(e){
     usrLista.innerHTML = '<div class="sinreg">No se pudo cargar (¿corriste el SQL de usuarios?):<br>' + esc((e && e.message) || String(e)) + '</div>';
   }
@@ -1407,6 +1427,7 @@ usrLista.addEventListener("change", async e => {
   }
 });
 document.getElementById("usrAgregar").addEventListener("click", async () => {
+  if(!esAdmin()){ alert("Solo los dueños y el encargado pueden agregar usuarios."); return; }
   const nombre = document.getElementById("usrNombre").value.trim();
   const rol = document.getElementById("usrRol").value;
   if(!nombre) return;
@@ -1421,6 +1442,7 @@ document.getElementById("usrAgregar").addEventListener("click", async () => {
   catch(e){ alert("No se pudo agregar (¿corriste el SQL?): " + ((e && e.message) || e)); }
 });
 document.getElementById("usrClave").addEventListener("click", async () => {
+  if(!esAdmin()){ alert("Solo los dueños y el encargado pueden cambiar la clave."); return; }
   const nuevo = prompt("Nueva clave de supervisor (mín. 4 caracteres):");
   if(!nuevo || nuevo.trim().length < 4) return;
   try{ await setConfig("sup_pin", await sha256(nuevo.trim())); localStorage.setItem("sup_ok", "1"); alert("Clave actualizada."); }
@@ -1511,6 +1533,8 @@ document.getElementById("quienLista").addEventListener("click", e => {
   // rellena lo que corresponda con la identidad
   if(!(d.entrega || "").trim()){ d.entrega = n; inEntrega.value = n; guardarLocal(); }
   if(!vfColab.value) vfColab.value = n;
+  if(typeof renderSemanal === "function") renderSemanal();  // re-evalúa esAdmin con la nueva identidad
+  if(typeof renderGuia === "function") renderGuia();
   abrirQuien(true);  // paso 2: ¿en qué puesto(s) hoy?
 });
 document.getElementById("puestoLista").addEventListener("click", e => {
@@ -1739,7 +1763,7 @@ function renderGuia(){
 }
 function renderGuiaAdd(){
   const c = document.getElementById("guiaAdd"); if(!c) return;
-  if(!document.body.classList.contains("supervisor")){ c.innerHTML = ""; return; }
+  if(!esAdmin()){ c.innerHTML = ""; return; }
   c.innerHTML = '<div class="sem-h" style="margin-top:18px">➕ Agregar tarea fija (todos los días)</div>'
     + '<div class="sem-add"><input type="text" id="guiaNueva" placeholder="Nueva tarea de la rutina…" autocomplete="off">'
     + '<select class="sem-psel" id="guiaNuevaPuesto"><option value="">Todos</option>' + PUESTOS.map(p => '<option>' + p + '</option>').join("") + '</select>'
@@ -1789,7 +1813,7 @@ const semanalCont = document.getElementById("semanalCont");
 function renderSemanal(){
   const semanalCont = document.getElementById("semanalCont");
   if(!semanalCont) return;
-  const sup = document.body.classList.contains("supervisor");
+  const sup = esAdmin();
   function grupo(titulo, items, tipo, wd){
     const w = (wd === undefined ? "" : wd);
     const list = items.length ? items.map(x => {
@@ -1807,7 +1831,7 @@ function renderSemanal(){
       : '';
     return '<div class="sem-grupo"><div class="sem-h">' + esc(titulo) + '</div>' + list + add + '</div>';
   }
-  let html = sup ? "" : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. Para editar, entra en modo 🔑 Supervisor.</div>';
+  let html = sup ? "" : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños y el encargado (María José, Maximiliano, Ricardo).</div>';
   html += grupo("Todos los días", RUTINA.base || [], "base");
   DIAS_SEM.forEach(([nom, wd]) => { html += grupo(nom, (RUTINA.dias && RUTINA.dias[wd]) || [], "dia", wd); });
   semanalCont.innerHTML = html;
@@ -1826,7 +1850,7 @@ if(semanalCont){
     if(cam){
       const arr = listaDe(cam.dataset.tipo, cam.dataset.wd);
       const x = arr.find(t => t.id === cam.dataset.id); if(!x) return;
-      const sup = document.body.classList.contains("supervisor");
+      const sup = esAdmin();
       if(x.foto && cam.classList.contains("tthumb")){
         if(!sup){ const u = await urlFirmada(x.foto); if(u) window.open(u, "_blank"); return; }
         if(confirm("Foto de referencia.\nAceptar = ver · Cancelar = reemplazar")){
