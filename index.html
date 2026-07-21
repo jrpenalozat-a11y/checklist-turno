@@ -50,6 +50,9 @@
   body button.solo-sup{display:none}
   body.supervisor button.solo-sup{display:flex}
   #btnSupervisor.on{background:var(--pino);color:var(--crema);border-color:var(--pino)}
+  .topbar.solo-sup-row{display:none}
+  body.supervisor .topbar.solo-sup-row{display:flex}
+  #btnSupervision{background:var(--coral);color:var(--crema);border-color:var(--coral);font-weight:700}
 
   /* pestañas principales */
   .tabs{display:flex;gap:6px;margin-top:14px;background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:4px}
@@ -294,7 +297,10 @@
   <div class="topbar">
     <button class="mini" id="btnQuien">👤 ¿Quién eres?</button>
     <button class="mini" id="btnAyuda">📖 Ayuda</button>
-    <button class="mini solo-sup" id="btnManual">📕 Manual</button>
+  </div>
+  <div class="topbar solo-sup-row">
+    <button class="mini" id="btnSupervision">👀 Supervisión</button>
+    <button class="mini" id="btnManual">📕 Manual</button>
   </div>
 
   <div class="tabs" id="tabs">
@@ -1144,6 +1150,7 @@ function renderSup(){
   }).join("");
 }
 document.getElementById("vfSup").addEventListener("click", abrirSupervision);
+document.getElementById("btnSupervision").addEventListener("click", abrirSupervision);
 document.getElementById("supRefrescar").addEventListener("click", () => {
   if(document.getElementById("supPanelChecklists").style.display !== "none") cargarChecklists();
   else abrirSupervision();
