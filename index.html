@@ -76,6 +76,10 @@
   .sem-add button{flex:none;border:0;border-radius:9px;background:var(--verde-d);color:#fff;font-family:inherit;
     font-weight:700;font-size:13px;padding:9px 15px;cursor:pointer}
   .sem-vacio{color:var(--grafito);font-size:12.5px;padding:6px 0;opacity:.75}
+  .sem-badge{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:99px;
+    background:#F6E3D0;color:var(--coral-d);vertical-align:middle;margin-left:6px;white-space:nowrap}
+  .sem-add select.sem-psel{flex:none;max-width:118px;border:1px solid var(--linea);border-radius:9px;
+    background:var(--papel);font-family:inherit;font-size:12px;padding:9px 5px;color:var(--grafito)}
 
   h1{font-size:23px;font-weight:800;margin:18px 0 0;outline:none;letter-spacing:-.4px;color:var(--pino)}
   h1:focus{border-bottom:2px solid var(--cobre)}
@@ -374,6 +378,10 @@
       <div class="cuenta" id="guiaCuenta"><b>0</b> de 0</div>
       <div class="barra"><i id="guiaFill"></i></div>
     </div>
+    <div class="sup-filtros" id="guiaFiltros" style="margin-top:12px">
+      <span class="chip on" data-f="mio">👤 Mi puesto</span>
+      <span class="chip" data-f="todos">Todos los puestos</span>
+    </div>
     <ul id="guiaLista"></ul>
   </section>
 
@@ -518,6 +526,7 @@
       <h3>📅 Pestaña Guía diaria</h3>
       <ul>
         <li>Es la <b>rutina fija</b> del local: sale sola cada día (tareas de todos los días + las del día que toca).</li>
+        <li>Por defecto ves <b>«Mi puesto»</b>: las tareas generales + las de tu(s) puesto(s) de hoy. Toca <b>«Todos los puestos»</b> para ver la rutina completa.</li>
         <li>Marca cada tarea al completarla; con 📷 dejas la <b>foto del día</b> como prueba.</li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
       </ul>
@@ -562,7 +571,7 @@
       <p>Agregar personas, cambiar su <b>rol</b> (dueño, encargado, jefe de local, colaborador) y su <b>puesto</b> (Cocina, Caja, Barismo/Vitrina, Terminados), y <b>activar/desactivar</b>. Los activos aparecen en todos los menús de la app con su puesto.</p>
       <h3>🗓️ Definir la rutina (Semanal)</h3>
       <ul>
-        <li>En modo supervisor, la pestaña Semanal permite <b>agregar/borrar tareas</b>: «Todos los días» + cada día de la semana.</li>
+        <li>En modo supervisor, la pestaña Semanal permite <b>agregar/borrar tareas</b>: «Todos los días» + cada día de la semana. Al agregar, elige el <b>puesto</b> (Todos / Cocina / Caja / Barismo-Vitrina / Terminados): así cada colaborador ve las suyas en la Guía diaria.</li>
         <li>Con 📷 pones la <b>foto de referencia</b> (el estándar de cómo debe quedar). Los colaboradores la ven pero no la cambian.</li>
         <li>Puedes usar la planilla <b>Rutina_Francois_para_app.xlsx</b> (la llena Ángel) y copiar las tareas aquí.</li>
       </ul>
@@ -1170,7 +1179,8 @@ async function cargarChecklists(){
         const thumb = t.foto
           ? '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX) + '" alt="foto" loading="lazy">'
           : '<span class="ck-nofoto">sin foto</span>';
-        return '<div class="ck-t"><span class="ck-chk' + (t.ok ? " on" : "") + '"></span><span class="ck-txt">' + esc(t.t || "") + '</span>' + thumb + '</div>';
+        return '<div class="ck-t"><span class="ck-chk' + (t.ok ? " on" : "") + '"></span><span class="ck-txt">' + esc(t.t || "")
+          + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + '</span>' + thumb + '</div>';
       }).join("");
       return '<div class="ck-card"><div class="ck-h"><b>' + esc(e.titulo || "Checklist") + '</b><br>' + esc(quien) + ' · ' + fecha + '</div>' + tareas + '</div>';
     }).join("");
@@ -1640,20 +1650,27 @@ async function syncGuiaRemoto(){
   const wd = new Date().getDay();
   const st = cargarDia();
   const items = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
-  const tareas = items.map(x => ({ id:x.id, t:x.t, ok:st.done.has(x.id), foto:st.fotos[x.id] || undefined }));
+  const tareas = items.map(x => ({ id:x.id, t:x.t, p:x.p || undefined, ok:st.done.has(x.id), foto:st.fotos[x.id] || undefined }));
   const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
   const ps = puestosHoy();
   const quien = quienActual() + (ps ? " (" + ps.join(", ") + ")" : "");
   const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:quien, recibe:"", tareas };
   try{ await vfSesion(client); await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() }); }catch(e){}
 }
+let guiaFiltro = "mio";
 function renderGuia(){
   const cont = document.getElementById("guiaLista"); if(!cont) return;
   const wd = new Date().getDay();
   document.getElementById("guiaFecha").textContent = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
+  [...document.querySelectorAll("#guiaFiltros .chip")].forEach(c => c.classList.toggle("on", c.dataset.f === guiaFiltro));
   const st = cargarDia();
-  const base = RUTINA.base || [];
-  const dia = (RUTINA.dias && RUTINA.dias[wd]) || [];
+  const mios = puestosHoy() || [];
+  // «Mi puesto»: tareas generales + las de mis puestos de hoy (sin puestos elegidos = ver todo)
+  const filtra = arr => (guiaFiltro === "todos" || !mios.length) ? arr : arr.filter(x => !x.p || mios.indexOf(x.p) >= 0);
+  const baseTodas = RUTINA.base || [];
+  const diaTodas = (RUTINA.dias && RUTINA.dias[wd]) || [];
+  const base = filtra(baseTodas);
+  const dia = filtra(diaTodas);
   const total = base.length + dia.length;
   const hechas = base.concat(dia).filter(x => st.done.has(x.id)).length;
   document.getElementById("guiaCuenta").innerHTML = "<b>" + hechas + "</b> de " + total;
@@ -1667,16 +1684,24 @@ function renderGuia(){
     if(!items.length) return "";
     return '<li class="gsec-li"><span class="gsec">' + esc(titulo) + '</span></li>' + items.map(x => {
       const ok = st.done.has(x.id);
+      const badge = x.p ? '<span class="sem-badge">' + esc(x.p) + '</span>' : "";
       return '<li class="' + (ok ? "hecha" : "") + '"><label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
         + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
-        + '<span class="gtexto">' + esc(x.t) + '</span>' + foto(x) + '</li>';
+        + '<span class="gtexto">' + esc(x.t) + badge + '</span>' + foto(x) + '</li>';
     }).join("");
   }
+  const totalSinFiltro = baseTodas.length + diaTodas.length;
   cont.innerHTML = total
     ? sec("Todos los días", base) + sec(nombreDia(wd) + " (hoy)", dia)
-    : '<li class="vacio">Aún no hay tareas en la guía.<br>El supervisor las agrega en la pestaña «Semanal».</li>';
+    : (totalSinFiltro
+        ? '<li class="vacio">No hay tareas para tu puesto hoy.<br>Toca «Todos los puestos» para ver el resto.</li>'
+        : '<li class="vacio">Aún no hay tareas en la guía.<br>El supervisor las agrega en la pestaña «Semanal».</li>');
   firmarThumbs("#guiaLista");
 }
+document.getElementById("guiaFiltros").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if(!c) return;
+  guiaFiltro = c.dataset.f; renderGuia();
+});
 document.getElementById("guiaLista").addEventListener("change", e => {
   if(e.target.type !== "checkbox") return;
   const st = cargarDia(), id = e.target.dataset.gid;
@@ -1711,13 +1736,16 @@ function renderSemanal(){
     const w = (wd === undefined ? "" : wd);
     const list = items.length ? items.map(x => {
       const dref = 'data-tipo="' + tipo + '" data-wd="' + w + '" data-id="' + x.id + '"';
+      const badge = x.p ? '<span class="sem-badge">' + esc(x.p) + '</span>' : "";
       const thumb = x.foto ? '<img class="tthumb" ' + dref + ' data-foto="' + esc(x.foto) + '" src="' + PIX + '" alt="ref">' : "";
       const cam = sup ? '<button class="tfoto" ' + dref + ' aria-label="Foto de referencia">📷</button>' : "";
       const del = sup ? '<button class="sem-del" ' + dref + ' aria-label="Borrar">×</button>' : "";
-      return '<div class="sem-item"><span class="t">' + esc(x.t) + '</span>' + thumb + cam + del + '</div>';
+      return '<div class="sem-item"><span class="t">' + esc(x.t) + badge + '</span>' + thumb + cam + del + '</div>';
     }).join("") : '<div class="sem-vacio">Sin tareas</div>';
     const add = sup
-      ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off"><button data-tipo="' + tipo + '" data-wd="' + w + '">Agregar</button></div>'
+      ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off">'
+        + '<select class="sem-psel"><option value="">Todos</option>' + PUESTOS.map(p => '<option>' + p + '</option>').join("") + '</select>'
+        + '<button data-tipo="' + tipo + '" data-wd="' + w + '">Agregar</button></div>'
       : '';
     return '<div class="sem-grupo"><div class="sem-h">' + esc(titulo) + '</div>' + list + add + '</div>';
   }
@@ -1763,7 +1791,10 @@ if(semanalCont){
     if(addBtn){
       const inp = addBtn.parentElement.querySelector("input");
       const t = inp.value.trim(); if(!t) return;
-      listaDe(addBtn.dataset.tipo, addBtn.dataset.wd).push({ id:nuevoId(), t });
+      const psel = addBtn.parentElement.querySelector(".sem-psel");
+      const nueva = { id:nuevoId(), t };
+      if(psel && psel.value) nueva.p = psel.value;  // puesto asignado (vacío = todos)
+      listaDe(addBtn.dataset.tipo, addBtn.dataset.wd).push(nueva);
       guardarRutina();
     }
   });
