@@ -452,6 +452,13 @@
         <option value="encargado">Encargado</option>
         <option value="dueño">Dueño</option>
       </select>
+      <select id="usrPuesto">
+        <option value="">— puesto —</option>
+        <option>Cocina</option>
+        <option>Caja</option>
+        <option>Barismo/Vitrina</option>
+        <option>Terminados</option>
+      </select>
       <button class="accion vftomar" id="usrAgregar">Agregar</button>
     </div>
     <div class="fila2">
@@ -542,7 +549,7 @@
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
       <h3>👥 Usuarios</h3>
-      <p>Agregar personas, cambiar su <b>rol</b> (dueño, encargado, jefe de local, colaborador) y <b>activar/desactivar</b>. Los activos aparecen en los menús de la app.</p>
+      <p>Agregar personas, cambiar su <b>rol</b> (dueño, encargado, jefe de local, colaborador) y su <b>puesto</b> (Cocina, Caja, Barismo/Vitrina, Terminados), y <b>activar/desactivar</b>. Los activos aparecen en todos los menús de la app con su puesto.</p>
       <h3>🗓️ Definir la rutina (Semanal)</h3>
       <ul>
         <li>En modo supervisor, la pestaña Semanal permite <b>agregar/borrar tareas</b>: «Todos los días» + cada día de la semana.</li>
@@ -1079,7 +1086,9 @@ function supCard(r){
       + r.lat.toFixed(5) + ', ' + r.lng.toFixed(5) + '</a>' + (r.precision_m ? ' (±' + Math.round(r.precision_m) + ' m)' : '')
     : '<span style="color:var(--rojo)">📍 sin ubicación</span>';
   const img = r._url ? '<img src="' + r._url + '" alt="foto" loading="lazy">' : '<div class="sup-noimg">sin foto</div>';
-  return '<div class="sup-card">' + img + '<div class="info"><div class="nom">' + esc(r.colaborador || "—") + '</div>'
+  const u = USUARIOS.find(x => x.nombre === r.colaborador);
+  const puesto = (u && u.puesto) ? '<span class="sup-badge">' + esc(u.puesto) + '</span>' : "";
+  return '<div class="sup-card">' + img + '<div class="info"><div class="nom">' + esc(r.colaborador || "—") + '</div>' + puesto
     + '<div class="sup-meta">🕒 ' + hora + '<br>' + ubic + '</div></div></div>';
 }
 function renderSup(){
@@ -1211,27 +1220,36 @@ const USUARIOS_DEFAULT = [
   { nombre:"Vanessa", rol:"colaborador" }, { nombre:"María", rol:"colaborador" }
 ];
 const ROLES = [["dueño","👑 Dueño"], ["encargado","⭐ Encargado"], ["jefe de local","🏪 Jefe de local"], ["colaborador","Colaborador"]];
+const PUESTOS = ["Cocina", "Caja", "Barismo/Vitrina", "Terminados"];
 function rolSelect(rol, id){
   return '<select class="usr-rol" data-id="' + id + '">'
     + ROLES.map(([v,l]) => '<option value="' + v + '"' + (v === rol ? " selected" : "") + '>' + l + '</option>').join("")
+    + '</select>';
+}
+function puestoSelect(p, id){
+  return '<select class="usr-rol usr-puesto" data-id="' + id + '">'
+    + '<option value="">— puesto —</option>'
+    + PUESTOS.map(v => '<option' + (v === p ? " selected" : "") + '>' + v + '</option>').join("")
     + '</select>';
 }
 let USUARIOS = [];
 const usrOvl = document.getElementById("usrOvl");
 const usrLista = document.getElementById("usrLista");
 
+function opcionPersona(u){
+  return '<option value="' + esc(u.nombre) + '">' + esc(u.nombre) + (u.puesto ? " · " + esc(u.puesto) : "") + '</option>';
+}
 function llenarPersona(sel, placeholder, actual){
-  const nombres = USUARIOS.filter(u => u.activo !== false).map(u => u.nombre);
-  if(actual && nombres.indexOf(actual) < 0) nombres.push(actual);  // nombre de un link/estado antiguo
-  sel.innerHTML = '<option value="">' + placeholder + '</option>'
-    + nombres.map(n => '<option>' + esc(n) + '</option>').join("");
+  const us = USUARIOS.filter(u => u.activo !== false).slice();
+  if(actual && !us.some(u => u.nombre === actual)) us.push({ nombre: actual });  // nombre de un link/estado antiguo
+  sel.innerHTML = '<option value="">' + placeholder + '</option>' + us.map(opcionPersona).join("");
   sel.value = actual || "";
 }
 function llenarSelectColab(){
   const activos = USUARIOS.filter(u => u.activo !== false);
   const prev = vfColab.value;
   vfColab.innerHTML = '<option value="">— elegir colaborador —</option>'
-    + activos.map(u => '<option>' + esc(u.nombre) + '</option>').join("");
+    + activos.map(opcionPersona).join("");
   if(prev) vfColab.value = prev;
   if(!vfColab.value && quienActual()) vfColab.value = quienActual();          // preselecciona la identidad
   // Entrega / Recibe también se eligen del roster
@@ -1305,7 +1323,7 @@ async function abrirUsuarios(){
     usrLista.innerHTML = USUARIOS.length ? USUARIOS.map(u => {
       const act = u.activo !== false;
       return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>'
-        + rolSelect(u.rol, u.id) + '</div>'
+        + rolSelect(u.rol, u.id) + ' ' + puestoSelect(u.puesto || "", u.id) + '</div>'
         + '<button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button></div>';
     }).join("") : '<div class="sinreg">Sin usuarios. Corre el SQL de usuarios.</div>';
   }catch(e){
@@ -1322,15 +1340,30 @@ usrLista.addEventListener("click", async e => {
 usrLista.addEventListener("change", async e => {
   const s = e.target.closest(".usr-rol"); if(!s) return;
   const client = getSB(); if(!client) return;
-  try{ await client.from("usuarios").update({ rol: s.value }).eq("id", s.dataset.id); await abrirUsuarios(); }
-  catch(err){ alert("No se pudo cambiar el rol: " + ((err && err.message) || err)); }
+  const cambio = s.classList.contains("usr-puesto") ? { puesto: s.value || null } : { rol: s.value };
+  try{
+    const { error } = await client.from("usuarios").update(cambio).eq("id", s.dataset.id);
+    if(error) throw error;
+    await abrirUsuarios();
+  }catch(err){
+    const m = (err && err.message) || String(err);
+    alert(/puesto/.test(m) && /column|schema/i.test(m)
+      ? "Falta la columna «puesto» en la base. Corre en el SQL Editor:\nalter table public.usuarios add column if not exists puesto text;"
+      : "No se pudo cambiar: " + m);
+  }
 });
 document.getElementById("usrAgregar").addEventListener("click", async () => {
   const nombre = document.getElementById("usrNombre").value.trim();
   const rol = document.getElementById("usrRol").value;
   if(!nombre) return;
   const client = getSB(); if(!client){ alert("Falta configurar Supabase."); return; }
-  try{ await vfSesion(client); await client.from("usuarios").insert({ nombre, rol }); document.getElementById("usrNombre").value = ""; await abrirUsuarios(); }
+  const puesto = document.getElementById("usrPuesto").value || null;
+  try{
+    await vfSesion(client);
+    const { error } = await client.from("usuarios").insert(puesto ? { nombre, rol, puesto } : { nombre, rol });
+    if(error) throw error;
+    document.getElementById("usrNombre").value = ""; await abrirUsuarios();
+  }
   catch(e){ alert("No se pudo agregar (¿corriste el SQL?): " + ((e && e.message) || e)); }
 });
 document.getElementById("usrClave").addEventListener("click", async () => {
@@ -1377,7 +1410,8 @@ function renderQuien(){
   if(!activos.length){ cont.innerHTML = '<div class="sinreg">Cargando…</div>'; return; }
   const rolTxt = r => r === "dueño" ? "👑 Dueño" : r === "encargado" ? "⭐ Encargado" : r === "jefe de local" ? "🏪 Jefe de local" : "Colaborador";
   cont.innerHTML = activos.map(u =>
-    '<button class="quien-btn" data-n="' + esc(u.nombre) + '"><span>' + esc(u.nombre) + '</span><small>' + rolTxt(u.rol) + '</small></button>'
+    '<button class="quien-btn" data-n="' + esc(u.nombre) + '"><span>' + esc(u.nombre) + '</span><small>'
+    + rolTxt(u.rol) + (u.puesto ? " · " + esc(u.puesto) : "") + '</small></button>'
   ).join("");
 }
 function abrirQuien(){ renderQuien(); quienOvl.classList.add("on"); }
