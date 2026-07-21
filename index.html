@@ -248,6 +248,24 @@
   .pct.bajo{background:#FBEAE7;color:#B3392B}
   .sinreg{color:var(--grafito);font-size:13px;text-align:center;padding:26px 6px;line-height:1.5}
   .hoja .acciones{margin-top:20px}
+  /* pantalla «¿quién está entrando?» */
+  .overlay.centro{align-items:center}
+  .quien-hoja{border-radius:18px;max-width:400px;margin:0 16px;text-align:center;padding:26px 20px}
+  .quien-logo{height:42px;margin:0 auto 12px;display:block;background:var(--coral);border-radius:12px;padding:8px 14px;box-sizing:content-box}
+  .quien-grid{display:flex;flex-direction:column;gap:9px;margin-top:16px;max-height:46vh;overflow:auto}
+  .quien-btn{border:1.5px solid var(--linea);background:var(--panel);border-radius:12px;padding:13px 12px;
+    font-family:inherit;font-size:15px;font-weight:700;color:var(--tinta);cursor:pointer;
+    display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .quien-btn:active{background:#F6E9D4;border-color:var(--coral)}
+  .quien-btn small{font-weight:600;color:var(--grafito);font-size:11px}
+  .quien-skip{margin-top:14px;font-size:12px;color:var(--grafito);background:none;border:0;text-decoration:underline;cursor:pointer;font-family:inherit}
+  /* guías integradas (ayuda / manual) */
+  .guia-doc{font-size:13.5px;line-height:1.55;color:var(--tinta)}
+  .guia-doc h3{font-size:12.5px;color:var(--coral-d);margin:16px 0 4px;text-transform:uppercase;letter-spacing:.05em}
+  .guia-doc p{margin:4px 0}
+  .guia-doc ul{list-style:disc;padding-left:18px;margin:4px 0}
+  .guia-doc li{display:list-item;border-bottom:0;padding:2px 0;gap:0;margin:3px 0}
+  .guia-doc b{color:var(--coral-d)}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -262,6 +280,11 @@
     <button class="mini" id="btnInstalar">📲 Instalar</button>
     <button class="mini" id="btnCompartirApp">📤 Compartir</button>
     <button class="mini" id="btnSupervisor">🔑 Supervisor</button>
+  </div>
+  <div class="topbar">
+    <button class="mini" id="btnQuien">👤 ¿Quién eres?</button>
+    <button class="mini" id="btnAyuda">📖 Ayuda</button>
+    <button class="mini solo-sup" id="btnManual">📕 Manual</button>
   </div>
 
   <div class="tabs" id="tabs">
@@ -446,6 +469,96 @@
     <div class="fila2">
       <button class="accion vftomar" id="camCapturar">📸 Capturar</button>
       <button class="accion cerrar" id="camCancelar">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay centro" id="quienOvl">
+  <div class="hoja quien-hoja">
+    <img class="quien-logo" src="logo-francois.png" alt="françois">
+    <h2>¿Quién está entrando?</h2>
+    <div class="rango" style="margin-bottom:0">Elige tu nombre: tu trabajo queda registrado a tu nombre</div>
+    <div class="quien-grid" id="quienLista"><div class="sinreg">Cargando…</div></div>
+    <button class="quien-skip" id="quienSkip">Entrar sin identificarme</button>
+  </div>
+</div>
+
+<div class="overlay" id="ayudaOvl">
+  <div class="hoja">
+    <h2>📖 Guía del colaborador</h2>
+    <div class="rango">Cómo usar la app en el día a día</div>
+    <div class="guia-doc">
+      <h3>👤 Al entrar</h3>
+      <p>Elige <b>tu nombre</b> en la pantalla de inicio. Así tus registros quedan a tu nombre. Puedes cambiarlo con el botón 👤 de arriba.</p>
+      <h3>📋 Pestaña Turno</h3>
+      <ul>
+        <li><b>Escribe tareas</b> abajo (＋ o Enter) y márcalas al hacerlas.</li>
+        <li><b>📷 junto a cada tarea</b>: adjunta una foto en vivo como respaldo (ej. «aseo de vitrinas»). Tócala de nuevo para verla o repetirla.</li>
+        <li><b>Entrega / Recibe</b>: quién sale y quién entra del turno.</li>
+        <li><b>Registrar y enviar</b>: guarda el traspaso y abre WhatsApp con un link corto. Quien lo abre ve el checklist tal cual, con marcas y fotos.</li>
+        <li><b>PDF</b>: descarga el checklist para archivar. <b>Desmarcar</b> reinicia los checks; <b>Vaciar</b> borra las tareas.</li>
+      </ul>
+      <h3>📅 Pestaña Guía diaria</h3>
+      <ul>
+        <li>Es la <b>rutina fija</b> del local: sale sola cada día (tareas de todos los días + las del día que toca).</li>
+        <li>Marca cada tarea al completarla; con 📷 dejas la <b>foto del día</b> como prueba.</li>
+        <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
+      </ul>
+      <h3>🗓️ Pestaña Semanal</h3>
+      <p>Ahí ves la rutina completa de la semana y las <b>fotos de referencia</b> (cómo debe quedar cada cosa). Solo el supervisor la edita.</p>
+      <h3>📸 Traspaso verificado</h3>
+      <ul>
+        <li>Es tu <b>firma con evidencia</b>: foto en vivo + ubicación + hora oficial del servidor.</li>
+        <li>Elige <b>tu nombre y el turno</b> → «Abrir cámara» → «Tomar y registrar».</li>
+        <li>Necesitas <b>permitir cámara y ubicación</b>. Sin ubicación no se puede registrar.</li>
+      </ul>
+      <h3>💡 Consejos</h3>
+      <ul>
+        <li><b>📲 Instalar</b>: deja la app en tu pantalla de inicio.</li>
+        <li>Si la cámara o ubicación no funcionan: toca el 🔒 junto a la dirección → Permisos → Permitir.</li>
+      </ul>
+    </div>
+    <div class="fila2">
+      <button class="accion cerrar" id="ayudaCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="manualOvl">
+  <div class="hoja">
+    <h2>📕 Manual del supervisor</h2>
+    <div class="rango">Solo visible en modo 🔑 supervisor</div>
+    <div class="guia-doc">
+      <h3>🔑 Modo supervisor</h3>
+      <ul>
+        <li>Se entra con el botón <b>🔑 Supervisor</b> y la <b>clave compartida</b> (María José, Maximiliano, Ricardo y a quien se la den).</li>
+        <li>Al desbloquear aparecen: Registro semanal, Supervisión y este manual. <b>🔓 Salir supervisor</b> los vuelve a ocultar.</li>
+        <li>La clave se cambia en <b>Supervisión → 👥 Usuarios → Cambiar clave</b>.</li>
+      </ul>
+      <h3>👀 Supervisión</h3>
+      <ul>
+        <li><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
+        <li><b>📋 Fotos por tarea</b>: cada checklist y guía diaria con sus tareas, checks y miniaturas. Toca una foto para verla completa.</li>
+        <li><b>Refrescar</b> actualiza la vista.</li>
+      </ul>
+      <h3>👥 Usuarios</h3>
+      <p>Agregar personas, cambiar su <b>rol</b> (dueño, encargado, jefe de local, colaborador) y <b>activar/desactivar</b>. Los activos aparecen en los menús de la app.</p>
+      <h3>🗓️ Definir la rutina (Semanal)</h3>
+      <ul>
+        <li>En modo supervisor, la pestaña Semanal permite <b>agregar/borrar tareas</b>: «Todos los días» + cada día de la semana.</li>
+        <li>Con 📷 pones la <b>foto de referencia</b> (el estándar de cómo debe quedar). Los colaboradores la ven pero no la cambian.</li>
+        <li>Puedes usar la planilla <b>Rutina_Francois_para_app.xlsx</b> (la llena Ángel) y copiar las tareas aquí.</li>
+      </ul>
+      <h3>📊 Registro semanal</h3>
+      <p>Efectividad de los traspasos del checklist (promedio %, detalle por día), con PDF y exportar/importar respaldo.</p>
+      <h3>🗄️ Datos y limpieza automática</h3>
+      <ul>
+        <li>Todo se guarda en <b>Supabase</b> (proyecto François): fotos, traspasos, usuarios y rutina.</li>
+        <li>Cada <b>lunes de madrugada</b> se borra automáticamente lo que tenga <b>más de 90 días</b> (fotos y registros viejos). Las <b>fotos de referencia de la rutina nunca se borran</b>.</li>
+      </ul>
+    </div>
+    <div class="fila2">
+      <button class="accion cerrar" id="manualCerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -842,7 +955,7 @@ function vfDetener(){
 
 vfAbrir.addEventListener("click", async () => {
   if(!getSB()){ vfMsg("Falta configurar Supabase: pon SUPABASE_URL y SUPABASE_ANON_KEY en el código.", "err"); return; }
-  vfColab.value = vfColab.value || (d.entrega || "");
+  vfColab.value = vfColab.value || quienActual() || (d.entrega || "");
   vfMsg("Abriendo cámara…", "info");
   try{
     // SOLO cámara en vivo (trasera). Nada de <input type=file> ni galería.
@@ -1113,6 +1226,8 @@ function llenarSelectColab(){
   vfColab.innerHTML = '<option value="">— elegir colaborador —</option>'
     + activos.map(u => '<option>' + esc(u.nombre) + '</option>').join("");
   if(prev) vfColab.value = prev;
+  if(!vfColab.value && quienActual()) vfColab.value = quienActual();          // preselecciona la identidad
+  if(quienOvl.classList.contains("on")) renderQuien();                        // refresca la pantalla de inicio
 }
 async function cargarUsuarios(){
   const client = getSB();
@@ -1237,6 +1352,50 @@ btnSupervisor.addEventListener("click", async () => {
   }
   if(await gateSupervisor()) aplicarModoSup(true);
 });
+
+/* ---- ¿Quién está entrando? (identidad del dispositivo) ---- */
+const quienOvl = document.getElementById("quienOvl");
+const btnQuien = document.getElementById("btnQuien");
+function quienActual(){ try{ return localStorage.getItem("quien.actual") || ""; }catch(e){ return ""; } }
+function actualizarQuienUI(){
+  const n = quienActual();
+  btnQuien.textContent = n ? "👤 " + n : "👤 ¿Quién eres?";
+}
+function renderQuien(){
+  const cont = document.getElementById("quienLista");
+  const activos = USUARIOS.filter(u => u.activo !== false);
+  if(!activos.length){ cont.innerHTML = '<div class="sinreg">Cargando…</div>'; return; }
+  const rolTxt = r => r === "dueño" ? "👑 Dueño" : r === "encargado" ? "⭐ Encargado" : r === "jefe de local" ? "🏪 Jefe de local" : "Colaborador";
+  cont.innerHTML = activos.map(u =>
+    '<button class="quien-btn" data-n="' + esc(u.nombre) + '"><span>' + esc(u.nombre) + '</span><small>' + rolTxt(u.rol) + '</small></button>'
+  ).join("");
+}
+function abrirQuien(){ renderQuien(); quienOvl.classList.add("on"); }
+document.getElementById("quienLista").addEventListener("click", e => {
+  const b = e.target.closest(".quien-btn"); if(!b) return;
+  const n = b.dataset.n;
+  try{ localStorage.setItem("quien.actual", n); }catch(err){}
+  actualizarQuienUI();
+  // rellena lo que corresponda con la identidad
+  if(!(d.entrega || "").trim()){ d.entrega = n; inEntrega.value = n; guardarLocal(); }
+  if(!vfColab.value) vfColab.value = n;
+  quienOvl.classList.remove("on");
+});
+document.getElementById("quienSkip").addEventListener("click", () => quienOvl.classList.remove("on"));
+btnQuien.addEventListener("click", abrirQuien);
+
+/* ---- guías integradas: Ayuda (todos) + Manual (solo supervisor) ---- */
+const ayudaOvl = document.getElementById("ayudaOvl");
+const manualOvl = document.getElementById("manualOvl");
+document.getElementById("btnAyuda").addEventListener("click", () => ayudaOvl.classList.add("on"));
+document.getElementById("ayudaCerrar").addEventListener("click", () => ayudaOvl.classList.remove("on"));
+ayudaOvl.addEventListener("click", e => { if(e.target === ayudaOvl) ayudaOvl.classList.remove("on"); });
+document.getElementById("btnManual").addEventListener("click", () => {
+  if(!document.body.classList.contains("supervisor")) return;  // doble seguro
+  manualOvl.classList.add("on");
+});
+document.getElementById("manualCerrar").addEventListener("click", () => manualOvl.classList.remove("on"));
+manualOvl.addEventListener("click", e => { if(e.target === manualOvl) manualOvl.classList.remove("on"); });
 
 /* ---- Fase 2: foto por tarea (cámara en vivo) ---- */
 const camOvl = document.getElementById("camOvl");
@@ -1388,7 +1547,7 @@ async function syncGuiaRemoto(){
   const items = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
   const tareas = items.map(x => ({ id:x.id, t:x.t, ok:st.done.has(x.id), foto:st.fotos[x.id] || undefined }));
   const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
-  const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:"", recibe:"", tareas };
+  const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:quienActual(), recibe:"", tareas };
   try{ await vfSesion(client); await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() }); }catch(e){}
 }
 function renderGuia(){
@@ -1559,6 +1718,8 @@ function limpiarDiasViejos(){
 }
 (async function init(){
   aplicarModoSup(localStorage.getItem("sup_ok") === "1");  // aplica modo supervisor (tras cargar todo)
+  actualizarQuienUI();
+  if(!quienActual()) setTimeout(abrirQuien, 350);          // pantalla de inicio: ¿quién está entrando?
   limpiarDiasViejos();
   cargarRutina();  // pinta al tiro con el cache local; se refresca cuando SB esté listo
   const hash = location.hash.slice(1);
