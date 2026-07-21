@@ -29,6 +29,7 @@
     --hecho:#EA5650;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none!important}  /* que hidden gane siempre (display:flex lo anulaba) */
   body{margin:0;background:var(--papel);color:var(--tinta);min-height:100vh;
     font-family:"Avenir Next","Avenir","Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     padding:20px 16px 40px;display:flex;justify-content:center}
@@ -472,7 +473,7 @@ function leerURL(){
 // formato compacto (claves de 1 letra) para que el link sea corto
 function empaquetar(conReg){
   const o = { t:d.titulo, e:d.entrega||"", r:d.recibe||"",
-              k:d.tareas.map(x => [x.t, x.ok?1:0]) };
+              k:d.tareas.map(x => [x.t, x.ok?1:0, x.id||"", x.foto||""]) };
   if(conReg){
     const g = regReciente().slice(-40);
     if(g.length) o.g = g.map(r => [r.id, r.ts, r.entrega||"", r.recibe||"", r.hechas, r.total]);
@@ -484,7 +485,7 @@ function desempaquetar(o){
   if(Array.isArray(o.k)){ // formato compacto nuevo
     return {
       d:{ titulo:o.t || "Checklist para turno", entrega:o.e||"", recibe:o.r||"",
-          tareas:o.k.map(a => ({ t:String(a[0]||""), ok:!!a[1] })) },
+          tareas:o.k.map(a => { const t = { t:String(a[0]||""), ok:!!a[1] }; if(a[2]) t.id = a[2]; if(a[3]) t.foto = a[3]; return t; }) },
       reg: Array.isArray(o.g) ? o.g.map(a => ({ id:a[0], ts:a[1], entrega:a[2]||"", recibe:a[3]||"", hechas:a[4]||0, total:a[5]||0 })) : null
     };
   }
@@ -529,7 +530,8 @@ function inicioSemana(base){
 function nivel(p){ return p>=80 ? "ok" : p>=50 ? "med" : "bajo"; }
 
 const lista = document.getElementById("lista");
-const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const PIX = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";  // placeholder 1px para miniaturas
 
 document.getElementById("fecha").textContent =
   new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
@@ -789,6 +791,16 @@ function getSB(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   return sb;
 }
+// supabase-js carga con defer: espera (hasta ms) a que esté disponible antes de consultar
+function esperarSB(ms){
+  return new Promise(res => {
+    const t0 = Date.now();
+    (function chk(){
+      if(window.supabase || Date.now() - t0 >= ms) return res(!!window.supabase);
+      setTimeout(chk, 100);
+    })();
+  });
+}
 async function vfSesion(client){
   // RLS pide usuario autenticado; usamos sesión anónima (habilítala en Supabase Auth)
   const { data:{ session } } = await client.auth.getSession();
@@ -845,6 +857,11 @@ vfAbrir.addEventListener("click", async () => {
 
 vfTomar.addEventListener("click", async () => {
   if(!vfStream) return;
+  // colaborador obligatorio: el traspaso debe quedar atado a una persona del roster
+  if(!vfColab.value){
+    vfMsg("⚠️ Elige el colaborador antes de registrar.", "err");
+    vfColab.focus(); return;
+  }
   vfTomar.disabled = true;
   // a. UBICACIÓN OBLIGATORIA primero. Si no hay, no registra y la cámara sigue abierta.
   vfMsg("📍 Obteniendo ubicación… (permite el acceso)", "info");
@@ -1013,7 +1030,7 @@ async function cargarChecklists(){
       const fecha = new Date(r.updated_at).toLocaleString("es-CL", { weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
       const tareas = e.tareas.map(t => {
         const thumb = t.foto
-          ? '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || "") + '" alt="foto" loading="lazy">'
+          ? '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX) + '" alt="foto" loading="lazy">'
           : '<span class="ck-nofoto">sin foto</span>';
         return '<div class="ck-t"><span class="ck-chk' + (t.ok ? " on" : "") + '"></span><span class="ck-txt">' + esc(t.t || "") + '</span>' + thumb + '</div>';
       }).join("");
@@ -1126,11 +1143,16 @@ async function setConfig(clave, valor){
 }
 async function gateSupervisor(){
   if(localStorage.getItem("sup_ok") === "1") return true;
+  await esperarSB(3000);
   const client = getSB();
-  if(!client) return true;
+  if(!client){ alert("No hay conexión para verificar la clave de supervisor. Intenta de nuevo con internet."); return false; }
   try{ await vfSesion(client); }catch(e){}
   const { data, error } = await client.from("config").select("valor").eq("clave", "sup_pin").maybeSingle();
-  if(error) return true;  // la tabla config aún no existe: sin candado todavía (no bloquea ni muestra error)
+  if(error){
+    // solo se salta el candado si la tabla config aún no existe (falta correr el SQL)
+    if(/42P01|does not exist|schema cache/i.test((error.message||"") + (error.code||""))) return true;
+    alert("No se pudo verificar la clave (¿sin internet?). Intenta de nuevo."); return false;
+  }
   const hash = data ? data.valor : null;
   if(!hash){
     const nuevo = prompt("Primera vez: crea la CLAVE de supervisor (mín. 4 caracteres).\nLa comparten María José, Maximiliano y Ricardo:");
@@ -1382,7 +1404,7 @@ function renderGuia(){
   document.getElementById("guiaFill").style.width = (total ? Math.round(hechas/total*100) : 0) + "%";
   function foto(x){
     const p = st.fotos[x.id];
-    return p ? '<img class="tthumb" data-gid="' + x.id + '" data-foto="' + esc(p) + '" src="" alt="foto">'
+    return p ? '<img class="tthumb" data-gid="' + x.id + '" data-foto="' + esc(p) + '" src="' + PIX + '" alt="foto">'
              : '<button class="tfoto" data-gid="' + x.id + '" aria-label="Foto del día">📷</button>';
   }
   function sec(titulo, items){
@@ -1433,7 +1455,7 @@ function renderSemanal(){
     const w = (wd === undefined ? "" : wd);
     const list = items.length ? items.map(x => {
       const dref = 'data-tipo="' + tipo + '" data-wd="' + w + '" data-id="' + x.id + '"';
-      const thumb = x.foto ? '<img class="tthumb" ' + dref + ' data-foto="' + esc(x.foto) + '" src="" alt="ref">' : "";
+      const thumb = x.foto ? '<img class="tthumb" ' + dref + ' data-foto="' + esc(x.foto) + '" src="' + PIX + '" alt="ref">' : "";
       const cam = sup ? '<button class="tfoto" ' + dref + ' aria-label="Foto de referencia">📷</button>' : "";
       const del = sup ? '<button class="sem-del" ' + dref + ' aria-label="Borrar">×</button>' : "";
       return '<div class="sem-item"><span class="t">' + esc(x.t) + '</span>' + thumb + cam + del + '</div>';
@@ -1472,8 +1494,11 @@ if(semanalCont){
       if(!sup) return;
       const client = getSB(); if(!client){ alert("Falta configurar Supabase."); return; }
       const blob = await pedirFoto("Foto de referencia: " + (x.t || "tarea")); if(!blob) return;
-      try{ x.foto = "rutina/" + x.id + ".jpg"; await subirFoto(x.foto, blob); await guardarRutina(); }
-      catch(err){ alert("No se pudo subir: " + ((err && err.message) || err)); }
+      try{
+        const path = "rutina/" + x.id + ".jpg";
+        await subirFoto(path, blob);          // primero sube; solo si funciona, referencia
+        x.foto = path; await guardarRutina();
+      }catch(err){ alert("No se pudo subir: " + ((err && err.message) || err)); }
       return;
     }
     const del = e.target.closest(".sem-del");
@@ -1522,12 +1547,29 @@ function arranqueLocal(teniaHash){
   guardarLocal();
   cargarUsuarios();  // llena el menú de colaboradores (Supabase o respaldo)
 }
-(function init(){
+function limpiarDiasViejos(){
+  // poda los estados diarios de la guía con más de 14 días (no crecen para siempre)
+  try{
+    const corte = fechaISO(new Date(Date.now() - 14*864e5));
+    for(let i = localStorage.length - 1; i >= 0; i--){
+      const k = localStorage.key(i);
+      if(k && k.indexOf("guia.dia.") === 0 && k.slice(9) < corte) localStorage.removeItem(k);
+    }
+  }catch(e){}
+}
+(async function init(){
   aplicarModoSup(localStorage.getItem("sup_ok") === "1");  // aplica modo supervisor (tras cargar todo)
-  cargarRutina();  // guía diaria + semanal (independiente del turno)
+  limpiarDiasViejos();
+  cargarRutina();  // pinta al tiro con el cache local; se refresca cuando SB esté listo
   const hash = location.hash.slice(1);
-  if(hash.indexOf("c/") === 0){ cargarChecklistRemoto(hash.slice(2)); return; }  // link corto
-  arranqueLocal(hash.length > 0);
+  if(hash.indexOf("c/") === 0){
+    await esperarSB(4000);            // el link corto necesita supabase-js cargado
+    cargarChecklistRemoto(hash.slice(2));
+  } else {
+    arranqueLocal(hash.length > 0);
+  }
+  // supabase-js carga con defer: cuando esté, refresca usuarios y rutina desde la base
+  esperarSB(4000).then(ok => { if(ok){ cargarUsuarios(); cargarRutina(); } });
 })();
 </script>
 </body>
