@@ -52,6 +52,8 @@
   #btnSupervisor.on{background:var(--pino);color:var(--crema);border-color:var(--pino)}
   .topbar.solo-sup-row{display:none}
   body.supervisor .topbar.solo-sup-row{display:flex}
+  body button.solo-admin{display:none}          /* solo dueños y encargado */
+  body.admin button.solo-admin{display:flex}
   #btnSupervision{background:var(--coral);color:var(--crema);border-color:var(--coral);font-weight:700}
 
   /* pestañas principales */
@@ -300,6 +302,7 @@
   </div>
   <div class="topbar solo-sup-row">
     <button class="mini" id="btnSupervision">👀 Supervisión</button>
+    <button class="mini solo-admin" id="btnUsuarios">👥 Usuarios</button>
     <button class="mini" id="btnManual">📕 Manual</button>
   </div>
 
@@ -1329,11 +1332,12 @@ async function cargarUsuarios(){
     try{
       await vfSesion(client);
       const { data, error } = await client.from("usuarios").select("*").order("rol").order("nombre");
-      if(!error && data && data.length){ USUARIOS = data; llenarSelectColab(); return; }
+      if(!error && data && data.length){ USUARIOS = data; llenarSelectColab(); aplicarModoAdmin(); return; }
     }catch(e){}
   }
   USUARIOS = USUARIOS_DEFAULT.map(u => ({ ...u, activo:true }));  // respaldo antes de correr el SQL
   llenarSelectColab();
+  aplicarModoAdmin();
 }
 
 async function sha256(s){
@@ -1468,6 +1472,7 @@ document.getElementById("usrClave").addEventListener("click", async () => {
 document.getElementById("usrCerrar").addEventListener("click", () => usrOvl.classList.remove("on"));
 usrOvl.addEventListener("click", e => { if(e.target === usrOvl) usrOvl.classList.remove("on"); });
 document.getElementById("supUsuarios").addEventListener("click", abrirUsuarios);
+document.getElementById("btnUsuarios").addEventListener("click", abrirUsuarios);
 document.getElementById("supLock").addEventListener("click", () => {
   localStorage.removeItem("sup_ok"); supOvl.classList.remove("on");
   aplicarModoSup(false);
@@ -1480,9 +1485,11 @@ function aplicarModoSup(on){
   document.body.classList.toggle("supervisor", on);
   btnSupervisor.classList.toggle("on", on);
   btnSupervisor.textContent = on ? "🔓 Salir supervisor" : "🔑 Supervisor";
+  aplicarModoAdmin();                                       // muestra/oculta 👥 Usuarios
   if(typeof renderSemanal === "function") renderSemanal();  // muestra/oculta controles de edición
   if(typeof renderGuia === "function") renderGuia();        // muestra/oculta «agregar tarea fija»
 }
+function aplicarModoAdmin(){ document.body.classList.toggle("admin", esAdmin()); }
 btnSupervisor.addEventListener("click", async () => {
   if(document.body.classList.contains("supervisor")){
     localStorage.removeItem("sup_ok"); aplicarModoSup(false); return;
@@ -1550,7 +1557,8 @@ document.getElementById("quienLista").addEventListener("click", e => {
   // rellena lo que corresponda con la identidad
   if(!(d.entrega || "").trim()){ d.entrega = n; inEntrega.value = n; guardarLocal(); }
   if(!vfColab.value) vfColab.value = n;
-  if(typeof renderSemanal === "function") renderSemanal();  // re-evalúa esAdmin con la nueva identidad
+  aplicarModoAdmin();                                       // re-evalúa permisos con la nueva identidad
+  if(typeof renderSemanal === "function") renderSemanal();
   if(typeof renderGuia === "function") renderGuia();
   abrirQuien(true);  // paso 2: ¿en qué puesto(s) hoy?
 });
