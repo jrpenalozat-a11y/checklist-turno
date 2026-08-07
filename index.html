@@ -483,6 +483,7 @@
         <option>Caja</option>
         <option>Barismo/Vitrina</option>
         <option>Terminados</option>
+        <option>Salón</option>
       </select>
       <button class="accion vftomar" id="usrAgregar">Agregar</button>
     </div>
@@ -530,7 +531,7 @@
     <div class="guia-doc">
       <h3>👤 Al entrar (cada día)</h3>
       <ul>
-        <li>Elige <b>tu nombre</b> y luego <b>tu(s) puesto(s) de hoy</b> (Cocina, Caja, Barismo/Vitrina, Terminados — puedes marcar varios).</li>
+        <li>Elige <b>tu nombre</b> y luego <b>tu(s) puesto(s) de hoy</b> (Cocina, Caja, Barismo/Vitrina, Terminados, Salón — puedes marcar varios).</li>
         <li>Se pregunta <b>cada día</b> y queda en tus registros. Tu nombre y puesto se ven arriba (botón 👤); tócalo para cambiar.</li>
       </ul>
       <h3>📋 Pestaña Turno — pendientes al próximo turno</h3>
@@ -594,11 +595,11 @@
       <h3>👥 Usuarios</h3>
       <ul>
         <li><b>Agregar</b> personas (nombre + rol + puesto), <b>cambiar</b> rol/puesto al vuelo, <b>Desactivar</b> (los saca de los menús sin perder historial) y <b>🗑 Eliminar</b> (borrado definitivo).</li>
-        <li>Roles: dueño, encargado, encargado de local, colaborador. Puestos: Cocina, Caja, Barismo/Vitrina, Terminados.</li>
+        <li>Roles: dueño, encargado, encargado de local, colaborador. Puestos: Cocina, Caja, Barismo/Vitrina, Terminados, Salón.</li>
       </ul>
       <h3>🗓️ Definir la rutina</h3>
       <ul>
-        <li><b>Semanal</b>: agregar/borrar tareas de «Todos los días» + cada día. Al agregar, elige el <b>puesto</b> (Todos / Cocina / Caja / Barismo-Vitrina / Terminados) → así cada colaborador ve las suyas en su Guía diaria.</li>
+        <li><b>Semanal</b>: agregar/borrar tareas de «Todos los días» + cada día. Al agregar, elige el <b>puesto</b> (Todos / Cocina / Caja / Barismo-Vitrina / Terminados / Salón) → así cada colaborador ve las suyas en su Guía diaria.</li>
         <li><b>Guía diaria</b>: abajo puedes <b>agregar tareas fijas</b> (todos los días) directo, sin ir a Semanal.</li>
         <li>Con <b>📷</b> pones la <b>foto de referencia</b> (el estándar). Los colaboradores la ven, no la cambian.</li>
         <li>Puedes vaciar la planilla <b>Rutina_Francois_para_app.xlsx</b> (la llena Ángel, ya con columna Puesto) y copiar las tareas aquí.</li>
@@ -1277,7 +1278,7 @@ const USUARIOS_DEFAULT = [
 const ROLES = [["dueño","👑 Dueño"], ["encargado","⭐ Encargado"], ["encargado de local","🏪 Encargado de local"], ["colaborador","Colaborador"]];
 const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // roles con nivel supervisor
 const PUESTO_SUP_ROLES = ["dueño", "encargado"];  // entran con puesto «Supervisor» (no operativo)
-const PUESTOS = ["Cocina", "Caja", "Barismo/Vitrina", "Terminados"];
+const PUESTOS = ["Cocina", "Caja", "Barismo/Vitrina", "Terminados", "Salón"];
 /* ADMIN = solo dueños + encargado (María José, Maximiliano, Ricardo): editan rutina y usuarios.
    Requiere clave (modo supervisor) Y estar identificado con ese rol. Ángel NO es admin. */
 function esAdmin(){
