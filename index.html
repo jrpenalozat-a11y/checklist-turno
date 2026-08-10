@@ -626,7 +626,7 @@
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
       </ul>
       <h3>🗓️ Pestaña Semanal — solo lectura</h3>
-      <p>Ves la rutina completa de la semana y las <b>fotos de referencia</b> (cómo debe quedar cada cosa). La editan solo los dueños y el encargado.</p>
+      <p>Ves la rutina completa de la semana y las <b>fotos de referencia</b> (cómo debe quedar cada cosa). La editan los dueños, el encargado y el encargado de local.</p>
       <h3>📸 Traspaso verificado — tu firma con evidencia</h3>
       <ul>
         <li>Certifica <b>quién</b>, <b>cuándo</b> (hora del servidor, no del teléfono) y <b>dónde</b>, con foto en vivo.</li>
@@ -658,8 +658,9 @@
       </ul>
       <h3>👮 Quién puede qué</h3>
       <ul>
-        <li><b>Editan la rutina y gestionan usuarios: solo los dueños y el encargado</b> — María José, Maximiliano y Ricardo. Deben estar <b>identificados con su nombre</b> (👤) y en modo supervisor.</li>
-        <li><b>Ángel</b> (encargado de local) entra con un <b>puesto operativo</b> como el resto; ve la rutina y la supervisión, pero <b>no edita</b>.</li>
+        <li>Hay <b>dos niveles</b>, y ambos exigen estar <b>identificado con tu nombre</b> (👤) <b>y</b> en modo supervisor (clave).</li>
+        <li><b>Editar la rutina</b> (agregar/borrar tareas y fotos de referencia): <b>dueños, encargado y encargado de local</b> — María José, Maximiliano, Ricardo y <b>Ángel</b>, que mantiene la planilla de tareas del local.</li>
+        <li><b>Gestionar usuarios y cambiar la clave</b>: <b>solo dueños y encargado</b> — María José, Maximiliano y Ricardo. A Ángel no le aparece el botón 👥 Usuarios.</li>
         <li>Los <b>colaboradores</b> no ven los botones de supervisor.</li>
       </ul>
       <h3>👀 Supervisión (el tablero)</h3>
@@ -1415,14 +1416,25 @@ const ROLES = [["dueño","👑 Dueño"], ["encargado","⭐ Encargado"], ["encarg
 const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // roles con nivel supervisor
 const PUESTO_SUP_ROLES = ["dueño", "encargado"];  // entran con puesto «Supervisor» (no operativo)
 const PUESTOS = ["Cocina", "Caja", "Barismo/Vitrina", "Terminados", "Salón"];
-/* ADMIN = solo dueños + encargado (María José, Maximiliano, Ricardo): editan rutina y usuarios.
-   Requiere clave (modo supervisor) Y estar identificado con ese rol. Ángel NO es admin. */
-function esAdmin(){
-  if(!document.body.classList.contains("supervisor")) return false;
+/* Dos niveles de permiso, ambos requieren clave (modo supervisor) + estar identificado:
+   · esAdmin()          = dueños + encargado. Usuarios, roles y clave de supervisor.
+   · puedeEditarRutina() = lo anterior + encargado de local (Ángel), que mantiene la
+     planilla de tareas del local. NO gestiona usuarios ni cambia la clave. */
+const ROLES_RUTINA = ["dueño", "encargado", "encargado de local"];
+function rolDeQuienEntra(){
+  if(!document.body.classList.contains("supervisor")) return null;
   const n = (function(){ try{ return localStorage.getItem("quien.actual") || ""; }catch(e){ return ""; } })();
-  if(!n) return false;
+  if(!n) return null;
   const u = USUARIOS.find(x => x.nombre === n);
-  return u ? PUESTO_SUP_ROLES.indexOf(rolNorm(u.rol)) >= 0 : false;
+  return u ? rolNorm(u.rol) : null;
+}
+function esAdmin(){
+  const r = rolDeQuienEntra();
+  return r ? PUESTO_SUP_ROLES.indexOf(r) >= 0 : false;
+}
+function puedeEditarRutina(){
+  const r = rolDeQuienEntra();
+  return r ? ROLES_RUTINA.indexOf(r) >= 0 : false;
 }
 function rolNorm(r){ return r === "jefe de local" ? "encargado de local" : (r || "colaborador"); }  // compat rol viejo
 function rolLabel(r){ const f = ROLES.find(x => x[0] === rolNorm(r)); return f ? f[1] : "Colaborador"; }
@@ -2114,7 +2126,7 @@ function enviarInforme(){
 }
 function renderGuiaAdd(){
   const c = document.getElementById("guiaAdd"); if(!c) return;
-  if(!esAdmin()){ c.innerHTML = ""; return; }
+  if(!puedeEditarRutina()){ c.innerHTML = ""; return; }
   c.innerHTML = '<div class="sem-h" style="margin-top:18px">➕ Agregar tarea fija (todos los días)</div>'
     + '<div class="sem-add"><input type="text" id="guiaNueva" placeholder="Nueva tarea de la rutina…" autocomplete="off">'
     + '<select class="sem-psel" id="guiaNuevaPuesto"><option value="">Todos</option>' + PUESTOS.map(p => '<option>' + p + '</option>').join("") + '</select>'
@@ -2196,7 +2208,7 @@ const semanalCont = document.getElementById("semanalCont");
 function renderSemanal(){
   const semanalCont = document.getElementById("semanalCont");
   if(!semanalCont) return;
-  const sup = esAdmin();
+  const sup = puedeEditarRutina();
   function grupo(titulo, items, tipo, wd){
     const w = (wd === undefined ? "" : wd);
     const list = items.length ? items.map(x => {
@@ -2214,7 +2226,7 @@ function renderSemanal(){
       : '';
     return '<div class="sem-grupo"><div class="sem-h">' + esc(titulo) + '</div>' + list + add + '</div>';
   }
-  let html = sup ? "" : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños y el encargado (María José, Maximiliano, Ricardo).</div>';
+  let html = sup ? "" : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños, el encargado y el encargado de local (María José, Maximiliano, Ricardo y Ángel).</div>';
   html += grupo("Todos los días", RUTINA.base || [], "base");
   DIAS_SEM.forEach(([nom, wd]) => { html += grupo(nom, (RUTINA.dias && RUTINA.dias[wd]) || [], "dia", wd); });
   semanalCont.innerHTML = html;
@@ -2233,7 +2245,7 @@ if(semanalCont){
     if(cam){
       const arr = listaDe(cam.dataset.tipo, cam.dataset.wd);
       const x = arr.find(t => t.id === cam.dataset.id); if(!x) return;
-      const sup = esAdmin();
+      const sup = puedeEditarRutina();
       if(x.foto && cam.classList.contains("tthumb")){
         if(!sup){ const u = await urlFirmada(x.foto); if(u) window.open(u, "_blank"); return; }
         if(confirm("Foto de referencia.\nAceptar = ver · Cancelar = reemplazar")){
