@@ -276,6 +276,10 @@
   .ck-thumb{flex:none;width:44px;height:44px;object-fit:cover;border-radius:8px;background:#EADCC8;
     border:1px solid var(--linea);cursor:pointer}
   .ck-nofoto{flex:none;font-size:11px;color:var(--grafito);opacity:.6}
+  .ck-t{align-items:flex-start}
+  .ck-chk{margin-top:2px}
+  .ck-sec{margin:13px 0 2px;font:700 11px/1.2 inherit;letter-spacing:.06em;text-transform:uppercase;color:var(--grafito)}
+  .ck-mot{margin-top:3px;font-size:12.5px;line-height:1.35;color:#9A6B12;font-weight:600}
   /* gestión de usuarios */
   .usr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--linea)}
   .usr-row.off{opacity:.5}
@@ -507,7 +511,7 @@
     </div>
     <div class="sup-sub" id="supSub">
       <span class="ssub on" data-sub="traspasos">📸 Traspasos</span>
-      <span class="ssub" data-sub="checklists">📋 Fotos por tarea</span>
+      <span class="ssub" data-sub="checklists">📋 Informe del día</span>
     </div>
     <div id="supPanelTraspasos">
       <div class="sup-filtros" id="supFiltros">
@@ -656,7 +660,7 @@
       <h3>👀 Supervisión (el tablero)</h3>
       <ul>
         <li><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, <b>puesto</b>, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
-        <li><b>📋 Fotos por tarea</b>: cada checklist y guía diaria con sus tareas, checks y miniaturas (con su puesto). Toca una foto para verla completa.</li>
+        <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
       <h3>👥 Usuarios</h3>
@@ -1240,7 +1244,7 @@ document.getElementById("supCerrar").addEventListener("click", () => supOvl.clas
 supOvl.addEventListener("click", e => { if(e.target === supOvl) supOvl.classList.remove("on"); });
 supFiltros.addEventListener("click", e => { const c = e.target.closest(".chip"); if(!c) return; supFiltro = c.dataset.f; renderSup(); });
 
-/* ---- Supervisión · sub-pestaña «Fotos por tarea» (checklists guardados) ---- */
+/* ---- Supervisión · sub-pestaña «Informe del día» (checklists guardados) ---- */
 const fotoCache = {};  // path -> URL firmada
 async function firmarFotos(paths){
   const faltan = [...new Set(paths.filter(p => p && !fotoCache[p]))];
@@ -1261,25 +1265,50 @@ async function cargarChecklists(){
     await vfSesion(client);
     const { data, error } = await client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false }).limit(40);
     if(error) throw error;
-    const conFoto = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas) && r.estado.tareas.some(t => t.foto));
-    if(!conFoto.length){
-      cont.innerHTML = '<div class="sinreg">Aún no hay tareas con foto.<br>Aparecen aquí cuando alguien adjunta una foto (📷) a una tarea del checklist y luego «Registrar y enviar».</div>';
+    // se muestran los que tengan foto O motivo de pendiente O agregados del día
+    const utiles = (data || []).filter(r => {
+      const e = r.estado; if(!e || !Array.isArray(e.tareas)) return false;
+      return e.tareas.some(t => t.foto || t.motivo) || (Array.isArray(e.extras) && e.extras.length);
+    });
+    if(!utiles.length){
+      cont.innerHTML = '<div class="sinreg">Aún no hay nada que revisar.<br>Aparecen aquí las tareas con <b>foto</b>, los <b>pendientes con su motivo</b> y lo que se <b>agregó en el día</b>.</div>';
       return;
     }
-    const paths = []; conFoto.forEach(r => r.estado.tareas.forEach(t => { if(t.foto) paths.push(t.foto); }));
+    const paths = []; utiles.forEach(r => r.estado.tareas.forEach(t => { if(t.foto) paths.push(t.foto); }));
     await firmarFotos(paths);
-    cont.innerHTML = conFoto.map(r => {
+    cont.innerHTML = utiles.map(r => {
       const e = r.estado;
-      const quien = (e.entrega || "—") + " → " + (e.recibe || "—");
+      const quien = (e.entrega || "—") + (e.recibe ? " → " + e.recibe : "");
       const fecha = new Date(r.updated_at).toLocaleString("es-CL", { weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
-      const tareas = e.tareas.map(t => {
+      const hechas = e.tareas.filter(t => t.ok).length;
+      const pend = e.tareas.filter(t => !t.ok);
+      const linea = t => {
         const thumb = t.foto
           ? '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX) + '" alt="foto" loading="lazy">'
           : '<span class="ck-nofoto">sin foto</span>';
+        const mot = t.motivo ? '<div class="ck-mot">↳ ' + esc(t.motivo) + '</div>' : "";
         return '<div class="ck-t"><span class="ck-chk' + (t.ok ? " on" : "") + '"></span><span class="ck-txt">' + esc(t.t || "")
-          + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + '</span>' + thumb + '</div>';
-      }).join("");
-      return '<div class="ck-card"><div class="ck-h"><b>' + esc(e.titulo || "Checklist") + '</b><br>' + esc(quien) + ' · ' + fecha + '</div>' + tareas + '</div>';
+          + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + mot + '</span>' + thumb + '</div>';
+      };
+      let cuerpo = "";
+      if(pend.length){
+        const sin = pend.filter(t => !t.motivo).length;
+        cuerpo += '<div class="ck-sec">⏳ No se pudieron hacer · ' + pend.length
+          + (sin ? ' <b>(' + sin + ' sin motivo)</b>' : "") + '</div>' + pend.map(linea).join("");
+      }
+      const conFotoOk = e.tareas.filter(t => t.ok && t.foto);
+      if(conFotoOk.length) cuerpo += '<div class="ck-sec">✅ Hechas con foto · ' + conFotoOk.length + '</div>' + conFotoOk.map(linea).join("");
+      const ex = Array.isArray(e.extras) ? e.extras : [];
+      if(ex.length){
+        cuerpo += '<div class="ck-sec">➕ Agregado en el día · ' + ex.length + '</div>'
+          + ex.map(x => '<div class="ck-t"><span class="ck-chk' + (x.k !== "nota" && x.ok ? " on" : "") + '"></span>'
+              + '<span class="ck-txt">' + (x.k === "nota" ? "📝 " : "") + esc(x.t || "")
+              + (x.p ? ' <span class="sem-badge">' + esc(x.p) + '</span>' : "")
+              + ' <span class="ex-badge">' + (x.k === "nota" ? "nota" : "extra") + '</span>'
+              + (x.motivo ? '<div class="ck-mot">↳ ' + esc(x.motivo) + '</div>' : "") + '</span></div>').join("");
+      }
+      return '<div class="ck-card"><div class="ck-h"><b>' + esc(e.titulo || "Checklist") + '</b><br>' + esc(quien) + ' · ' + fecha
+        + '<br><small>' + hechas + ' de ' + e.tareas.length + ' hechas</small></div>' + cuerpo + '</div>';
     }).join("");
   }catch(err){
     cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((err && err.message) || String(err)) + '</div>';
@@ -1799,16 +1828,22 @@ function cargarDia(){
   }catch(e){ return { done:new Set(), fotos:{} }; }
 }
 function guardarDia(st){ try{ localStorage.setItem(claveDia(), JSON.stringify({ done:[...st.done], fotos:st.fotos })); }catch(e){} }
+/* Sube al servidor lo del día: tareas + MOTIVO de cada pendiente + agregados.
+   Así el supervisor ve qué no se hizo y por qué, sin depender de que se lo envíen. */
 async function syncGuiaRemoto(){
   const client = getSB(); if(!client) return;
-  const wd = new Date().getDay();
-  const st = cargarDia();
-  const items = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
-  const tareas = items.map(x => ({ id:x.id, t:x.t, p:x.p || undefined, ok:st.done.has(x.id), foto:st.fotos[x.id] || undefined }));
-  const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
+  const st = cargarDia(), mot = cargarMot();
   const ps = puestosHoy();
+  // sólo lo del puesto de quien usa el equipo: no reporta áreas que no le tocan
+  const items = itemsDe("mio");
+  const tareas = items.map(x => ({ id:x.id, t:x.t, p:x.p || undefined, ok:st.done.has(x.id),
+                                   foto:st.fotos[x.id] || undefined, motivo:(!st.done.has(x.id) && mot[x.id]) || undefined }));
+  const extras = extrasDe("mio").map(x => ({ id:x.id, t:x.t, p:x.a || undefined, k:x.k,
+                                        ok:st.done.has(x.id), motivo:(x.k !== "nota" && !st.done.has(x.id) && mot[x.id]) || undefined }));
+  const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
   const quien = quienActual() + (ps ? " (" + ps.join(", ") + ")" : "");
-  const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:quien, recibe:"", tareas };
+  const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}),
+                   entrega:quien, recibe:"", tareas, extras };
   try{ await vfSesion(client); await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() }); }catch(e){}
 }
 /* ---- Guía diaria: pestañas por ÁREA (como la planilla) + momento + pendientes ---- */
@@ -1886,7 +1921,7 @@ function pedirMotivo(id, texto){
     const val = b.dataset.m === "__libre" ? inp.value.trim() : b.dataset.m;
     const mm = cargarMot();
     if(val) mm[id] = val; else delete mm[id];
-    guardarMot(mm); cerrar(); renderGuia();
+    guardarMot(mm); cerrar(); renderGuia(); syncGuiaRemoto();
   });
   ovl.addEventListener("keydown", e => {
     if(e.key === "Enter" && e.target === inp){ e.preventDefault(); ovl.querySelector(".op.qt").click(); }
@@ -2073,7 +2108,7 @@ document.getElementById("extraAdd").addEventListener("click", e => {
     const nuevo = { id:"ex" + Date.now().toString(36), t, a:areaActiva(), k:a.dataset.k };
     ex.push(nuevo); guardarEx(ex);
     if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); guardarDia(st); }  // realizada = ya marcada
-    inp.value = ""; renderGuia();
+    inp.value = ""; renderGuia(); syncGuiaRemoto();
     return;
   }
   if(e.target.closest("#btnInforme")) enviarInforme();
