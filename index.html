@@ -132,6 +132,11 @@
   #btnInforme:active{transform:scale(.985)}
   .ex-badge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;
     background:#F4F1FE;color:#5B3FD6;font:600 10px/1.6 inherit;vertical-align:middle}
+  /* aviso de versión nueva */
+  #updBar{position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;border:0;cursor:pointer;
+    padding:13px 14px;border-radius:13px;font:600 13.5px/1.3 inherit;color:#fff;
+    background:linear-gradient(135deg,#6D4FFF,#8B6BFF);box-shadow:0 6px 20px rgba(109,79,255,.4)}
+  #updBar b{text-decoration:underline}
   /* semanal */
   .sem-h{font-size:12px;font-weight:700;color:var(--pino);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 4px}
   .sem-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--linea);font-size:15px}
@@ -1361,8 +1366,43 @@ btnCompartirApp.addEventListener("click", async () => {
   }
 });
 
+/* ---- Actualización automática de la app ----
+   El estado (checks, motivos, extras) vive en localStorage y NO se toca al actualizar:
+   sólo se renueva el código. Nadie necesita borrar caché. */
 if("serviceWorker" in navigator){
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
+  let reg = null, hayNueva = false;
+
+  function avisarNueva(){
+    if(document.getElementById("updBar")) return;
+    const b = document.createElement("button");
+    b.id = "updBar";
+    b.innerHTML = "🔄 Hay una versión nueva de la app · <b>Actualizar</b>";
+    b.addEventListener("click", () => location.reload());
+    document.body.appendChild(b);
+  }
+  function buscarActualizacion(){ if(reg) reg.update().catch(()=>{}); }
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").then(r => {
+      reg = r;
+      r.addEventListener("updatefound", () => {
+        const nuevo = r.installing; if(!nuevo) return;
+        nuevo.addEventListener("statechange", () => {
+          // sólo avisa si YA había una versión corriendo (si no, es la primera instalación)
+          if(nuevo.state === "installed" && navigator.serviceWorker.controller){ hayNueva = true; avisarNueva(); }
+        });
+      });
+      buscarActualizacion();
+    }).catch(()=>{});
+  });
+
+  // al volver a la app (la vuelve a mirar tras dejarla de lado): revisa y aplica sola
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState !== "visible") return;
+    if(hayNueva){ location.reload(); return; }   // momento seguro: no está escribiendo
+    buscarActualizacion();
+  });
+  setInterval(buscarActualizacion, 30 * 60 * 1000);   // y cada 30 min si queda abierta
 }
 
 /* ---- Fase 1: usuarios / roles + clave de supervisor ---- */
