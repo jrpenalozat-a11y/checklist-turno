@@ -68,6 +68,70 @@
   .gsec{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grafito);font-weight:700;display:block;margin:16px 0 0}
   .gtexto{flex:1;min-width:0;font-size:17px;line-height:1.35;padding:14px 0;word-break:break-word}
   .hecha .gtexto{color:var(--grafito);text-decoration:line-through}
+  /* guía diaria: pestañas por área (Turno 1 + áreas del Turno 2) */
+  #areaTabs{display:flex;gap:7px;overflow-x:auto;padding:3px 1px 9px;margin:12px 0 2px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #areaTabs::-webkit-scrollbar{display:none}
+  #areaTabs .atab{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;
+    border:1.5px solid var(--linea);background:var(--panel);color:var(--tinta);
+    border-radius:13px;padding:8px 13px;font:600 13px/1.1 inherit;cursor:pointer;
+    transition:transform .12s ease,box-shadow .12s ease;white-space:nowrap}
+  #areaTabs .atab:active{transform:scale(.96)}
+  #areaTabs .atab .ac{font-size:11px;opacity:.62;font-weight:600}
+  #areaTabs .atab.on{background:linear-gradient(135deg,#6D4FFF,#8B6BFF);color:#fff;border-color:transparent;
+    box-shadow:0 4px 12px rgba(109,79,255,.32)}
+  #areaTabs .atab.on .ac{opacity:.9}
+  #areaTabs .atab.lista{border-color:#2E9E6B;color:#2E9E6B}
+  #areaTabs .atab.on.lista{background:linear-gradient(135deg,#2E9E6B,#4FBF8B);color:#fff;border-color:transparent}
+  #areaTabs .asep{flex:0 0 auto;display:flex;align-items:center;align-self:stretch;
+    padding:0 4px 0 9px;margin-left:2px;border-left:2px dashed var(--linea);
+    font:700 9.5px/1 inherit;letter-spacing:.09em;text-transform:uppercase;opacity:.5;
+    writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
+  .gmom{display:flex;align-items:center;gap:8px;margin:16px 0 7px;font:700 12px/1 inherit;
+    letter-spacing:.06em;text-transform:uppercase;opacity:.72}
+  .gmom::after{content:'';flex:1;height:1px;background:var(--linea)}
+  .gmom.ap{color:#C77A18}.gmom.du{color:#6D4FFF}.gmom.ci{color:#B4483A}
+  /* pendientes + motivo */
+  #guiaLista li.pend{border-left:3px solid #E0A030;padding-left:7px;border-radius:3px}
+  #guiaLista li.pend.conmot{border-left-color:#2E9E6B}
+  .pmot{flex:0 0 auto;margin-left:6px;border:1.5px solid #E8C98A;background:#FFF8EC;color:#9A6B12;
+    border-radius:9px;padding:5px 9px;font:600 11px/1.15 inherit;cursor:pointer;max-width:44%;
+    text-align:left;white-space:normal}
+  .pmot.si{border-color:#A9D9BF;background:#F0FAF4;color:#256B4B}
+  #pendBar{display:none;align-items:center;gap:9px;flex-wrap:wrap;margin:8px 0 2px;padding:9px 12px;
+    border:1.5px dashed #E8C98A;background:#FFF8EC;border-radius:12px;font:600 12px/1.3 inherit;color:#8A5F10}
+  #pendBar b{color:#B4483A}
+  #motOvl{position:fixed;inset:0;z-index:100000;background:rgba(18,14,30,.55);display:flex;
+    align-items:flex-end;justify-content:center}
+  #motOvl .cja{width:100%;max-width:520px;background:var(--panel);color:var(--tinta);
+    border-radius:18px 18px 0 0;padding:16px 16px 22px;max-height:82vh;overflow:auto}
+  #motOvl h4{margin:0 0 3px;font:700 15px/1.25 inherit}
+  #motOvl .tq{margin:0 0 13px;font:500 12.5px/1.35 inherit;opacity:.7}
+  #motOvl .op{display:block;width:100%;text-align:left;margin:0 0 7px;padding:12px 13px;border-radius:11px;
+    border:1.5px solid var(--linea);background:transparent;color:inherit;font:600 13.5px/1.2 inherit;cursor:pointer}
+  #motOvl .op.qt{border-color:#E8C98A;background:#FFF8EC;color:#9A6B12}
+  #motOvl input{width:100%;padding:12px 13px;border-radius:11px;border:1.5px solid var(--linea);
+    background:transparent;color:inherit;font:500 13.5px inherit;margin:4px 0 8px}
+  /* agregar del día: tarea extra / pendiente / nota + informe */
+  #extraAdd{margin:16px 0 4px;padding:12px;border:1.5px dashed var(--linea);border-radius:13px}
+  #extraAdd .eh{font:700 12px/1 inherit;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:9px}
+  #extraAdd input{width:100%;padding:11px 12px;border-radius:11px;border:1.5px solid var(--linea);
+    background:transparent;color:inherit;font:500 13.5px inherit;margin-bottom:8px}
+  #extraAdd .ebs{display:flex;gap:7px;flex-wrap:wrap}
+  #extraAdd .eb{flex:1 1 auto;min-width:96px;padding:10px 8px;border-radius:11px;border:1.5px solid var(--linea);
+    background:transparent;color:inherit;font:600 12.5px/1.15 inherit;cursor:pointer}
+  #extraAdd .eb:active{transform:scale(.97)}
+  #extraAdd .eb.ok{border-color:#A9D9BF;background:#F0FAF4;color:#256B4B}
+  #extraAdd .eb.pe{border-color:#E8C98A;background:#FFF8EC;color:#9A6B12}
+  #extraAdd .eb.no{border-color:#C9BEF5;background:#F4F1FE;color:#5B3FD6}
+  #guiaLista li.nota{border-left:3px solid #8B6BFF;padding-left:7px;border-radius:3px}
+  #guiaLista li.nota .gtexto{font-style:italic}
+  #btnInforme{width:100%;margin-top:11px;padding:13px 12px;border-radius:12px;border:0;cursor:pointer;
+    background:linear-gradient(135deg,#25916F,#2FB985);color:#fff;font:700 14px/1.2 inherit;
+    box-shadow:0 4px 12px rgba(37,145,111,.28)}
+  #btnInforme:active{transform:scale(.985)}
+  .ex-badge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;
+    background:#F4F1FE;color:#5B3FD6;font:600 10px/1.6 inherit;vertical-align:middle}
   /* semanal */
   .sem-h{font-size:12px;font-weight:700;color:var(--pino);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 4px}
   .sem-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--linea);font-size:15px}
@@ -392,11 +456,10 @@
       <div class="cuenta" id="guiaCuenta"><b>0</b> de 0</div>
       <div class="barra"><i id="guiaFill"></i></div>
     </div>
-    <div class="sup-filtros" id="guiaFiltros" style="margin-top:12px">
-      <span class="chip on" data-f="mio">👤 Mi puesto</span>
-      <span class="chip" data-f="todos">Todos los puestos</span>
-    </div>
+    <div id="areaTabs"></div>
+    <div id="pendBar"></div>
     <ul id="guiaLista"></ul>
+    <div id="extraAdd"></div>
     <div id="guiaAdd"></div>
   </section>
 
@@ -545,8 +608,12 @@
       <h3>📅 Pestaña Guía diaria — la rutina del local</h3>
       <ul>
         <li>Es la <b>rutina fija</b>: sale sola cada día (tareas de todos los días + las del día que toca).</li>
-        <li>Por defecto ves <b>«Mi puesto»</b>: las generales + las de tu(s) puesto(s) de hoy. Toca <b>«Todos los puestos»</b> para ver la rutina completa.</li>
+        <li><b>Pestañas por área</b>, igual que la planilla: <b>🌅 Turno 1</b> y, tras el separador, las áreas del <b>Turno 2</b> (Cocina · Barismo/Vitrina · Caja · Salón). Cada pestaña muestra <b>sólo sus tareas</b> y su avance; se pone <b>verde ✓</b> al completarla. <b>👤 Mi puesto</b> arma la lista con el puesto que elegiste hoy.</li>
+        <li>Dentro de cada área las tareas van agrupadas por momento: <b>🌅 Apertura · ☀️ Durante el turno · 🌙 Al cierre</b>.</li>
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
+        <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
+        <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área.</li>
+        <li><b>📤 Enviar informe</b>: manda por WhatsApp el resumen del área con las tareas que <b>no se pudieron hacer y su motivo</b>, más los extras y las notas. <b>No deja enviar si falta algún motivo.</b></li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
       </ul>
       <h3>🗓️ Pestaña Semanal — solo lectura</h3>
@@ -1744,48 +1811,231 @@ async function syncGuiaRemoto(){
   const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}), entrega:quien, recibe:"", tareas };
   try{ await vfSesion(client); await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() }); }catch(e){}
 }
-let guiaFiltro = "mio";
+/* ---- Guía diaria: pestañas por ÁREA (como la planilla) + momento + pendientes ---- */
+/* Un tab por área. "gen" = bloque «Turno 1» (tareas sin puesto asignado). */
+const AREAS_TAB = [
+  { a:"gen", n:"🌅 Turno 1" },
+  { a:"Cocina", n:"Cocina" },
+  { a:"Barismo/Vitrina", n:"Barismo/Vitrina" },
+  { a:"Caja", n:"Caja" },
+  { a:"Salón", n:"Salón" },
+  { a:"Terminados", n:"Terminados" }
+];
+let areaSel = "mio";                       // mio | todos | gen | <puesto>
+
+function momentoDe(t){
+  if(/^\[APERTURA\]/.test(t)) return "ap";
+  if(/^\[CIERRE\]/.test(t)) return "ci";
+  return "du";
+}
+function limpio(t){ return t.replace(/^\[(APERTURA|CIERRE)\]\s*/, ""); }
+
+/* motivos de lo que quedó pendiente (por día, en este dispositivo) */
+const MOTIVOS = ["No alcanzó el tiempo","Faltaba insumo o producto","Equipo en uso o con falla",
+                 "Había clientes en el sector","Lo toma el próximo turno"];
+function claveMot(){ return "guia.motivos." + fechaISO(new Date()); }
+function cargarMot(){ try{ return JSON.parse(localStorage.getItem(claveMot()) || "{}"); }catch(e){ return {}; } }
+function guardarMot(m){ try{ localStorage.setItem(claveMot(), JSON.stringify(m)); }catch(e){} }
+
+/* agregados del día: tarea extra, pendiente nuevo o nota (no tocan la rutina) */
+function claveEx(){ return "guia.extras." + fechaISO(new Date()); }
+function cargarEx(){ try{ return JSON.parse(localStorage.getItem(claveEx()) || "[]"); }catch(e){ return []; } }
+function guardarEx(a){ try{ localStorage.setItem(claveEx(), JSON.stringify(a)); }catch(e){} }
+function areaActiva(){                     // dónde cae lo que se agregue
+  if(areaSel === "mio"){ const m = puestosHoy() || []; return m.length ? m[0] : ""; }
+  if(areaSel === "todos" || areaSel === "gen") return "";
+  return areaSel;
+}
+function itemsDe(area){
+  const wd = new Date().getDay();
+  const todo = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
+  if(area === "todos") return todo;
+  if(area === "gen") return todo.filter(x => !x.p);
+  if(area === "mio"){
+    const mios = puestosHoy() || [];
+    if(!mios.length || mios.indexOf("Supervisor") >= 0) return todo;
+    return todo.filter(x => x.p && mios.indexOf(x.p) >= 0);
+  }
+  return todo.filter(x => x.p === area);   // SÓLO las de esa área
+}
+function extrasDe(area){
+  const ex = cargarEx();
+  if(area === "todos") return ex;
+  if(area === "gen") return ex.filter(x => !x.a);
+  if(area === "mio"){ const m = puestosHoy() || []; return m.length ? ex.filter(x => m.indexOf(x.a) >= 0) : ex; }
+  return ex.filter(x => x.a === area);
+}
+/* lo que cuenta para el avance: rutina + agregados marcables (las notas no cuentan) */
+function contablesDe(area){ return itemsDe(area).concat(extrasDe(area).filter(x => x.k !== "nota")); }
+
+function pedirMotivo(id, texto){
+  const ovl = document.createElement("div"); ovl.id = "motOvl";
+  ovl.innerHTML = '<div class="cja"><h4>¿Por qué quedó pendiente?</h4>'
+    + '<p class="tq">' + esc(limpio(texto)) + '</p>'
+    + MOTIVOS.map(m => '<button class="op" data-m="' + esc(m) + '">' + esc(m) + '</button>').join("")
+    + '<input type="text" id="motLibre" placeholder="Otro motivo…" autocomplete="off">'
+    + '<button class="op qt" data-m="__libre">Guardar motivo escrito</button>'
+    + '<button class="op" data-m="">Quitar motivo</button></div>';
+  document.body.appendChild(ovl);
+  const inp = ovl.querySelector("#motLibre");
+  const m0 = cargarMot(); if(m0[id] && MOTIVOS.indexOf(m0[id]) < 0) inp.value = m0[id];
+  const cerrar = () => ovl.remove();
+  ovl.addEventListener("click", e => {
+    if(e.target === ovl) return cerrar();
+    const b = e.target.closest(".op"); if(!b) return;
+    const val = b.dataset.m === "__libre" ? inp.value.trim() : b.dataset.m;
+    const mm = cargarMot();
+    if(val) mm[id] = val; else delete mm[id];
+    guardarMot(mm); cerrar(); renderGuia();
+  });
+  ovl.addEventListener("keydown", e => {
+    if(e.key === "Enter" && e.target === inp){ e.preventDefault(); ovl.querySelector(".op.qt").click(); }
+    if(e.key === "Escape") cerrar();
+  });
+  setTimeout(() => inp.focus({ preventScroll:true }), 60);
+}
+
 function renderGuia(){
   const cont = document.getElementById("guiaLista"); if(!cont) return;
-  const wd = new Date().getDay();
-  document.getElementById("guiaFecha").textContent = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
-  [...document.querySelectorAll("#guiaFiltros .chip")].forEach(c => c.classList.toggle("on", c.dataset.f === guiaFiltro));
   const st = cargarDia();
+  const mot = cargarMot();
+  document.getElementById("guiaFecha").textContent = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
+
+  /* pestañas por área, con avance de cada una */
   const mios = puestosHoy() || [];
-  const verTodo = guiaFiltro === "todos" || !mios.length || mios.indexOf("Supervisor") >= 0;
-  // «Mi puesto»: tareas generales + las de mis puestos de hoy (supervisor o sin puesto = ve todo)
-  const filtra = arr => verTodo ? arr : arr.filter(x => !x.p || mios.indexOf(x.p) >= 0);
-  const baseTodas = RUTINA.base || [];
-  const diaTodas = (RUTINA.dias && RUTINA.dias[wd]) || [];
-  const base = filtra(baseTodas);
-  const dia = filtra(diaTodas);
-  const total = base.length + dia.length;
-  const hechas = base.concat(dia).filter(x => st.done.has(x.id)).length;
-  document.getElementById("guiaCuenta").innerHTML = "<b>" + hechas + "</b> de " + total;
-  document.getElementById("guiaFill").style.width = (total ? Math.round(hechas/total*100) : 0) + "%";
+  const tabs = [{ a:"mio", n: mios.length ? "👤 " + mios.join(" · ") : "👤 Mi puesto" }]
+    .concat(AREAS_TAB).concat([{ a:"todos", n:"Todo el local" }]);
+  document.getElementById("areaTabs").innerHTML = tabs.map(t => {
+    const it = contablesDe(t.a);
+    if(!it.length && t.a !== "mio" && t.a !== "todos") return "";   // área sin tareas: no se muestra
+    const ok = it.filter(x => st.done.has(x.id)).length;
+    const full = it.length && ok === it.length;
+    const sep = (t.a === "Cocina") ? '<span class="asep">Turno 2</span>' : "";
+    return sep + '<button class="atab' + (areaSel === t.a ? " on" : "") + (full ? " lista" : "") + '" data-a="' + esc(t.a) + '">'
+      + '<span class="an">' + esc(t.n) + (full ? " ✓" : "") + '</span>'
+      + '<span class="ac">' + ok + "/" + it.length + '</span></button>';
+  }).join("");
+
+  /* contador + barra de avance del área elegida */
+  const items = itemsDe(areaSel);
+  const cuenta = contablesDe(areaSel);
+  const hechas = cuenta.filter(x => st.done.has(x.id)).length;
+  document.getElementById("guiaCuenta").innerHTML = "<b>" + hechas + "</b> de " + cuenta.length;
+  document.getElementById("guiaFill").style.width = (cuenta.length ? Math.round(hechas/cuenta.length*100) : 0) + "%";
+
   function foto(x){
     const p = st.fotos[x.id];
     return p ? '<img class="tthumb" data-gid="' + x.id + '" data-foto="' + esc(p) + '" src="' + PIX + '" alt="foto">'
              : '<button class="tfoto" data-gid="' + x.id + '" aria-label="Foto del día">📷</button>';
   }
-  function sec(titulo, items){
-    if(!items.length) return "";
-    return '<li class="gsec-li"><span class="gsec">' + esc(titulo) + '</span></li>' + items.map(x => {
-      const ok = st.done.has(x.id);
-      const badge = x.p ? '<span class="sem-badge">' + esc(x.p) + '</span>' : "";
-      return '<li class="' + (ok ? "hecha" : "") + '"><label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
-        + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
-        + '<span class="gtexto">' + esc(x.t) + badge + '</span>' + foto(x) + '</li>';
-    }).join("");
+  /* no marcada = pendiente por defecto; se le puede poner el motivo */
+  function fila(x, esExtra){
+    const ok = st.done.has(x.id);
+    const zona = esExtra ? x.a : x.p;
+    const bad = ((areaSel === "todos" || areaSel === "mio") && zona)
+      ? '<span class="sem-badge">' + esc(zona) + '</span>' : "";
+    const tag = esExtra ? '<span class="ex-badge">extra</span>' : "";
+    const m = mot[x.id];
+    const btn = ok ? "" : '<button class="pmot' + (m ? " si" : "") + '" data-mot="' + x.id + '">'
+      + (m ? "⏳ " + esc(m) : "⏳ ¿Por qué?") + '</button>';
+    return '<li class="' + (ok ? "hecha" : "pend") + (!ok && m ? " conmot" : "") + '">'
+      + '<label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
+      + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
+      + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + '</span>'
+      + foto(x) + btn + '</li>';
   }
-  const totalSinFiltro = baseTodas.length + diaTodas.length;
-  cont.innerHTML = total
-    ? sec("Todos los días", base) + sec(nombreDia(wd) + " (hoy)", dia)
-    : (totalSinFiltro
-        ? '<li class="vacio">No hay tareas para tu puesto hoy.<br>Toca «Todos los puestos» para ver el resto.</li>'
-        : '<li class="vacio">Aún no hay tareas en la guía.<br>El supervisor las agrega aquí abajo o en la pestaña «Semanal».</li>');
+  const MOM = [["ap","🌅 Apertura"], ["du","☀️ Durante el turno"], ["ci","🌙 Al cierre"]];
+  let html = "";
+  MOM.forEach(m => {
+    const g = items.filter(x => momentoDe(x.t) === m[0]);
+    if(!g.length) return;
+    const listos = g.filter(x => st.done.has(x.id)).length;
+    html += '<li class="gsec-li"><span class="gmom ' + m[0] + '">' + m[1] + " · " + listos + "/" + g.length + '</span></li>'
+      + g.map(x => fila(x, false)).join("");
+  });
+  /* agregados de hoy en esta área */
+  const extras = extrasDe(areaSel);
+  if(extras.length){
+    html += '<li class="gsec-li"><span class="gmom du">➕ Agregado hoy · ' + extras.length + '</span></li>'
+      + extras.map(x => {
+          if(x.k !== "nota") return fila(x, true);
+          const zona = (areaSel === "todos" || areaSel === "mio") && x.a
+            ? '<span class="sem-badge">' + esc(x.a) + '</span>' : "";
+          return '<li class="nota"><span class="gtexto">📝 ' + esc(x.t) + zona
+            + '<span class="ex-badge">nota</span></span></li>';
+        }).join("");
+  }
+  cont.innerHTML = html || '<li class="vacio">No hay tareas para esta área hoy.<br>El supervisor las agrega en la pestaña «Semanal».</li>';
+
+  /* agregar del día + enviar informe (cualquiera, no sólo el supervisor) */
+  const dnd = areaActiva();
+  document.getElementById("extraAdd").innerHTML =
+      '<div class="eh">➕ Agregar en ' + esc(dnd || "el local") + '</div>'
+    + '<input type="text" id="exTxt" placeholder="Escribe la tarea o la nota…" autocomplete="off">'
+    + '<div class="ebs">'
+    + '<button class="eb ok" data-k="ok">✅ Tarea extra<br>realizada</button>'
+    + '<button class="eb pe" data-k="pend">⏳ Queda<br>pendiente</button>'
+    + '<button class="eb no" data-k="nota">📝 Nota</button></div>'
+    + '<button id="btnInforme">📤 Enviar informe de ' + esc(dnd || "el local") + '</button>';
+
+  /* resumen de pendientes del área (rutina + agregados) */
+  const pend = cuenta.filter(x => !st.done.has(x.id));
+  const sinMot = pend.filter(x => !mot[x.id]).length;
+  const barraP = document.getElementById("pendBar");
+  barraP.style.display = pend.length ? "flex" : "none";
+  barraP.innerHTML = pend.length
+    ? "⏳ Quedan <b>" + pend.length + "</b> pendientes en esta área"
+      + (sinMot ? " · <b>" + sinMot + "</b> sin motivo — toca «¿Por qué?» para explicar" : " · todas con motivo ✓")
+    : "";
+
   firmarThumbs("#guiaLista");
   renderGuiaAdd();
+}
+
+/* ---- Informe del área por WhatsApp: exige motivo en TODO lo pendiente ---- */
+function enviarInforme(){
+  const st = cargarDia(), mot = cargarMot();
+  const area = areaActiva() || "el local";
+  const ex = extrasDe(areaSel);
+  const marcables = contablesDe(areaSel);
+  const pend = marcables.filter(x => !st.done.has(x.id));
+
+  const sin = pend.filter(x => !mot[x.id]);
+  if(sin.length){
+    alert("No puedes enviar el informe todavía.\n\n"
+      + "Hay " + sin.length + " tarea(s) pendiente(s) sin motivo. "
+      + "Toca «⏳ ¿Por qué?» en cada una y explica por qué no se pudo hacer:\n\n"
+      + sin.slice(0,8).map((x,i) => (i+1) + ". " + limpio(x.t)).join("\n")
+      + (sin.length > 8 ? "\n… y " + (sin.length-8) + " más" : ""));
+    const pr = document.querySelector("#guiaLista li.pend .pmot:not(.si)");
+    if(pr) pr.scrollIntoView({ block:"center", behavior:"smooth" });
+    return;
+  }
+  if(!marcables.length){ alert("No hay nada que informar en esta área."); return; }
+
+  const hechas = marcables.filter(x => st.done.has(x.id));
+  const pct = marcables.length ? Math.round(hechas.length/marcables.length*100) : 0;
+  const quien = quienActual();
+  const f = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
+  const hora = new Date().toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+
+  let t = "*Informe de turno — " + area + "*\n" + f + " · " + hora + "\n";
+  if(quien) t += "Colaborador: " + quien + "\n";
+  t += "Avance: " + hechas.length + " de " + marcables.length + " (" + pct + "%)\n";
+  if(pend.length){
+    t += "\n*⏳ NO SE PUDIERON HACER (" + pend.length + ")*\n"
+      + pend.map((x,i) => (i+1) + ". " + limpio(x.t) + "\n     ↳ " + mot[x.id]).join("\n") + "\n";
+  } else {
+    t += "\n✅ *Se completaron todas las tareas del área.*\n";
+  }
+  const exOk = ex.filter(x => x.k !== "nota" && st.done.has(x.id));
+  if(exOk.length) t += "\n*➕ EXTRAS REALIZADAS (" + exOk.length + ")*\n" + exOk.map(x => "• " + x.t).join("\n") + "\n";
+  const notas = ex.filter(x => x.k === "nota");
+  if(notas.length) t += "\n*📝 NOTAS (" + notas.length + ")*\n" + notas.map(x => "• " + x.t).join("\n") + "\n";
+
+  const wa = "https://wa.me/?text=" + encodeURIComponent(t);
+  const w = window.open(wa, "_blank");
+  if(!w) location.href = wa;
 }
 function renderGuiaAdd(){
   const c = document.getElementById("guiaAdd"); if(!c) return;
@@ -1806,9 +2056,41 @@ document.getElementById("guiaAdd").addEventListener("click", e => {
 document.getElementById("guiaAdd").addEventListener("keydown", e => {
   if(e.target.id === "guiaNueva" && e.key === "Enter"){ e.preventDefault(); document.getElementById("guiaAgregar").click(); }
 });
-document.getElementById("guiaFiltros").addEventListener("click", e => {
-  const c = e.target.closest(".chip"); if(!c) return;
-  guiaFiltro = c.dataset.f; renderGuia();
+/* cambiar de área (pestañas) */
+document.getElementById("areaTabs").addEventListener("click", e => {
+  const b = e.target.closest(".atab"); if(!b) return;
+  areaSel = b.dataset.a; renderGuia();
+  b.scrollIntoView({ inline:"center", block:"nearest", behavior:"smooth" });
+});
+/* agregar del día: tarea extra realizada / pendiente / nota */
+document.getElementById("extraAdd").addEventListener("click", e => {
+  const a = e.target.closest(".eb");
+  if(a){
+    const inp = document.getElementById("exTxt");
+    const t = (inp.value || "").trim();
+    if(!t){ inp.focus(); return; }
+    const ex = cargarEx();
+    const nuevo = { id:"ex" + Date.now().toString(36), t, a:areaActiva(), k:a.dataset.k };
+    ex.push(nuevo); guardarEx(ex);
+    if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); guardarDia(st); }  // realizada = ya marcada
+    inp.value = ""; renderGuia();
+    return;
+  }
+  if(e.target.closest("#btnInforme")) enviarInforme();
+});
+document.getElementById("extraAdd").addEventListener("keydown", e => {
+  if(e.target.id === "exTxt" && e.key === "Enter"){
+    e.preventDefault(); document.querySelector('#extraAdd .eb[data-k="ok"]').click();
+  }
+});
+/* motivo de un pendiente */
+document.getElementById("guiaLista").addEventListener("click", e => {
+  const b = e.target.closest(".pmot"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const wd = new Date().getDay();
+  const todo = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []).concat(cargarEx());
+  const x = todo.find(t => t.id === b.dataset.mot);
+  if(x) pedirMotivo(x.id, x.t);
 });
 document.getElementById("guiaLista").addEventListener("change", e => {
   if(e.target.type !== "checkbox") return;
