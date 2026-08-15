@@ -101,6 +101,12 @@
   #pendBar{display:none;align-items:center;gap:9px;flex-wrap:wrap;margin:8px 0 2px;padding:9px 12px;
     border:1.5px dashed #E8C98A;background:#FFF8EC;border-radius:12px;font:600 12px/1.3 inherit;color:#8A5F10}
   #pendBar b{color:#B4483A}
+  /* aviso: sin nombre elegido lo marcado no queda registrado (no se sincroniza) */
+  #guiaAviso{display:none;margin:10px 0 2px;padding:10px 12px;border-radius:12px;
+    border:1.5px dashed #B9A6F5;background:#F4F0FF;font:600 12px/1.4 inherit;color:#5B3FD6}
+  #guiaAviso b{color:#3F26B8}
+  #guiaAviso button{margin-top:8px;padding:8px 14px;border-radius:99px;border:0;
+    background:linear-gradient(135deg,#6D4FFF,#8B6BFF);color:#fff;font:700 12px/1 inherit;cursor:pointer}
   #motOvl{position:fixed;inset:0;z-index:100000;background:rgba(18,14,30,.55);display:flex;
     align-items:flex-end;justify-content:center}
   #motOvl .cja{width:100%;max-width:520px;background:var(--panel);color:var(--tinta);
@@ -246,6 +252,16 @@
   .chip{font-size:12px;font-weight:600;padding:7px 13px;border-radius:99px;border:1px solid var(--linea);
     background:var(--panel);color:var(--grafito);cursor:pointer}
   .chip.on{background:var(--pino);color:var(--crema);border-color:var(--pino)}
+  /* Informe del día: selector de un día puntual + resumen del filtro */
+  .ck-fecha{font:600 12px/1 inherit;padding:6px 10px;border-radius:99px;border:1px solid var(--linea);
+    background:var(--panel);color:var(--grafito);cursor:pointer;min-width:134px}
+  .ck-fecha.on{background:var(--pino);color:var(--crema);border-color:var(--pino)}
+  .ck-tot{font:600 12px/1.3 inherit;color:var(--grafito);margin:0 0 10px}
+  .ck-limpio{font:600 12.5px/1.4 inherit;color:#2E9E6B;padding:3px 0 1px}
+  .ck-por{font:600 11px/1.3 inherit;color:#2E9E6B;margin-top:2px}
+  .ck-mas summary{cursor:pointer;font:600 12px/1.3 inherit;color:var(--grafito);padding:7px 0;
+    list-style:none;text-decoration:underline;text-underline-offset:3px}
+  .ck-mas summary::-webkit-details-marker{display:none}
   .sup-card{display:flex;gap:12px;background:var(--panel);border:1px solid var(--linea);border-radius:14px;
     padding:10px;margin-bottom:10px;box-shadow:0 2px 8px rgba(28,26,23,.06)}
   .sup-card img{width:74px;height:98px;object-fit:cover;border-radius:10px;flex:none;background:#000}
@@ -461,6 +477,7 @@
   <section class="tab-panel" data-tab="guia">
     <h1>Guía diaria</h1>
     <div class="fecha" id="guiaFecha"></div>
+    <div id="guiaAviso"></div>
     <div class="progreso">
       <div class="cuenta" id="guiaCuenta"><b>0</b> de 0</div>
       <div class="barra"><i id="guiaFill"></i></div>
@@ -527,6 +544,13 @@
       <div class="sup-board" id="supBoard"></div>
     </div>
     <div id="supPanelChecklists" style="display:none">
+      <div class="sup-filtros" id="ckFiltros">
+        <span class="chip" data-f="hoy">Hoy</span>
+        <span class="chip on" data-f="ayer">Ayer</span>
+        <span class="chip" data-f="semana">7 días</span>
+        <span class="chip" data-f="todos">Todos</span>
+        <input type="date" class="ck-fecha" id="ckFecha" aria-label="Ver un día puntual">
+      </div>
       <div id="supChecklists"></div>
     </div>
     <div class="fila2">
@@ -1262,48 +1286,135 @@ async function firmarFotos(paths){
     (data || []).forEach(u => { if(u.path && u.signedUrl) fotoCache[u.path] = u.signedUrl; });
   }catch(e){}
 }
+/* ---- filtro por fecha del Informe del día ---- */
+let ckFiltro = "ayer";   // hoy | ayer | semana | todos | dia
+let ckDia    = "";       // fecha ISO cuando ckFiltro === "dia"
+
+/* La fecha va en el propio nombre del registro: guia-AAAA-MM-DD-dispositivo.
+   Ésa es la del día trabajado; updated_at puede caer en la madrugada siguiente. */
+function fechaDeReg(r){
+  const m = /^guia-(\d{4}-\d{2}-\d{2})-/.exec(r.codigo || "");
+  return m ? m[1] : fechaISO(new Date(r.updated_at));
+}
+function inicioDe(f){ return new Date(f + "T00:00:00"); }
+
+/* Rango para acotar la CONSULTA, no la pantalla: si filtráramos sólo lo que ya
+   llegó, un día viejo no entraría entre los últimos registros y el selector
+   diría «no hay nada» siendo mentira. */
+function rangoCk(){
+  if(ckFiltro === "todos") return null;
+  const hoy0 = new Date(); hoy0.setHours(0,0,0,0);
+  let desde, hasta;
+  if(ckFiltro === "dia"){
+    if(!ckDia) return null;
+    desde = inicioDe(ckDia); hasta = new Date(desde.getTime() + 864e5);
+  } else if(ckFiltro === "hoy"){
+    desde = hoy0;                                hasta = new Date(hoy0.getTime() + 864e5);
+  } else if(ckFiltro === "ayer"){
+    desde = new Date(hoy0.getTime() - 864e5);    hasta = new Date(hoy0.getTime());
+  } else {                                        // 7 días contando hoy
+    desde = new Date(hoy0.getTime() - 6*864e5);  hasta = new Date(hoy0.getTime() + 864e5);
+  }
+  // 8 h de margen: alguien puede sincronizar pasada la medianoche
+  return [desde.toISOString(), new Date(hasta.getTime() + 8*36e5).toISOString()];
+}
+function pasaFecha(r){
+  const f = fechaDeReg(r);
+  if(ckFiltro === "todos")  return true;
+  if(ckFiltro === "dia")    return !ckDia || f === ckDia;
+  if(ckFiltro === "hoy")    return f === fechaISO(new Date());
+  if(ckFiltro === "ayer")   return f === fechaISO(new Date(Date.now() - 864e5));
+  if(ckFiltro === "semana") return f >= fechaISO(new Date(Date.now() - 6*864e5));
+  return true;
+}
+function nombreFiltro(){
+  if(ckFiltro === "hoy")    return "hoy";
+  if(ckFiltro === "ayer")   return "ayer";
+  if(ckFiltro === "semana") return "los últimos 7 días";
+  if(ckFiltro === "dia" && ckDia)
+    return "el " + inicioDe(ckDia).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" });
+  return "";
+}
+function pintarCkFiltros(){
+  document.querySelectorAll("#ckFiltros .chip").forEach(c => c.classList.toggle("on", c.dataset.f === ckFiltro));
+  const inp = document.getElementById("ckFecha");
+  inp.max = fechaISO(new Date());
+  inp.classList.toggle("on", ckFiltro === "dia");
+  if(ckFiltro !== "dia") inp.value = "";
+}
 async function cargarChecklists(){
   const cont = document.getElementById("supChecklists");
+  pintarCkFiltros();
   cont.innerHTML = '<div class="sinreg">Cargando…</div>';
   const client = getSB();
   if(!client){ cont.innerHTML = '<div class="sinreg">Falta configurar Supabase.</div>'; return; }
   try{
     await vfSesion(client);
-    const { data, error } = await client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false }).limit(40);
+    let q = client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false });
+    const rg = rangoCk();
+    q = rg ? q.gte("updated_at", rg[0]).lte("updated_at", rg[1]).limit(300) : q.limit(60);
+    const { data, error } = await q;
     if(error) throw error;
-    // se muestran los que tengan foto O motivo de pendiente O agregados del día
-    const utiles = (data || []).filter(r => {
-      const e = r.estado; if(!e || !Array.isArray(e.tareas)) return false;
-      return e.tareas.some(t => t.foto || t.motivo) || (Array.isArray(e.extras) && e.extras.length);
-    });
-    if(!utiles.length){
-      cont.innerHTML = '<div class="sinreg">Aún no hay nada que revisar.<br>Aparecen aquí las tareas con <b>foto</b>, los <b>pendientes con su motivo</b> y lo que se <b>agregó en el día</b>.</div>';
+    /* se muestran TODOS los del rango, incluidos los días sin pendientes: si no,
+       «no hay nada» y «salió todo perfecto» se ven igual y no se distinguen */
+    const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas)).filter(pasaFecha);
+    if(!filas.length){
+      const n = nombreFiltro();
+      cont.innerHTML = n
+        ? '<div class="sinreg">No hay informes de <b>' + esc(n) + '</b>.<br><br>'
+          + '<small>Se guardan solos cuando alguien usa la guía diaria <b>con su nombre elegido</b>.</small></div>'
+        : '<div class="sinreg">Todavía no hay ningún informe guardado.</div>';
       return;
     }
-    const paths = []; utiles.forEach(r => r.estado.tareas.forEach(t => { if(t.foto) paths.push(t.foto); }));
+    const paths = []; filas.forEach(r => r.estado.tareas.forEach(t => { if(t.foto) paths.push(t.foto); }));
     await firmarFotos(paths);
-    cont.innerHTML = utiles.map(r => {
+    const enc = filas.length + (filas.length === 1 ? " informe" : " informes")
+      + (nombreFiltro() ? " · " + nombreFiltro() : "");
+    cont.innerHTML = '<div class="ck-tot">' + esc(enc) + '</div>' + filas.map(r => {
       const e = r.estado;
       const quien = (e.entrega || "—") + (e.recibe ? " → " + e.recibe : "");
-      const fecha = new Date(r.updated_at).toLocaleString("es-CL", { weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
+      const fecha = inicioDe(fechaDeReg(r)).toLocaleDateString("es-CL", { weekday:"short", day:"numeric", month:"short" })
+        + " · " + new Date(r.updated_at).toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit" });
       const hechas = e.tareas.filter(t => t.ok).length;
       const pend = e.tareas.filter(t => !t.ok);
+      /* áreas donde realmente trabajó: si rotó, salen las dos */
+      const zonas = [...new Set(e.tareas.filter(t => t.ok && t.p).map(t => t.p))];
       const linea = t => {
         const thumb = t.foto
           ? '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX) + '" alt="foto" loading="lazy">'
           : '<span class="ck-nofoto">sin foto</span>';
         const mot = t.motivo ? '<div class="ck-mot">↳ ' + esc(t.motivo) + '</div>' : "";
+        /* firma de quien la hizo: sobrevive aunque después haya cambiado de puesto */
+        const q = t.por && t.por.q
+          ? '<div class="ck-por">✓ ' + esc(t.por.q) + (t.por.p ? " · " + esc(t.por.p) : "")
+            + (t.por.h ? " · " + esc(t.por.h) : "") + '</div>' : "";
         return '<div class="ck-t"><span class="ck-chk' + (t.ok ? " on" : "") + '"></span><span class="ck-txt">' + esc(t.t || "")
-          + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + mot + '</span>' + thumb + '</div>';
+          + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + q + mot + '</span>' + thumb + '</div>';
       };
       let cuerpo = "";
       if(pend.length){
-        const sin = pend.filter(t => !t.motivo).length;
+        /* la señal es el pendiente CON motivo: alguien se detuvo a explicarlo.
+           Los sin motivo, cuando son muchos, se pliegan: un equipo que nunca se
+           usó dejaba 89 líneas y enterraba lo que sí importaba. */
+        const conM = pend.filter(t => t.motivo), sinM = pend.filter(t => !t.motivo);
         cuerpo += '<div class="ck-sec">⏳ No se pudieron hacer · ' + pend.length
-          + (sin ? ' <b>(' + sin + ' sin motivo)</b>' : "") + '</div>' + pend.map(linea).join("");
+          + (sinM.length ? ' <b>(' + sinM.length + ' sin motivo)</b>' : "") + '</div>'
+          + conM.map(linea).join("");
+        if(sinM.length) cuerpo += sinM.length <= 8
+          ? sinM.map(linea).join("")
+          : '<details class="ck-mas"><summary>Ver las ' + sinM.length + ' que quedaron sin motivo</summary>'
+            + sinM.map(linea).join("") + '</details>';
       }
       const conFotoOk = e.tareas.filter(t => t.ok && t.foto);
       if(conFotoOk.length) cuerpo += '<div class="ck-sec">✅ Hechas con foto · ' + conFotoOk.length + '</div>' + conFotoOk.map(linea).join("");
+      /* las hechas SIN foto también llevan quién las hizo; se pliegan si son muchas */
+      const sinFotoOk = e.tareas.filter(t => t.ok && !t.foto);
+      if(sinFotoOk.length){
+        cuerpo += '<div class="ck-sec">✅ Hechas · ' + sinFotoOk.length + '</div>'
+          + (sinFotoOk.length <= 8 ? sinFotoOk.map(linea).join("")
+             : '<details class="ck-mas"><summary>Ver las ' + sinFotoOk.length + ' hechas</summary>'
+               + sinFotoOk.map(linea).join("") + '</details>');
+      }
       const ex = Array.isArray(e.extras) ? e.extras : [];
       if(ex.length){
         cuerpo += '<div class="ck-sec">➕ Agregado en el día · ' + ex.length + '</div>'
@@ -1311,10 +1422,16 @@ async function cargarChecklists(){
               + '<span class="ck-txt">' + (x.k === "nota" ? "📝 " : "") + esc(x.t || "")
               + (x.p ? ' <span class="sem-badge">' + esc(x.p) + '</span>' : "")
               + ' <span class="ex-badge">' + (x.k === "nota" ? "nota" : "extra") + '</span>'
+              + (x.por && x.por.q ? '<div class="ck-por">✓ ' + esc(x.por.q)
+                  + (x.por.p ? " · " + esc(x.por.p) : "") + (x.por.h ? " · " + esc(x.por.h) : "") + '</div>' : "")
               + (x.motivo ? '<div class="ck-mot">↳ ' + esc(x.motivo) + '</div>' : "") + '</span></div>').join("");
       }
+      /* día sin pendientes, sin fotos y sin agregados: antes se escondía entero */
+      if(!cuerpo) cuerpo = '<div class="ck-limpio">✅ Sin pendientes, sin fotos y sin agregados.</div>';
       return '<div class="ck-card"><div class="ck-h"><b>' + esc(e.titulo || "Checklist") + '</b><br>' + esc(quien) + ' · ' + fecha
-        + '<br><small>' + hechas + ' de ' + e.tareas.length + ' hechas</small></div>' + cuerpo + '</div>';
+        + '<br><small>' + hechas + ' de ' + e.tareas.length + ' hechas'
+        + (zonas.length > 1 ? ' · trabajó en <b>' + esc(zonas.join(" y ")) + '</b>' : "")
+        + '</small></div>' + cuerpo + '</div>';
     }).join("");
   }catch(err){
     cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((err && err.message) || String(err)) + '</div>';
@@ -1323,6 +1440,14 @@ async function cargarChecklists(){
 document.getElementById("supChecklists").addEventListener("click", e => {
   const im = e.target.closest(".ck-thumb"); if(!im || !im.dataset.url) return;
   window.open(im.dataset.url, "_blank");
+});
+document.getElementById("ckFiltros").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if(!c) return;
+  ckFiltro = c.dataset.f; ckDia = ""; cargarChecklists();
+});
+document.getElementById("ckFecha").addEventListener("change", e => {
+  if(!e.target.value) return;
+  ckDia = e.target.value; ckFiltro = "dia"; cargarChecklists();
 });
 document.getElementById("supSub").addEventListener("click", e => {
   const b = e.target.closest(".ssub"); if(!b) return;
@@ -1503,7 +1628,20 @@ async function setConfig(clave, valor){
   const { error } = await client.from("config").upsert({ clave, valor, updated_at:new Date().toISOString() });
   if(error) throw error;
 }
+/* rol de una persona SIN pasar por el candado (esAdmin/puedeEditarRutina exigen
+   modo supervisor ya activo; acá necesitamos saberlo antes de abrirlo) */
+function rolDe(nombre){ const u = USUARIOS.find(x => x.nombre === nombre); return u ? rolNorm(u.rol) : null; }
+function esMando(){ const r = rolDe(quienActual()); return r ? ROLES_SUPERVISOR.indexOf(r) >= 0 : false; }
+
 async function gateSupervisor(){
+  /* La clave dejó de ser llave maestra: mirar la Supervisión pide ADEMÁS el rol.
+     Si la lista de usuarios aún no cargó no se bloquea a nadie (se cae a la clave). */
+  if(USUARIOS.length && !esMando()){
+    alert("La Supervisión es solo para el dueño, el encargado y el encargado de local.\n\n"
+      + (quienActual() ? "Estás entrando como " + quienActual() + "." : "Todavía no elegiste tu nombre.")
+      + "\n\nSi te corresponde, elige tu nombre con el botón 👤.");
+    return false;
+  }
   if(localStorage.getItem("sup_ok") === "1") return true;
   await esperarSB(3000);
   const client = getSB();
@@ -1679,7 +1817,10 @@ function renderQuien(){
 function puestosDe(nombre){
   const u = USUARIOS.find(x => x.nombre === nombre);
   const r = u ? rolNorm(u.rol) : "colaborador";
-  return PUESTO_SUP_ROLES.indexOf(r) >= 0 ? ["Supervisor"] : PUESTOS;  // dueños/encargado: puesto Supervisor
+  /* Mando (dueño, encargado y encargado de local): «Supervisor» = acceso completo,
+     MÁS los puestos operativos, para el día que trabajan un área concreta.
+     Así la guardia puede exigir puesto a todos sin excepciones. */
+  return ROLES_SUPERVISOR.indexOf(r) >= 0 ? ["Supervisor"].concat(PUESTOS) : PUESTOS;
 }
 function renderPuestos(){
   const n = quienActual();
@@ -1687,7 +1828,7 @@ function renderPuestos(){
   document.getElementById("puestoTitulo").textContent = n ? (n + ", ¿en qué puesto estarás hoy?") : "¿En qué puesto estarás hoy?";
   let pre = puestosHoy() || [];
   if(!pre.length){
-    if(opciones.length === 1) pre = opciones.slice();                          // supervisor: preselecciona Supervisor
+    if(opciones[0] === "Supervisor") pre = ["Supervisor"];                     // mando: acceso completo por defecto
     else { const u = USUARIOS.find(x => x.nombre === n); if(u && u.puesto) pre = [u.puesto]; }  // sugiere su puesto habitual
   }
   document.getElementById("puestoLista").innerHTML = opciones.map(p =>
@@ -1702,6 +1843,13 @@ document.getElementById("quienLista").addEventListener("click", e => {
   const b = e.target.closest(".quien-btn"); if(!b) return;
   const n = b.dataset.n;
   try{ localStorage.setItem("quien.actual", n); }catch(err){}
+  /* el candado es de la PERSONA, no del equipo: si entra alguien que no es de
+     mando, el desbloqueo que dejó otro se cierra solo. Antes bastaba con que
+     alguien hubiera escrito la clave una vez para que el teléfono quedara abierto. */
+  if(!esMando()){
+    try{ localStorage.removeItem("sup_ok"); }catch(err){}
+    aplicarModoSup(false);
+  }
   actualizarQuienUI();
   // rellena lo que corresponda con la identidad
   if(!(d.entrega || "").trim()){ d.entrega = n; inEntrega.value = n; guardarLocal(); }
@@ -1723,6 +1871,10 @@ document.getElementById("puestoListo").addEventListener("click", () => {
 });
 document.getElementById("quienSkip").addEventListener("click", () => quienOvl.classList.remove("on"));
 btnQuien.addEventListener("click", () => abrirQuien(false));
+/* el aviso de la guía diaria abre el mismo diálogo (paso 1 o paso 2 según falte) */
+document.getElementById("guiaAviso").addEventListener("click", e => {
+  if(e.target.closest("#avisoQuien")) abrirQuien(!!quienActual());
+});
 
 /* ---- guías integradas: Ayuda (todos) + Manual (solo supervisor) ---- */
 const ayudaOvl = document.getElementById("ayudaOvl");
@@ -1873,25 +2025,57 @@ async function firmarThumbs(sel){
 
 /* Guía diaria: check + FOTO DEL DÍA (prueba), estado local por fecha */
 function claveDia(){ return "guia.dia." + fechaISO(new Date()); }
-function cargarDia(){
-  try{ const o = JSON.parse(localStorage.getItem(claveDia()) || "{}");
-    if(Array.isArray(o)) return { done:new Set(o), fotos:{} };
-    return { done:new Set(o.done || []), fotos:o.fotos || {} };
-  }catch(e){ return { done:new Set(), fotos:{} }; }
+/* firma de quien está haciendo la tarea ahora: nombre, puesto y hora.
+   Con esto «Alison tomó la foto de Cocina» queda escrito, no supuesto. */
+function sello(){
+  const p = puestosHoy() || [];
+  return { q: quienActual() || "", p: p[0] || "", h: new Date().toLocaleTimeString("es-CL",{ hour:"2-digit", minute:"2-digit" }) };
 }
-function guardarDia(st){ try{ localStorage.setItem(claveDia(), JSON.stringify({ done:[...st.done], fotos:st.fotos })); }catch(e){} }
+function cargarDia(){
+  /* por  = quién marcó cada tarea · fpor = quién tomó cada foto
+     (se aceptan los formatos viejos: nada de lo ya marcado se pierde) */
+  try{ const o = JSON.parse(localStorage.getItem(claveDia()) || "{}");
+    if(Array.isArray(o)) return { done:new Set(o), fotos:{}, por:{}, fpor:{} };
+    return { done:new Set(o.done || []), fotos:o.fotos || {}, por:o.por || {}, fpor:o.fpor || {} };
+  }catch(e){ return { done:new Set(), fotos:{}, por:{}, fpor:{} }; }
+}
+function guardarDia(st){
+  try{ localStorage.setItem(claveDia(), JSON.stringify({
+    done:[...st.done], fotos:st.fotos, por:st.por || {}, fpor:st.fpor || {} })); }catch(e){}
+}
 /* Sube al servidor lo del día: tareas + MOTIVO de cada pendiente + agregados.
    Así el supervisor ve qué no se hizo y por qué, sin depender de que se lo envíen. */
 async function syncGuiaRemoto(){
   const client = getSB(); if(!client) return;
+  /* Sin nombre NI puesto no se sube NADA. Un equipo sin identificar subía las 89
+     tareas como pendientes y dejaba un «0 de 89» falso que ensucia los informes;
+     y sin puesto se le atribuía a la persona el local entero. Quien manda cumple
+     eligiendo el puesto «Supervisor», que es el acceso completo.
+     El aviso de la guía diaria pide lo que falte. */
+  if(!quienActual() || !puestosHoy()) return;
   const st = cargarDia(), mot = cargarMot();
   const ps = puestosHoy();
-  // sólo lo del puesto de quien usa el equipo: no reporta áreas que no le tocan
-  const items = itemsDe("mio");
+  /* Pendientes: sólo los del puesto ACTUAL — lo que dejó al rotar ya es de quien
+     la reemplazó. Hecho: TODO lo que marcó hoy, en el área que sea; si Alison
+     estuvo en Salón y después en Cocina, su informe lleva las dos. */
+  const mios = itemsDe("mio");
+  const yaEsta = new Set(mios.map(x => x.id));
+  const wd = new Date().getDay();
+  const todasHoy = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
+  const hechasFuera = todasHoy.filter(x => !yaEsta.has(x.id) && st.done.has(x.id));
+  const items = mios.concat(hechasFuera);
+
+  const firma = x => st.por[x.id] || st.fpor[x.id] || undefined;
   const tareas = items.map(x => ({ id:x.id, t:x.t, p:x.p || undefined, ok:st.done.has(x.id),
-                                   foto:st.fotos[x.id] || undefined, motivo:(!st.done.has(x.id) && mot[x.id]) || undefined }));
-  const extras = extrasDe("mio").map(x => ({ id:x.id, t:x.t, p:x.a || undefined, k:x.k,
-                                        ok:st.done.has(x.id), motivo:(x.k !== "nota" && !st.done.has(x.id) && mot[x.id]) || undefined }));
+                                   foto:st.fotos[x.id] || undefined, por:firma(x),
+                                   motivo:(!st.done.has(x.id) && mot[x.id]) || undefined }));
+
+  const exMios = extrasDe("mio");
+  const exYa = new Set(exMios.map(x => x.id));
+  const exFuera = cargarEx().filter(x => !exYa.has(x.id) && st.done.has(x.id));
+  const extras = exMios.concat(exFuera).map(x => ({ id:x.id, t:x.t, p:x.a || undefined, k:x.k,
+                                        ok:st.done.has(x.id), por:firma(x),
+                                        motivo:(x.k !== "nota" && !st.done.has(x.id) && mot[x.id]) || undefined }));
   const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
   const quien = quienActual() + (ps ? " (" + ps.join(", ") + ")" : "");
   const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}),
@@ -1988,16 +2172,46 @@ function renderGuia(){
   const mot = cargarMot();
   document.getElementById("guiaFecha").textContent = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
 
+  /* sin nombre elegido nada se registra: hay que decirlo, no fallar en silencio */
+  const avi = document.getElementById("guiaAviso");
+  if(!quienActual()){
+    avi.style.display = "block";
+    avi.innerHTML = "👤 <b>Todavía no elegiste tu nombre.</b><br>"
+      + "Puedes marcar igual, pero <b>lo que marques no va a quedar registrado</b> "
+      + "y nadie va a ver tu avance ni tus pendientes."
+      + '<br><button id="avisoQuien">Elegir mi nombre</button>';
+  } else if(!puestosHoy()){
+    avi.style.display = "block";
+    avi.innerHTML = "📍 <b>Falta elegir tu puesto de hoy.</b><br>"
+      + "Puedes marcar igual, pero <b>lo que marques no va a quedar registrado</b> "
+      + "hasta que elijas dónde estás trabajando."
+      + '<br><button id="avisoQuien">Elegir mi puesto</button>';
+  } else {
+    avi.style.display = "none";
+    avi.innerHTML = "";
+  }
+
   /* pestañas por área, con avance de cada una */
   const mios = puestosHoy() || [];
+  /* Con un solo puesto, «👤 Salón» y la pestaña «Salón» son la misma cosa:
+     se oculta la repetida. Las otras áreas siguen ahí — nadie pierde acceso. */
+  const repetida = mios.length === 1 ? mios[0] : null;
+  if(areaSel === repetida) areaSel = "mio";          // no dejar la selección en una pestaña oculta
   const tabs = [{ a:"mio", n: mios.length ? "👤 " + mios.join(" · ") : "👤 Mi puesto" }]
     .concat(AREAS_TAB).concat([{ a:"todos", n:"Todo el local" }]);
-  document.getElementById("areaTabs").innerHTML = tabs.map(t => {
+  const visibles = tabs.filter(t => {
+    if(t.a === "mio" || t.a === "todos") return true;
+    if(t.a === repetida) return false;
+    return contablesDe(t.a).length > 0;              // área sin tareas: no se muestra
+  });
+  /* el rótulo «Turno 2» va en la primera área visible, no clavado en Cocina:
+     si a alguien de Cocina se le oculta esa pestaña, el rótulo desaparecía */
+  const primeraArea = (visibles.find(t => ["mio","gen","todos"].indexOf(t.a) < 0) || {}).a;
+  document.getElementById("areaTabs").innerHTML = visibles.map(t => {
     const it = contablesDe(t.a);
-    if(!it.length && t.a !== "mio" && t.a !== "todos") return "";   // área sin tareas: no se muestra
     const ok = it.filter(x => st.done.has(x.id)).length;
     const full = it.length && ok === it.length;
-    const sep = (t.a === "Cocina") ? '<span class="asep">Turno 2</span>' : "";
+    const sep = (t.a === primeraArea) ? '<span class="asep">Turno 2</span>' : "";
     return sep + '<button class="atab' + (areaSel === t.a ? " on" : "") + (full ? " lista" : "") + '" data-a="' + esc(t.a) + '">'
       + '<span class="an">' + esc(t.n) + (full ? " ✓" : "") + '</span>'
       + '<span class="ac">' + ok + "/" + it.length + '</span></button>';
@@ -2159,7 +2373,7 @@ document.getElementById("extraAdd").addEventListener("click", e => {
     const ex = cargarEx();
     const nuevo = { id:"ex" + Date.now().toString(36), t, a:areaActiva(), k:a.dataset.k };
     ex.push(nuevo); guardarEx(ex);
-    if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); guardarDia(st); }  // realizada = ya marcada
+    if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); st.por[nuevo.id] = sello(); guardarDia(st); }  // realizada = ya marcada
     inp.value = ""; renderGuia(); syncGuiaRemoto();
     return;
   }
@@ -2182,7 +2396,8 @@ document.getElementById("guiaLista").addEventListener("click", e => {
 document.getElementById("guiaLista").addEventListener("change", e => {
   if(e.target.type !== "checkbox") return;
   const st = cargarDia(), id = e.target.dataset.gid;
-  if(e.target.checked) st.done.add(id); else st.done.delete(id);
+  if(e.target.checked){ st.done.add(id); st.por[id] = sello(); }
+  else { st.done.delete(id); delete st.por[id]; }
   guardarDia(st); renderGuia(); syncGuiaRemoto();
 });
 document.getElementById("guiaLista").addEventListener("click", async e => {
@@ -2196,9 +2411,14 @@ document.getElementById("guiaLista").addEventListener("click", async e => {
   const client = getSB(); if(!client){ alert("Falta configurar Supabase para las fotos."); return; }
   const blob = await pedirFoto("Foto de hoy"); if(!blob) return;
   try{
-    const path = "guia/" + fechaISO(new Date()) + "/" + id + ".jpg";
+    /* el equipo va en la ruta: antes dos personas que fotografiaban la misma
+       tarea el mismo día compartían archivo y la segunda borraba a la primera */
+    const path = "guia/" + fechaISO(new Date()) + "/" + id + "-" + deviceId() + ".jpg";
     await subirFoto(path, blob);
-    const st2 = cargarDia(); st2.fotos[id] = path; guardarDia(st2);
+    const st2 = cargarDia();
+    st2.fotos[id] = path;
+    st2.fpor[id] = sello();          // quién la tomó, en qué puesto y a qué hora
+    guardarDia(st2);
     renderGuia(); syncGuiaRemoto();
   }catch(err){ alert("No se pudo subir la foto: " + ((err && err.message) || err)); }
 });
