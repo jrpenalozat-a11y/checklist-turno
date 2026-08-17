@@ -259,6 +259,13 @@
   .ck-tot{font:600 12px/1.3 inherit;color:var(--grafito);margin:0 0 10px}
   .ck-limpio{font:600 12.5px/1.4 inherit;color:#2E9E6B;padding:3px 0 1px}
   .ck-por{font:600 11px/1.3 inherit;color:#2E9E6B;margin-top:2px}
+  /* tarea con foto: tarjeta con la foto entera arriba y los textos debajo */
+  .ck-foto{border:1px solid var(--linea);border-radius:12px;overflow:hidden;background:var(--crema);margin:9px 0}
+  .ck-foto .ck-thumb{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain;
+    border:0;border-radius:0;background:#EADCC8;cursor:zoom-in}
+  .ck-pie{padding:10px 12px}
+  .ck-pie .ck-t{border-top:0;padding:0}
+  .ck-pie .ck-mot,.ck-pie .ck-por{padding-left:27px}
   .ck-mas summary{cursor:pointer;font:600 12px/1.3 inherit;color:var(--grafito);padding:7px 0;
     list-style:none;text-decoration:underline;text-underline-offset:3px}
   .ck-mas summary::-webkit-details-marker{display:none}
@@ -1380,16 +1387,25 @@ async function cargarChecklists(){
       /* áreas donde realmente trabajó: si rotó, salen las dos */
       const zonas = [...new Set(e.tareas.filter(t => t.ok && t.p).map(t => t.p))];
       const linea = t => {
-        const thumb = t.foto
-          ? '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX) + '" alt="foto" loading="lazy">'
-          : '<span class="ck-nofoto">sin foto</span>';
         const mot = t.motivo ? '<div class="ck-mot">↳ ' + esc(t.motivo) + '</div>' : "";
         /* firma de quien la hizo: sobrevive aunque después haya cambiado de puesto */
         const q = t.por && t.por.q
           ? '<div class="ck-por">✓ ' + esc(t.por.q) + (t.por.p ? " · " + esc(t.por.p) : "")
             + (t.por.h ? " · " + esc(t.por.h) : "") + '</div>' : "";
-        return '<div class="ck-t"><span class="ck-chk' + (t.ok ? " on" : "") + '"></span><span class="ck-txt">' + esc(t.t || "")
-          + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + q + mot + '</span>' + thumb + '</div>';
+        const txt = esc(t.t || "") + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "");
+        const chk = '<span class="ck-chk' + (t.ok ? " on" : "") + '"></span>';
+        /* Con foto: tarjeta tipo Trello — la foto entera arriba, a lo ancho, y
+           debajo la tarea, el motivo y quién la hizo. Sólo las que tienen foto
+           crecen; si no, una tarjeta de 25 tareas serían veinte pantallas. */
+        if(t.foto){
+          return '<div class="ck-foto">'
+            + '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX)
+            + '" alt="Foto de: ' + esc(t.t || "") + '" loading="lazy">'
+            + '<div class="ck-pie"><div class="ck-t">' + chk + '<span class="ck-txt">' + txt + '</span></div>'
+            + mot + q + '</div></div>';
+        }
+        return '<div class="ck-t">' + chk + '<span class="ck-txt">' + txt + mot + q
+          + '</span><span class="ck-nofoto">sin foto</span></div>';
       };
       let cuerpo = "";
       if(pend.length){
