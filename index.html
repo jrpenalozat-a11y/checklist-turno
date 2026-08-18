@@ -259,6 +259,34 @@
   .ck-tot{font:600 12px/1.3 inherit;color:var(--grafito);margin:0 0 10px}
   .ck-limpio{font:600 12.5px/1.4 inherit;color:#2E9E6B;padding:3px 0 1px}
   .ck-por{font:600 11px/1.3 inherit;color:#2E9E6B;margin-top:2px}
+  /* modo inspección: pantalla completa, sólo las fotos y los motivos */
+  .insp-sep{text-align:center;font:600 11px/1 inherit;color:var(--grafito);opacity:.6;margin:14px 0 10px}
+  .insp-entrar{width:100%;padding:13px;border-radius:12px;border:1.5px solid var(--linea);
+    background:var(--panel);color:var(--tinta);font:700 13.5px/1 inherit;cursor:pointer}
+  .insp-nota{text-align:center;font:500 11px/1.35 inherit;color:var(--grafito);margin-top:7px;opacity:.85}
+  #inspOvl{position:fixed;inset:0;z-index:60;background:var(--papel);overflow:auto;
+    display:none;padding:0 0 40px;-webkit-overflow-scrolling:touch}
+  #inspOvl.on{display:block}
+  .insp-barra{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:14px 16px;background:var(--coral);color:var(--crema)}
+  .insp-tit{font:700 15px/1 inherit}
+  .insp-barra button{padding:8px 16px;border-radius:99px;border:1.5px solid rgba(255,255,255,.55);
+    background:transparent;color:var(--crema);font:700 12.5px/1 inherit;cursor:pointer}
+  #inspFiltros{padding:13px 16px 0;margin-bottom:10px}
+  #inspCont{padding:0 16px}
+  .insp-cuenta{font:600 12px/1.3 inherit;color:var(--grafito);margin:0 0 12px}
+  .insp-foto{margin:0 0 18px;border:1px solid var(--linea);border-radius:14px;overflow:hidden;background:var(--panel)}
+  .insp-foto img{display:block;width:100%;height:auto;max-height:72vh;object-fit:contain;
+    background:#EADCC8;cursor:zoom-in}
+  .insp-pie{padding:11px 13px}
+  .insp-tarea{font:600 14.5px/1.3 inherit;color:var(--tinta)}
+  .insp-meta{font:600 12px/1.3 inherit;color:var(--grafito);margin-top:5px}
+  .insp-sec{margin:26px 0 12px;font:700 11px/1.2 inherit;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--grafito);border-top:1px solid var(--linea);padding-top:16px}
+  .insp-pend{padding:10px 0;border-bottom:1px solid var(--linea)}
+  .insp-pend .t{font:600 14px/1.3 inherit;color:var(--tinta)}
+  .insp-pend .m{font:600 12.5px/1.35 inherit;color:#9A6B12;margin-top:3px}
+  .insp-pend .q{font:600 11.5px/1.3 inherit;color:var(--grafito);margin-top:2px}
   /* cobertura del día: qué áreas reportaron y cuáles no */
   .ck-cob{border:1px dashed var(--linea);border-radius:12px;padding:9px 12px;margin:0 0 12px;background:var(--panel)}
   .cob-si{font:600 12px/1.4 inherit;color:#2E9E6B}
@@ -646,8 +674,26 @@
       <div class="rango" style="margin-bottom:0">Puedes marcar más de uno</div>
       <div class="quien-grid" id="puestoLista"></div>
       <button class="accion vfabrir" id="puestoListo" style="margin-top:14px;width:100%">Continuar</button>
+      <div id="puestoInsp" hidden>
+        <div class="insp-sep">o</div>
+        <button class="insp-entrar" id="btnInspeccion">🔍 Entrar en modo inspección</button>
+        <div class="insp-nota">Solo las fotos de las tareas. Sin marcar nada.</div>
+      </div>
     </div>
   </div>
+</div>
+
+<div id="inspOvl">
+  <div class="insp-barra">
+    <span class="insp-tit">🔍 Inspección</span>
+    <button id="inspSalir">Salir</button>
+  </div>
+  <div class="sup-filtros" id="inspFiltros">
+    <span class="chip" data-f="hoy">Hoy</span>
+    <span class="chip on" data-f="ayer">Ayer</span>
+    <span class="chip" data-f="semana">7 días</span>
+  </div>
+  <div id="inspCont"></div>
 </div>
 
 <div class="overlay" id="ayudaOvl">
@@ -1337,7 +1383,8 @@ function inicioDe(f){ return new Date(f + "T00:00:00"); }
 /* Rango para acotar la CONSULTA, no la pantalla: si filtráramos sólo lo que ya
    llegó, un día viejo no entraría entre los últimos registros y el selector
    diría «no hay nada» siendo mentira. */
-function rangoCk(){
+function rangoCk(){ return rangoDe(ckFiltro, ckDia); }
+function rangoDe(ckFiltro, ckDia){
   if(ckFiltro === "todos") return null;
   const hoy0 = new Date(); hoy0.setHours(0,0,0,0);
   let desde, hasta;
@@ -1354,7 +1401,8 @@ function rangoCk(){
   // 8 h de margen: alguien puede sincronizar pasada la medianoche
   return [desde.toISOString(), new Date(hasta.getTime() + 8*36e5).toISOString()];
 }
-function pasaFecha(r){
+function pasaFecha(r){ return pasaFechaDe(r, ckFiltro, ckDia); }
+function pasaFechaDe(r, ckFiltro, ckDia){
   const f = fechaDeReg(r);
   if(ckFiltro === "todos")  return true;
   if(ckFiltro === "dia")    return !ckDia || f === ckDia;
@@ -1512,6 +1560,91 @@ document.getElementById("ckFecha").addEventListener("change", e => {
   if(!e.target.value) return;
   ckDia = e.target.value; ckFiltro = "dia"; cargarChecklists();
 });
+
+/* ---- Modo inspección: sólo las fotos y por qué no se hizo lo que falta ----
+   Pantalla completa, sin nada de la app alrededor. Para revisar la evidencia,
+   que es una tarea distinta de leer los informes. Sólo los de mando, detrás
+   del mismo candado que la Supervisión. */
+let inspFiltro = "ayer";
+const inspOvl = document.getElementById("inspOvl");
+/* en la inspección basta el nombre de la tarea: la explicación que va tras el
+   guión larga estorba cuando lo que se mira es la foto */
+function soloTarea(t){ return limpio(t || "").split(" — ")[0].trim(); }
+
+async function abrirInspeccion(){
+  if(!(await gateSupervisor())) return;
+  quienOvl.classList.remove("on");
+  inspOvl.classList.add("on");
+  inspOvl.scrollTop = 0;
+  cargarInspeccion();
+}
+async function cargarInspeccion(){
+  const cont = document.getElementById("inspCont");
+  document.querySelectorAll("#inspFiltros .chip").forEach(c => c.classList.toggle("on", c.dataset.f === inspFiltro));
+  cont.innerHTML = '<div class="sinreg">Cargando…</div>';
+  const client = getSB();
+  if(!client){ cont.innerHTML = '<div class="sinreg">Sin conexión con la base.</div>'; return; }
+  try{
+    await vfSesion(client);
+    let q = client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false });
+    const rg = rangoDe(inspFiltro, "");
+    q = rg ? q.gte("updated_at", rg[0]).lte("updated_at", rg[1]).limit(300) : q.limit(60);
+    const { data, error } = await q;
+    if(error) throw error;
+    const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas))
+                              .filter(r => pasaFechaDe(r, inspFiltro, ""));
+    /* se juntan todas las tareas de todas las personas: acá interesa la
+       evidencia del local, no quién armó cada informe */
+    const fotos = [], pend = [];
+    filas.forEach(r => {
+      const dia = fechaDeReg(r);
+      (r.estado.tareas || []).forEach(t => {
+        if(t.foto) fotos.push({ ...t, dia });
+        else if(!t.ok && t.motivo) pend.push({ ...t, dia });
+      });
+      (r.estado.extras || []).forEach(x => { if(!x.ok && x.motivo) pend.push({ ...x, dia }); });
+    });
+    if(!fotos.length && !pend.length){
+      const n = inspFiltro === "hoy" ? "hoy" : inspFiltro === "ayer" ? "ayer" : "los últimos 7 días";
+      cont.innerHTML = '<div class="sinreg">No hay fotos ni pendientes de <b>' + n + '</b>.<br><br>'
+        + '<small>Las fotos aparecen acá cuando alguien toca 📷 junto a una tarea.</small></div>';
+      return;
+    }
+    await firmarFotos(fotos.map(f => f.foto));
+    const dl = f => inicioDe(f).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" });
+    let html = '<div class="insp-cuenta">' + fotos.length + (fotos.length === 1 ? " foto" : " fotos")
+             + (pend.length ? " · " + pend.length + " sin hacer" : "") + '</div>';
+    html += fotos.map(t =>
+      '<div class="insp-foto">'
+      + '<img data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX)
+      + '" alt="' + esc(limpio(t.t || "")) + '" loading="lazy">'
+      + '<div class="insp-pie"><div class="insp-tarea">' + esc(soloTarea(t.t))
+      + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + '</div>'
+      + '<div class="insp-meta">' + esc(dl(t.dia))
+      + (t.por && t.por.q ? " · " + esc(t.por.q) : "")
+      + (t.por && t.por.h ? " · " + esc(t.por.h) : "") + '</div></div></div>').join("");
+    if(pend.length){
+      html += '<div class="insp-sec">⏳ No se pudo hacer · ' + pend.length + '</div>'
+        + pend.map(t => '<div class="insp-pend"><div class="t">' + esc(soloTarea(t.t))
+            + ((t.p || t.a) ? ' <span class="sem-badge">' + esc(t.p || t.a) + '</span>' : "") + '</div>'
+            + '<div class="m">↳ ' + esc(t.motivo) + '</div>'
+            + '<div class="q">' + esc(dl(t.dia)) + (t.por && t.por.q ? " · " + esc(t.por.q) : "") + '</div></div>').join("");
+    }
+    cont.innerHTML = html;
+  }catch(e){
+    cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((e && e.message) || e) + '</div>';
+  }
+}
+document.getElementById("inspFiltros").addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if(!c) return;
+  inspFiltro = c.dataset.f; cargarInspeccion();
+});
+document.getElementById("inspSalir").addEventListener("click", () => inspOvl.classList.remove("on"));
+document.getElementById("inspCont").addEventListener("click", e => {
+  const im = e.target.closest(".insp-foto img");
+  if(im && im.dataset.url) window.open(im.dataset.url, "_blank");
+});
+document.getElementById("btnInspeccion").addEventListener("click", abrirInspeccion);
 
 /* ---- Informe semanal: WhatsApp (corto) y PDF (documento de la reunión) ---- */
 const DIA_LARGO = { weekday:"long", day:"numeric", month:"long" };
@@ -1791,7 +1924,7 @@ async function cargarUsuarios(){
   if(client){
     try{
       await vfSesion(client);
-      const { data, error } = await client.from("usuarios").select("*").order("rol").order("nombre");
+      const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
       if(!error && data && data.length){ USUARIOS = data; llenarSelectColab(); aplicarModoAdmin(); return; }
     }catch(e){}
   }
@@ -1831,8 +1964,44 @@ async function gateSupervisor(){
   if(localStorage.getItem("sup_ok") === "1") return true;
   await esperarSB(3000);
   const client = getSB();
-  if(!client){ alert("No hay conexión para verificar la clave de supervisor. Intenta de nuevo con internet."); return false; }
+  if(!client){ alert("No hay conexión para verificar tu PIN. Intenta de nuevo con internet."); return false; }
   try{ await vfSesion(client); }catch(e){}
+
+  /* PIN por persona: el hash vive en la base y no sale de ahí. La app manda
+     nombre + hash y el servidor responde sí o no. Reemplaza a la clave
+     compartida, que no identificaba a nadie ni se podía revocar por persona.
+     Si el SQL todavía no está corrido, se cae al método viejo sin romper nada. */
+  const yo = quienActual();
+  let tienePin = null;
+  try{
+    const r = await client.rpc("tiene_pin", { p_nombre: yo });
+    if(!r.error) tienePin = !!r.data;
+  }catch(e){}
+
+  if(tienePin !== null){
+    if(!tienePin){
+      const p1 = prompt("Es tu primera vez, " + yo + ".\nCrea tu PIN personal (4 a 8 dígitos):");
+      if(p1 == null) return false;
+      if(!/^\d{4,8}$/.test(p1.trim())){ alert("El PIN debe tener entre 4 y 8 dígitos."); return false; }
+      const p2 = prompt("Repítelo para confirmar:");
+      if(p2 == null) return false;
+      if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
+      const c = await client.rpc("crear_pin", { p_nombre: yo, p_hash: await sha256(p1.trim()) });
+      if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
+      alert("PIN creado. Es tuyo y solo tuyo: no lo compartas.\nSi lo olvidas, un dueño lo borra desde Supabase y creas otro.");
+    } else {
+      const pin = prompt("PIN de " + yo + ":");
+      if(pin == null) return false;
+      const v = await client.rpc("verificar_pin", { p_nombre: yo, p_hash: await sha256(pin.trim()) });
+      if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
+      if(!v.data){ alert("PIN incorrecto."); return false; }
+    }
+    localStorage.setItem("sup_ok", "1");
+    try{ client.from("accesos_supervision").insert({ nombre: yo }); }catch(e){}   // queda registrado quién entró
+    return true;
+  }
+
+  /* ---- respaldo: clave compartida (mientras no esté corrido el SQL) ---- */
   const { data, error } = await client.from("config").select("valor").eq("clave", "sup_pin").maybeSingle();
   if(error){
     // solo se salta el candado si la tabla config aún no existe (falta correr el SQL)
@@ -1860,7 +2029,7 @@ async function abrirUsuarios(){
   if(!client){ usrLista.innerHTML = '<div class="sinreg">Falta configurar Supabase.</div>'; return; }
   try{
     await vfSesion(client);
-    const { data, error } = await client.from("usuarios").select("*").order("rol").order("nombre");
+    const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
     if(error) throw error;
     USUARIOS = data || []; llenarSelectColab();
     const admin = esAdmin();
@@ -2019,6 +2188,9 @@ function renderPuestos(){
   }
   document.getElementById("puestoLista").innerHTML = opciones.map(p =>
     '<button class="quien-btn' + (pre.indexOf(p) >= 0 ? " sel" : "") + '" data-p="' + p + '"><span>' + p + '</span></button>').join("");
+  /* la opción de inspeccionar sólo se le ofrece a quien manda; igual pide el PIN */
+  const r = rolDe(n);
+  document.getElementById("puestoInsp").hidden = !(r && ROLES_SUPERVISOR.indexOf(r) >= 0);
 }
 function abrirQuien(paso2){
   if(paso2){ quienPaso1.hidden = true; quienPaso2.hidden = false; renderPuestos(); }
@@ -2245,7 +2417,8 @@ function claveDia(){ return "guia.dia." + fechaISO(new Date()); }
    Con esto «Alison tomó la foto de Cocina» queda escrito, no supuesto. */
 function sello(){
   const p = puestosHoy() || [];
-  return { q: quienActual() || "", p: p[0] || "", h: new Date().toLocaleTimeString("es-CL",{ hour:"2-digit", minute:"2-digit" }) };
+  return { q: quienActual() || "", p: p[0] || "",
+           h: new Date().toLocaleTimeString("es-CL",{ hour:"2-digit", minute:"2-digit", hour12:false }) };
 }
 function cargarDia(){
   /* por  = quién marcó cada tarea · fpor = quién tomó cada foto
