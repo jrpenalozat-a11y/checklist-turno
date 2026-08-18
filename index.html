@@ -2029,9 +2029,20 @@ function rolDe(nombre){ const u = USUARIOS.find(x => x.nombre === nombre); retur
 function esMando(){ const r = rolDe(quienActual()); return r ? ROLES_SUPERVISOR.indexOf(r) >= 0 : false; }
 
 async function gateSupervisor(){
-  /* La clave dejó de ser llave maestra: mirar la Supervisión pide ADEMÁS el rol.
-     Si la lista de usuarios aún no cargó no se bloquea a nadie (se cae a la clave). */
-  if(USUARIOS.length && !esMando()){
+  /* La lista de usuarios es la que dice quién es de mando: SIN ELLA no se abre
+     nada. Antes la guardia decía «si la lista está cargada, comprueba el rol»,
+     y con la lista vacía —justo al actualizar la app— se saltaba entera y le
+     ofrecía crear un PIN a un colaborador. */
+  if(!USUARIOS.length){
+    await esperarSB(4000);
+    try{ await cargarUsuarios(); }catch(e){}
+  }
+  if(!USUARIOS.length){
+    alert("No se pudo comprobar tu rol, probablemente por falta de conexión.\n\n"
+      + "Intenta de nuevo en un momento.");
+    return false;
+  }
+  if(!esMando()){
     alert("La Supervisión es solo para el dueño, el encargado y el encargado de local.\n\n"
       + (quienActual() ? "Estás entrando como " + quienActual() + "." : "Todavía no elegiste tu nombre.")
       + "\n\nSi te corresponde, elige tu nombre con el botón 👤.");
