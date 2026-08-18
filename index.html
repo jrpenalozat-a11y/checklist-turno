@@ -2058,7 +2058,8 @@ usrLista.addEventListener("click", async e => {
     if(!confirm("¿Eliminar a " + del.dataset.n + " definitivamente?\nSe quita del listado y de los menús. Su historial de traspasos se mantiene.")) return;
     del.disabled = true;
     try{
-      const { data, error } = await client.from("usuarios").delete().eq("id", del.dataset.id).select();
+      /* columnas explícitas: pin_hash no se puede leer, y un select * fallaría */
+      const { data, error } = await client.from("usuarios").delete().eq("id", del.dataset.id).select("id,nombre");
       if(error) throw error;
       if(!data || !data.length){
         alert("Falta el permiso de borrado en la base. Corre esto en el SQL Editor:\n\ncreate policy \"usuarios delete\" on public.usuarios for delete to authenticated using (true);");
