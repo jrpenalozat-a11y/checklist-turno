@@ -558,10 +558,10 @@
       <button class="accion" id="supLock">🔒 Bloquear</button>
     </div>
     <div class="sup-sub" id="supSub">
-      <span class="ssub on" data-sub="traspasos">📸 Traspasos</span>
-      <span class="ssub" data-sub="checklists">📋 Informe del día</span>
+      <span class="ssub on" data-sub="checklists">📋 Informe del día</span>
+      <span class="ssub" data-sub="traspasos">📸 Traspasos</span>
     </div>
-    <div id="supPanelTraspasos">
+    <div id="supPanelTraspasos" style="display:none">
       <div class="sup-filtros" id="supFiltros">
         <span class="chip on" data-f="todos">Todos</span>
         <span class="chip" data-f="hoy">Hoy</span>
@@ -569,7 +569,7 @@
       </div>
       <div class="sup-board" id="supBoard"></div>
     </div>
-    <div id="supPanelChecklists" style="display:none">
+    <div id="supPanelChecklists">
       <div class="sup-filtros" id="ckFiltros">
         <span class="chip" data-f="hoy">Hoy</span>
         <span class="chip on" data-f="ayer">Ayer</span>
@@ -1242,6 +1242,12 @@ const SUP_TURNOS = ["Apertura", "Cambio de turno", "Cierre"];
 async function abrirSupervision(){
   if(!(await gateSupervisor())) return;
   supOvl.classList.add("on");
+  /* Abre en «Informe del día», que es lo que se usa a diario. Antes caía en
+     Traspasos, la sección con un registro en todo el mes: lo primero que veía
+     un supervisor estaba vacío, y su filtro «7 días» nunca traía nada. */
+  const bCk = document.querySelector('#supSub .ssub[data-sub="checklists"]');
+  if(bCk && !bCk.classList.contains("on")) bCk.click();
+  else cargarChecklists();
   supBoard.innerHTML = '<div class="sinreg">Cargando…</div>';
   const client = getSB();
   if(!client){ supBoard.innerHTML = '<div class="sinreg">Falta configurar Supabase (SUPABASE_URL y SUPABASE_ANON_KEY).</div>'; return; }
@@ -1317,7 +1323,7 @@ async function firmarFotos(paths){
   }catch(e){}
 }
 /* ---- filtro por fecha del Informe del día ---- */
-let ckFiltro = "ayer";   // hoy | ayer | semana | todos | dia
+let ckFiltro = "ayer";   // hoy | ayer | semana | todos | dia — abre en Ayer, que es la revisión diaria
 let ckDia    = "";       // fecha ISO cuando ckFiltro === "dia"
 
 /* La fecha va en el propio nombre del registro: guia-AAAA-MM-DD-dispositivo.
@@ -2089,11 +2095,41 @@ function pedirFoto(titulo){
     }catch(e){ cerrarCam(); alert("No se pudo abrir la cámara. Da permiso y verifica que la app esté en HTTPS."); resolverCam(null); }
   });
 }
+/* Sello discreto en la esquina de la foto: fecha, hora y quién la sacó.
+   Va dentro de los píxeles, así que viaja con el archivo aunque se comparta.
+   Es la hora DEL TELÉFONO: sirve para saber cuándo fue, no como prueba legal. */
+function estamparFoto(cv, ctx){
+  const w = cv.width, h = cv.height;
+  const s = Math.max(12, Math.round(w * 0.024));       // escala con el tamaño de la foto
+  const pad = Math.round(s * 0.72);
+  const ahora = new Date();
+  const l1 = ahora.toLocaleDateString("es-CL", { day:"2-digit", month:"2-digit", year:"numeric" })
+           + "   " + ahora.toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false });
+  const l2 = [quienActual(), (puestosHoy() || [])[0] || ""].filter(Boolean).join(" · ");
+  ctx.textBaseline = "top";
+  ctx.font = "600 " + s + "px system-ui, -apple-system, sans-serif";
+  const ancho = Math.max(ctx.measureText(l1).width, l2 ? ctx.measureText(l2).width * 0.84 : 0);
+  const bw = Math.round(ancho + pad*2);
+  const bh = Math.round(l2 ? s*2.05 + pad*1.7 : s + pad*1.7);
+  const x = pad, y = h - bh - pad;
+  ctx.fillStyle = "rgba(0,0,0,.45)";
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x, y, bw, bh, Math.round(s*0.5)); ctx.fill(); }
+  else ctx.fillRect(x, y, bw, bh);
+  ctx.fillStyle = "rgba(255,255,255,.97)";
+  ctx.fillText(l1, x + pad, y + pad*0.8);
+  if(l2){
+    ctx.font = "500 " + Math.round(s*0.84) + "px system-ui, -apple-system, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,.8)";
+    ctx.fillText(l2, x + pad, y + pad*0.8 + Math.round(s*1.18));
+  }
+}
 document.getElementById("camCapturar").addEventListener("click", async () => {
   if(!camStream) return;
   const w = camVideo.videoWidth, h = camVideo.videoHeight;
   const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
-  cv.getContext("2d").drawImage(camVideo, 0, 0, w, h);
+  const ctx = cv.getContext("2d");
+  ctx.drawImage(camVideo, 0, 0, w, h);
+  estamparFoto(cv, ctx);
   const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.7));
   cerrarCam(); resolverCam(blob);
 });
