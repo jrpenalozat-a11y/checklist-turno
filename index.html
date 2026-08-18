@@ -678,6 +678,7 @@
       <div class="rango" style="margin-bottom:0">Puedes marcar más de uno</div>
       <div class="quien-grid" id="puestoLista"></div>
       <button class="accion vfabrir" id="puestoListo" style="margin-top:14px;width:100%">Continuar</button>
+      <button class="quien-skip" id="puestoVolver">← No soy yo, elegir otro nombre</button>
       <div id="puestoInsp" hidden>
         <div class="insp-sep">o</div>
         <button class="insp-entrar" id="btnInspeccion">🔍 Entrar en modo inspección</button>
@@ -697,6 +698,7 @@
     <span class="chip on" data-f="ayer">Ayer</span>
     <span class="chip" data-f="semana">7 días</span>
   </div>
+  <div style="padding:0 16px 4px"><button class="accion" id="inspPdf">📄 Descargar PDF con las fotos</button></div>
   <div id="inspCont"></div>
 </div>
 
@@ -1608,6 +1610,7 @@ async function cargarInspeccion(){
       });
       (r.estado.extras || []).forEach(x => { if(!x.ok && x.motivo) pend.push({ ...x, dia }); });
     });
+    inspUltimo = { fotos, pend };            // lo que ve en pantalla es lo que baja en el PDF
     if(!fotos.length && !pend.length){
       const n = inspFiltro === "hoy" ? "hoy" : inspFiltro === "ayer" ? "ayer" : "los últimos 7 días";
       cont.innerHTML = '<div class="sinreg">No hay fotos ni pendientes de <b>' + n + '</b>.<br><br>'
@@ -1649,6 +1652,75 @@ document.getElementById("inspCont").addEventListener("click", e => {
   if(im && im.dataset.url) window.open(im.dataset.url, "_blank");
 });
 document.getElementById("btnInspeccion").addEventListener("click", abrirInspeccion);
+
+/* PDF con las fotos: un archivo que abre cualquiera, sin instalar ni aprender
+   nada. Es lo que le sirve a quien no usa la app. */
+let inspUltimo = { fotos:[], pend:[] };
+async function comoDataURL(url){
+  const r = await fetch(url); if(!r.ok) throw new Error("no se pudo bajar la foto");
+  const b = await r.blob();
+  return await new Promise((ok, err) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = err; fr.readAsDataURL(b); });
+}
+function medirImagen(src){
+  return new Promise(ok => { const i = new Image(); i.onload = () => ok({ w:i.naturalWidth, h:i.naturalHeight }); i.onerror = () => ok(null); i.src = src; });
+}
+async function inspeccionPdf(){
+  const btn = document.getElementById("inspPdf");
+  const { fotos, pend } = inspUltimo;
+  if(!fotos.length && !pend.length){ alert("No hay nada que descargar en este filtro."); return; }
+  const txt0 = btn.textContent; btn.disabled = true;
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:"mm", format:"a4" });
+    const T = (s, x, y) => doc.text(String(s).replace(/[—–]/g, "-"), x, y);
+    const dl = f => inicioDe(f).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" });
+    const per = inspFiltro === "hoy" ? "hoy" : inspFiltro === "ayer" ? "ayer" : "los últimos 7 días";
+    let y = 20;
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(9);  doc.setTextColor(234,86,80); T("FRANÇOIS · LA FLORIDA", 18, y); y += 8;
+    doc.setFontSize(15); doc.setTextColor(20);        T("Fotos de las tareas", 18, y); y += 6;
+    doc.setFontSize(10); doc.setTextColor(110);       T("Periodo: " + per + "     " + fotos.length + " fotos", 18, y); y += 5;
+    doc.setDrawColor(200); doc.line(18, y, 192, y); y += 8;
+
+    const ANCHO = 174, MAXALTO = 108;
+    for(let i = 0; i < fotos.length; i++){
+      const t = fotos[i];
+      btn.textContent = "Preparando " + (i+1) + " de " + fotos.length + "…";
+      let src = fotoCache[t.foto];
+      if(!src) continue;
+      let dataUrl, dim;
+      try{ dataUrl = await comoDataURL(src); dim = await medirImagen(dataUrl); }catch(e){ continue; }
+      if(!dim) continue;
+      let w = ANCHO, h = dim.h / dim.w * ANCHO;
+      if(h > MAXALTO){ h = MAXALTO; w = dim.w / dim.h * MAXALTO; }
+      if(y + h + 16 > 285){ doc.addPage(); y = 20; }
+      doc.addImage(dataUrl, "JPEG", 18, y, w, h);
+      y += h + 5;
+      doc.setFontSize(11); doc.setTextColor(20);
+      T(soloTarea(t.t) + (t.p ? "   [" + t.p + "]" : ""), 18, y); y += 4.5;
+      doc.setFontSize(9); doc.setTextColor(115);
+      T(dl(t.dia) + (t.por && t.por.q ? "   ·   " + t.por.q : "") + (t.por && t.por.h ? "   ·   " + t.por.h : ""), 18, y);
+      y += 11;
+    }
+    if(pend.length){
+      if(y + 24 > 285){ doc.addPage(); y = 20; }
+      doc.setFontSize(12); doc.setTextColor(20); T("No se pudo hacer · " + pend.length, 18, y); y += 4;
+      doc.setDrawColor(215); doc.line(18, y, 192, y); y += 7;
+      pend.forEach(t => {
+        if(y + 14 > 285){ doc.addPage(); y = 20; }
+        doc.setFontSize(10.5); doc.setTextColor(20);
+        T(soloTarea(t.t) + ((t.p || t.a) ? "   [" + (t.p || t.a) + "]" : ""), 18, y); y += 4.5;
+        doc.setFontSize(9.5); doc.setTextColor(150,105,20); T("Motivo: " + t.motivo, 20, y); y += 4.5;
+        doc.setFontSize(9); doc.setTextColor(115);
+        T(dl(t.dia) + (t.por && t.por.q ? "   ·   " + t.por.q : ""), 20, y); y += 8;
+      });
+    }
+    doc.save("fotos_tareas_" + fechaISO(new Date()) + ".pdf");
+  }catch(e){
+    alert("No se pudo armar el PDF: " + ((e && e.message) || e));
+  }finally{ btn.disabled = false; btn.textContent = txt0; }
+}
+document.getElementById("inspPdf").addEventListener("click", inspeccionPdf);
 
 /* ---- Informe semanal: WhatsApp (corto) y PDF (documento de la reunión) ---- */
 const DIA_LARGO = { weekday:"long", day:"numeric", month:"long" };
@@ -2233,6 +2305,9 @@ document.getElementById("puestoListo").addEventListener("click", () => {
   quienOvl.classList.remove("on");
 });
 document.getElementById("quienSkip").addEventListener("click", () => quienOvl.classList.remove("on"));
+/* volver al paso 1: si elegiste mal el nombre quedabas atrapado en el paso 2,
+   sin volver, sin saltar y sin poder cerrar tocando fuera */
+document.getElementById("puestoVolver").addEventListener("click", () => abrirQuien(false));
 btnQuien.addEventListener("click", () => abrirQuien(false));
 /* el aviso de la guía diaria abre el mismo diálogo (paso 1 o paso 2 según falte) */
 document.getElementById("guiaAviso").addEventListener("click", e => {
