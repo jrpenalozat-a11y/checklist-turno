@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "checklist-turno-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:\\Users\\jpena\\AppData\\Local\\Temp\\claude\\C--Users-jpena-Desktop-chef-english\\ee41ed6f-1881-43d6-be4c-d3c85cf298a2\\scratchpad\\static-serve.js",
+        "C:\\Users\\jpena\\Desktop\\traspas de turno"
+      ],
+      "port": 5188
+    }
+  ]
+}

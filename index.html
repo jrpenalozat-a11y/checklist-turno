@@ -2026,6 +2026,50 @@ async function setConfig(clave, valor){
 /* rol de una persona SIN pasar por el candado (esAdmin/puedeEditarRutina exigen
    modo supervisor ya activo; acá necesitamos saberlo antes de abrirlo) */
 function rolDe(nombre){ const u = USUARIOS.find(x => x.nombre === nombre); return u ? rolNorm(u.rol) : null; }
+
+/* ---- PIN de cada persona ----
+   Se pide al elegir el nombre y sólo la PRIMERA vez en cada teléfono: el
+   equipo recuerda quién ya se verificó en él. El hash vive en la base y la
+   comprobación ocurre en el servidor, que sólo responde sí o no. */
+function pinVerificados(){ try{ return JSON.parse(localStorage.getItem("quien.pinok") || "[]"); }catch(e){ return []; } }
+function pinGuardar(n){ try{ const a = pinVerificados(); if(a.indexOf(n) < 0){ a.push(n); localStorage.setItem("quien.pinok", JSON.stringify(a)); } }catch(e){} }
+function pinOlvidar(n){ try{ localStorage.setItem("quien.pinok", JSON.stringify(pinVerificados().filter(x => x !== n))); }catch(e){} }
+
+async function pedirPin(n){
+  const yaAqui = pinVerificados().indexOf(n) >= 0;
+  await esperarSB(4000);
+  const client = getSB();
+  if(!client) return yaAqui;                   // sin conexión: sólo pasa quien ya se verificó aquí
+  try{ await vfSesion(client); }catch(e){}
+
+  const t = await client.rpc("tiene_pin", { p_nombre: n });
+  if(t.error) return true;                     // la base aún no tiene el sistema: no bloquear a nadie
+  /* se consulta siempre, aunque el equipo lo recuerde: así un PIN reiniciado
+     por un dueño obliga a crear uno nuevo en vez de seguir entrando */
+  if(!t.data){
+    pinOlvidar(n);
+    const p1 = prompt(n + ", es tu primera vez en este teléfono.\nCrea tu PIN (4 a 8 dígitos):");
+    if(p1 == null) return false;
+    if(!/^\d{4,8}$/.test((p1 || "").trim())){ alert("El PIN debe tener entre 4 y 8 dígitos."); return false; }
+    const p2 = prompt("Repítelo para confirmar:");
+    if(p2 == null) return false;
+    if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
+    const c = await client.rpc("crear_pin", { p_nombre: n, p_hash: await sha256(p1.trim()) });
+    if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
+    alert("PIN creado. Es tuyo: no lo compartas.\nSi lo olvidas, un dueño te lo reinicia desde 👥 Usuarios.");
+  } else if(!yaAqui){
+    const pin = prompt("PIN de " + n + ":");
+    if(pin == null) return false;
+    const v = await client.rpc("verificar_pin", { p_nombre: n, p_hash: await sha256((pin || "").trim()) });
+    if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
+    if(!v.data){ alert("PIN incorrecto."); return false; }
+  }
+  pinGuardar(n);
+  /* quien manda queda además con la Supervisión desbloqueada: el PIN ya probó
+     quién es, y el rol decide a qué puede entrar */
+  if(ROLES_SUPERVISOR.indexOf(rolDe(n) || "") >= 0){ try{ localStorage.setItem("sup_ok", "pin:" + n); }catch(e){} }
+  return true;
+}
 function esMando(){ const r = rolDe(quienActual()); return r ? ROLES_SUPERVISOR.indexOf(r) >= 0 : false; }
 
 async function gateSupervisor(){
@@ -2133,6 +2177,7 @@ async function abrirUsuarios(){
         : '<div class="usr-r">' + esc(rolLabel(u.rol)) + (u.puesto ? " · " + esc(u.puesto) : "") + '</div>';
       const acc = admin
         ? '<div class="usr-acc"><button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>'
+          + '<button class="usr-toggle usr-pin" data-n="' + esc(u.nombre) + '" title="Reiniciar PIN">🔑</button>'
           + '<button class="usr-del" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" aria-label="Eliminar" title="Eliminar">🗑</button></div>'
         : "";
       return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>' + info + '</div>' + acc + '</div>';
@@ -2143,6 +2188,26 @@ async function abrirUsuarios(){
 }
 usrLista.addEventListener("click", async e => {
   const client = getSB(); if(!client) return;
+  /* reiniciar el PIN de quien lo olvidó: lo pide un dueño o el encargado y
+     tiene que dar SU propio PIN, que se comprueba en el servidor */
+  const rp = e.target.closest(".usr-pin");
+  if(rp){
+    const quien = rp.dataset.n;
+    if(!confirm("¿Reiniciar el PIN de " + quien + "?\n\nLa próxima vez que entre, la app le pedirá crear uno nuevo.")) return;
+    const mio = prompt("Para confirmar, escribe TU PIN (" + quienActual() + "):");
+    if(mio == null) return;
+    rp.disabled = true;
+    try{
+      await vfSesion(client);
+      const r = await client.rpc("reiniciar_pin", { p_nombre: quien, p_admin: quienActual(), p_hash_admin: await sha256((mio || "").trim()) });
+      if(r.error) throw r.error;
+      if(!r.data){ alert("No se pudo reiniciar. Revisa que tu PIN sea correcto y que seas dueño o encargado."); return; }
+      pinOlvidar(quien);
+      alert("Listo. " + quien + " creará un PIN nuevo la próxima vez que entre.");
+    }catch(err){ alert("No se pudo reiniciar: " + ((err && err.message) || err)); }
+    finally{ rp.disabled = false; }
+    return;
+  }
   const del = e.target.closest(".usr-del");
   if(del){
     if(!confirm("¿Eliminar a " + del.dataset.n + " definitivamente?\nSe quita del listado y de los menús. Su historial de traspasos se mantiene.")) return;
@@ -2288,9 +2353,10 @@ function abrirQuien(paso2){
   else { quienPaso1.hidden = false; quienPaso2.hidden = true; renderQuien(); }
   quienOvl.classList.add("on");
 }
-document.getElementById("quienLista").addEventListener("click", e => {
+document.getElementById("quienLista").addEventListener("click", async e => {
   const b = e.target.closest(".quien-btn"); if(!b) return;
   const n = b.dataset.n;
+  if(!(await pedirPin(n))) return;            // cada uno entra con su PIN
   try{ localStorage.setItem("quien.actual", n); }catch(err){}
   /* el candado es de la PERSONA, no del equipo: si entra alguien que no es de
      mando, el desbloqueo que dejó otro se cierra solo. Antes bastaba con que
