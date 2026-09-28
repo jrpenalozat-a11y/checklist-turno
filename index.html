@@ -101,6 +101,14 @@
   #pendBar{display:none;align-items:center;gap:9px;flex-wrap:wrap;margin:8px 0 2px;padding:9px 12px;
     border:1.5px dashed #E8C98A;background:#FFF8EC;border-radius:12px;font-family:inherit;font-weight:600;font-size:12px;line-height:1.3;color:#8A5F10}
   #pendBar b{color:#B4483A}
+  /* tareas que exigen foto */
+  .req-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
+    border-radius:99px;background:#EDE7FB;color:#5B3FD6;margin-left:6px;white-space:nowrap}
+  #guiaLista li.sinfoto{border-left:3px solid #7B5CF0;padding-left:7px;border-radius:3px}
+  #guiaLista li.sinfoto.conmot{border-left-color:#2E9E6B}
+  .sem-req{flex:none;border:1px solid var(--linea);background:var(--panel);border-radius:9px;
+    font-size:15px;line-height:1;padding:5px 8px;cursor:pointer;opacity:.45}
+  .sem-req.on{opacity:1;border-color:#B9A6F5;background:#F4F0FF}
   /* aviso: sin nombre elegido lo marcado no queda registrado (no se sincroniza) */
   #guiaAviso{display:none;margin:10px 0 2px;padding:10px 12px;border-radius:12px;
     border:1.5px dashed #B9A6F5;background:#F4F0FF;font-family:inherit;font-weight:600;font-size:12px;line-height:1.4;color:#5B3FD6}
@@ -2657,6 +2665,15 @@ function limpio(t){ return t.replace(/^\[(APERTURA|CIERRE)\]\s*/, ""); }
 /* motivos de lo que quedó pendiente (por día, en este dispositivo) */
 const MOTIVOS = ["No alcanzó el tiempo","Faltaba insumo o producto","Equipo en uso o con falla",
                  "Había clientes en el sector","Lo toma el próximo turno"];
+/* para las tareas que exigen foto y se hicieron sin ella */
+const MOTIVOS_FOTO = ["Se me olvidó sacarla","El teléfono sin batería o sin espacio",
+                      "La cámara no funcionó","Había clientes y no quise fotografiar",
+                      "No alcancé a sacarla"];
+/* ¿esta tarea exige foto? lo marca quien mantiene la rutina, tarea por tarea */
+function exigeFoto(x){ return !!(x && x.req); }
+/* lo que hay que explicar: lo no marcado, y lo hecho sin la foto que exige */
+function faltaLaFoto(x, st){ return exigeFoto(x) && st.done.has(x.id) && !st.fotos[x.id]; }
+function porExplicar(items, st){ return items.filter(x => !st.done.has(x.id) || faltaLaFoto(x, st)); }
 function claveMot(){ return "guia.motivos." + fechaISO(new Date()); }
 function cargarMot(){ try{ return JSON.parse(localStorage.getItem(claveMot()) || "{}"); }catch(e){ return {}; } }
 function guardarMot(m){ try{ localStorage.setItem(claveMot(), JSON.stringify(m)); }catch(e){} }
@@ -2692,11 +2709,12 @@ function extrasDe(area){
 /* lo que cuenta para el avance: rutina + agregados marcables (las notas no cuentan) */
 function contablesDe(area){ return itemsDe(area).concat(extrasDe(area).filter(x => x.k !== "nota")); }
 
-function pedirMotivo(id, texto){
+function pedirMotivo(id, texto, porFoto){
+  const lista = porFoto ? MOTIVOS_FOTO : MOTIVOS;
   const ovl = document.createElement("div"); ovl.id = "motOvl";
-  ovl.innerHTML = '<div class="cja"><h4>¿Por qué quedó pendiente?</h4>'
+  ovl.innerHTML = '<div class="cja"><h4>' + (porFoto ? "Esta tarea lleva foto. ¿Por qué no la sacaste?" : "¿Por qué quedó pendiente?") + '</h4>'
     + '<p class="tq">' + esc(limpio(texto)) + '</p>'
-    + MOTIVOS.map(m => '<button class="op" data-m="' + esc(m) + '">' + esc(m) + '</button>').join("")
+    + lista.map(m => '<button class="op" data-m="' + esc(m) + '">' + esc(m) + '</button>').join("")
     + '<input type="text" id="motLibre" placeholder="Otro motivo…" autocomplete="off">'
     + '<button class="op qt" data-m="__libre">Guardar motivo escrito</button>'
     + '<button class="op" data-m="">Quitar motivo</button></div>';
@@ -2880,12 +2898,19 @@ function renderGuia(){
       ? '<span class="sem-badge">' + esc(zona) + '</span>' : "";
     const tag = esExtra ? '<span class="ex-badge">extra</span>' : "";
     const m = mot[x.id];
-    const btn = ok ? "" : '<button class="pmot' + (m ? " si" : "") + '" data-mot="' + x.id + '">'
-      + (m ? "⏳ " + esc(m) : "⏳ ¿Por qué?") + '</button>';
-    return '<li class="' + (ok ? "hecha" : "pend") + (!ok && m ? " conmot" : "") + '">'
+    /* tarea que exige foto: se avisa antes de marcarla, y si se marca sin la
+       foto hay que explicar por qué — si no, no se puede enviar el informe */
+    const exige = !esExtra && exigeFoto(x);
+    const sinLaFoto = !esExtra && faltaLaFoto(x, st);
+    const req = exige ? '<span class="req-badge">📷 lleva foto</span>' : "";
+    const pide = !ok || sinLaFoto;
+    const btn = !pide ? "" : '<button class="pmot' + (m ? " si" : "") + '" data-mot="' + x.id + '"'
+      + (sinLaFoto ? ' data-porfoto="1"' : "") + '>'
+      + (m ? (sinLaFoto ? "📷 " : "⏳ ") + esc(m) : (sinLaFoto ? "📷 ¿Por qué sin foto?" : "⏳ ¿Por qué?")) + '</button>';
+    return '<li class="' + (ok ? "hecha" : "pend") + (sinLaFoto ? " sinfoto" : "") + (pide && m ? " conmot" : "") + '">'
       + '<label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
       + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
-      + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + '</span>'
+      + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + req + '</span>'
       + foto(x) + btn + '</li>';
   }
   const MOM = [["ap","🌅 Apertura"], ["du","☀️ Durante el turno"], ["ci","🌙 Al cierre"]];
@@ -2924,12 +2949,15 @@ function renderGuia(){
 
   /* resumen de pendientes del área (rutina + agregados) */
   const pend = cuenta.filter(x => !st.done.has(x.id));
-  const sinMot = pend.filter(x => !mot[x.id]).length;
+  const faltanFoto = cuenta.filter(x => faltaLaFoto(x, st));
+  const sinMot = porExplicar(cuenta, st).filter(x => !mot[x.id]).length;
   const barraP = document.getElementById("pendBar");
-  barraP.style.display = pend.length ? "flex" : "none";
-  barraP.innerHTML = pend.length
-    ? "⏳ Quedan <b>" + pend.length + "</b> pendientes en esta área"
-      + (sinMot ? " · <b>" + sinMot + "</b> sin motivo — toca «¿Por qué?» para explicar" : " · todas con motivo ✓")
+  const hayQueDecir = pend.length || faltanFoto.length;
+  barraP.style.display = hayQueDecir ? "flex" : "none";
+  barraP.innerHTML = hayQueDecir
+    ? (pend.length ? "⏳ Quedan <b>" + pend.length + "</b> pendientes en esta área" : "")
+      + (faltanFoto.length ? (pend.length ? " · " : "") + "📷 <b>" + faltanFoto.length + "</b> marcada(s) sin la foto que piden" : "")
+      + (sinMot ? " · <b>" + sinMot + "</b> sin explicar — toca el botón de cada una" : " · todas explicadas ✓")
     : "";
 
   firmarThumbs("#guiaLista");
@@ -2944,14 +2972,17 @@ function enviarInforme(){
   const marcables = contablesDe(areaSel);
   const pend = marcables.filter(x => !st.done.has(x.id));
 
-  const sin = pend.filter(x => !mot[x.id]);
+  /* hay que explicar lo no hecho Y lo hecho sin la foto que la tarea exige */
+  const sin = porExplicar(marcables, st).filter(x => !mot[x.id]);
   if(sin.length){
+    const nf = sin.filter(x => faltaLaFoto(x, st)).length;
     alert("No puedes enviar el informe todavía.\n\n"
-      + "Hay " + sin.length + " tarea(s) pendiente(s) sin motivo. "
-      + "Toca «⏳ ¿Por qué?» en cada una y explica por qué no se pudo hacer:\n\n"
-      + sin.slice(0,8).map((x,i) => (i+1) + ". " + limpio(x.t)).join("\n")
+      + "Hay " + sin.length + " tarea(s) sin explicar"
+      + (nf ? " (" + nf + " marcada(s) sin la foto que piden)" : "") + ".\n"
+      + "Toca el botón de cada una y explica:\n\n"
+      + sin.slice(0,8).map((x,i) => (i+1) + ". " + limpio(x.t) + (faltaLaFoto(x, st) ? "  — falta la foto" : "")).join("\n")
       + (sin.length > 8 ? "\n… y " + (sin.length-8) + " más" : ""));
-    const pr = document.querySelector("#guiaLista li.pend .pmot:not(.si)");
+    const pr = document.querySelector("#guiaLista li.pend .pmot:not(.si), #guiaLista li.sinfoto .pmot:not(.si)");
     if(pr) pr.scrollIntoView({ block:"center", behavior:"smooth" });
     return;
   }
@@ -3037,7 +3068,7 @@ document.getElementById("guiaLista").addEventListener("click", e => {
   const wd = new Date().getDay();
   const todo = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []).concat(cargarEx());
   const x = todo.find(t => t.id === b.dataset.mot);
-  if(x) pedirMotivo(x.id, x.t);
+  if(x) pedirMotivo(x.id, x.t, b.dataset.porfoto === "1");
 });
 document.getElementById("guiaLista").addEventListener("change", e => {
   if(e.target.type !== "checkbox") return;
@@ -3082,8 +3113,13 @@ function renderSemanal(){
       const badge = x.p ? '<span class="sem-badge">' + esc(x.p) + '</span>' : "";
       const thumb = x.foto ? '<img class="tthumb" ' + dref + ' data-foto="' + esc(x.foto) + '" src="' + PIX + '" alt="ref">' : "";
       const cam = sup ? '<button class="tfoto" ' + dref + ' aria-label="Foto de referencia">📷</button>' : "";
+      /* marca «esta tarea lleva foto»: si se hace sin ella, habrá que explicarlo */
+      const req = sup
+        ? '<button class="sem-req' + (x.req ? " on" : "") + '" ' + dref + ' title="Exigir foto en esta tarea">📸</button>'
+        : (x.req ? '<span class="req-badge">📷 lleva foto</span>' : "");
       const del = sup ? '<button class="sem-del" ' + dref + ' aria-label="Borrar">×</button>' : "";
-      return '<div class="sem-item"><span class="t">' + esc(x.t) + badge + '</span>' + thumb + cam + del + '</div>';
+      return '<div class="sem-item"><span class="t">' + esc(x.t) + badge + (sup && x.req ? ' <span class="req-badge">lleva foto</span>' : "") + '</span>'
+        + thumb + req + cam + del + '</div>';
     }).join("") : '<div class="sem-vacio">Sin tareas</div>';
     const add = sup
       ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off">'
@@ -3106,6 +3142,16 @@ function listaDe(tipo, wd){
 }
 if(semanalCont){
   semanalCont.addEventListener("click", async e => {
+    /* marcar/desmarcar «esta tarea lleva foto» */
+    const rq = e.target.closest(".sem-req");
+    if(rq){
+      if(!puedeEditarRutina()) return;
+      const arr = listaDe(rq.dataset.tipo, rq.dataset.wd);
+      const x = arr.find(t => t.id === rq.dataset.id); if(!x) return;
+      if(x.req) delete x.req; else x.req = true;
+      await guardarRutina();
+      return;
+    }
     // foto de referencia (ver / capturar-reemplazar)
     const cam = e.target.closest(".tfoto, .tthumb");
     if(cam){
