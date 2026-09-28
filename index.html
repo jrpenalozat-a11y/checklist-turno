@@ -2065,6 +2065,10 @@ async function pedirPin(n){
     if(!v.data){ alert("PIN incorrecto."); return false; }
   }
   pinGuardar(n);
+  /* Queda anotado quién escribió su PIN y cuándo. Al mover el PIN al momento de
+     elegir el nombre esto se quedó sin registrar, y el registro se vació: el
+     desbloqueo ya no pasaba por el camino que lo anotaba. */
+  try{ client.from("accesos_supervision").insert({ nombre: n }); }catch(e){}
   /* quien manda queda además con la Supervisión desbloqueada: el PIN ya probó
      quién es, y el rol decide a qué puede entrar */
   if(ROLES_SUPERVISOR.indexOf(rolDe(n) || "") >= 0){ try{ localStorage.setItem("sup_ok", "pin:" + n); }catch(e){} }
