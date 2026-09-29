@@ -705,8 +705,9 @@
     <span class="chip" data-f="hoy">Hoy</span>
     <span class="chip on" data-f="ayer">Ayer</span>
     <span class="chip" data-f="semana">7 días</span>
+    <input type="date" class="ck-fecha" id="inspFecha" aria-label="Ver un día puntual">
   </div>
-  <div style="padding:0 16px 4px"><button class="accion" id="inspPdf">📄 Descargar PDF con las fotos</button></div>
+  <div style="padding:0 16px 4px"><button class="accion" id="inspPdf">📄 Enviar PDF con las fotos</button></div>
   <div id="inspCont"></div>
 </div>
 
@@ -1580,6 +1581,15 @@ document.getElementById("ckFecha").addEventListener("change", e => {
    que es una tarea distinta de leer los informes. Sólo los de mando, detrás
    del mismo candado que la Supervisión. */
 let inspFiltro = "ayer";
+let inspDia    = "";     // fecha elegida en el calendario del modo inspeccion
+/* el periodo en palabras, para el mensaje de vacio y la portada del PDF */
+function nombreInsp(){
+  if(inspFiltro === "hoy")  return "hoy";
+  if(inspFiltro === "ayer") return "ayer";
+  if(inspFiltro === "dia" && inspDia)
+    return "el " + inicioDe(inspDia).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" });
+  return "los últimos 7 días";
+}
 const inspOvl = document.getElementById("inspOvl");
 /* en la inspección basta el nombre de la tarea: la explicación que va tras el
    guión larga estorba cuando lo que se mira es la foto */
@@ -1595,18 +1605,22 @@ async function abrirInspeccion(){
 async function cargarInspeccion(){
   const cont = document.getElementById("inspCont");
   document.querySelectorAll("#inspFiltros .chip").forEach(c => c.classList.toggle("on", c.dataset.f === inspFiltro));
+  const fi = document.getElementById("inspFecha");
+  fi.max = fechaISO(new Date());
+  fi.classList.toggle("on", inspFiltro === "dia");
+  fi.value = inspFiltro === "dia" ? (inspDia || "") : "";
   cont.innerHTML = '<div class="sinreg">Cargando…</div>';
   const client = getSB();
   if(!client){ cont.innerHTML = '<div class="sinreg">Sin conexión con la base.</div>'; return; }
   try{
     await vfSesion(client);
     let q = client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false });
-    const rg = rangoDe(inspFiltro, "");
+    const rg = rangoDe(inspFiltro, inspDia);
     q = rg ? q.gte("updated_at", rg[0]).lte("updated_at", rg[1]).limit(300) : q.limit(60);
     const { data, error } = await q;
     if(error) throw error;
     const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas))
-                              .filter(r => pasaFechaDe(r, inspFiltro, ""));
+                              .filter(r => pasaFechaDe(r, inspFiltro, inspDia));
     /* se juntan todas las tareas de todas las personas: acá interesa la
        evidencia del local, no quién armó cada informe */
     const fotos = [], pend = [];
@@ -1620,7 +1634,7 @@ async function cargarInspeccion(){
     });
     inspUltimo = { fotos, pend };            // lo que ve en pantalla es lo que baja en el PDF
     if(!fotos.length && !pend.length){
-      const n = inspFiltro === "hoy" ? "hoy" : inspFiltro === "ayer" ? "ayer" : "los últimos 7 días";
+      const n = nombreInsp();
       cont.innerHTML = '<div class="sinreg">No hay fotos ni pendientes de <b>' + n + '</b>.<br><br>'
         + '<small>Las fotos aparecen acá cuando alguien toca 📷 junto a una tarea.</small></div>';
       return;
@@ -1652,7 +1666,11 @@ async function cargarInspeccion(){
 }
 document.getElementById("inspFiltros").addEventListener("click", e => {
   const c = e.target.closest(".chip"); if(!c) return;
-  inspFiltro = c.dataset.f; cargarInspeccion();
+  inspFiltro = c.dataset.f; inspDia = ""; cargarInspeccion();
+});
+document.getElementById("inspFecha").addEventListener("change", e => {
+  if(!e.target.value) return;
+  inspDia = e.target.value; inspFiltro = "dia"; cargarInspeccion();
 });
 document.getElementById("inspSalir").addEventListener("click", () => inspOvl.classList.remove("on"));
 document.getElementById("inspCont").addEventListener("click", e => {
@@ -1664,6 +1682,25 @@ document.getElementById("btnInspeccion").addEventListener("click", abrirInspecci
 /* PDF con las fotos: un archivo que abre cualquiera, sin instalar ni aprender
    nada. Es lo que le sirve a quien no usa la app. */
 let inspUltimo = { fotos:[], pend:[] };
+
+/* Manda el PDF por el menú de compartir del teléfono (ahí aparece WhatsApp) en
+   vez de dejarlo en Descargas. Si el navegador no sabe compartir archivos
+   —PC de escritorio, navegadores viejos— lo descarga como antes y lo dice. */
+async function compartirPdf(doc, nombre, titulo){
+  const blob = doc.output("blob");
+  try{
+    const f = new File([blob], nombre, { type:"application/pdf" });
+    if(navigator.canShare && navigator.canShare({ files:[f] })){
+      await navigator.share({ files:[f], title: titulo, text: titulo });
+      return "compartido";
+    }
+  }catch(e){
+    /* si la persona cancela el menú de compartir no hay que descargar nada */
+    if(e && e.name === "AbortError") return "cancelado";
+  }
+  doc.save(nombre);
+  return "descargado";
+}
 async function comoDataURL(url){
   const r = await fetch(url); if(!r.ok) throw new Error("no se pudo bajar la foto");
   const b = await r.blob();
@@ -1682,7 +1719,7 @@ async function inspeccionPdf(){
     const doc = new jsPDF({ unit:"mm", format:"a4" });
     const T = (s, x, y) => doc.text(String(s).replace(/[—–]/g, "-"), x, y);
     const dl = f => inicioDe(f).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" });
-    const per = inspFiltro === "hoy" ? "hoy" : inspFiltro === "ayer" ? "ayer" : "los últimos 7 días";
+    const per = nombreInsp();
     let y = 20;
     doc.setFont("helvetica","normal");
     doc.setFontSize(9);  doc.setTextColor(234,86,80); T("FRANÇOIS · LA FLORIDA", 18, y); y += 8;
@@ -1723,7 +1760,18 @@ async function inspeccionPdf(){
         T(dl(t.dia) + (t.por && t.por.q ? "   ·   " + t.por.q : ""), 20, y); y += 8;
       });
     }
-    doc.save("fotos_tareas_" + fechaISO(new Date()) + ".pdf");
+    btn.textContent = "Abriendo para compartir…";
+    /* el archivo se nombra por el periodo que contiene, no por el dia en que se
+   descarga: en WhatsApp conviven varios y hay que distinguirlos */
+    const sufijo = inspFiltro === "dia" && inspDia ? inspDia
+      : inspFiltro === "ayer" ? fechaISO(new Date(Date.now() - 864e5))
+      : inspFiltro === "hoy"  ? fechaISO(new Date())
+      : "7dias_al_" + fechaISO(new Date());
+    const r = await compartirPdf(doc, "fotos_tareas_" + sufijo + ".pdf",
+                                 "Fotos de las tareas — François · " + per);
+    if(r === "descargado")
+      alert("Este navegador no puede compartir archivos, así que el PDF quedó en Descargas.\n\n"
+        + "Desde el teléfono sí se puede: se abre el menú de compartir y eliges WhatsApp.");
   }catch(e){
     alert("No se pudo armar el PDF: " + ((e && e.message) || e));
   }finally{ btn.disabled = false; btn.textContent = txt0; }
@@ -1848,7 +1896,11 @@ async function informeSemanalPdf(){
   T("«Sin reporte» no significa que el trabajo no se hiciera: puede que ese dia no", 20, y); y += 4;
   T("hubiera nadie en esa area. Solo se cuentan los pendientes que llevan motivo.", 20, y);
 
-  doc.save("informe_semanal_" + fechaISO(s.hoy0) + ".pdf");
+  const r = await compartirPdf(doc, "informe_semanal_" + fechaISO(s.hoy0) + ".pdf",
+                               "Informe semanal — François");
+  if(r === "descargado")
+    alert("Este navegador no puede compartir archivos, así que el PDF quedó en Descargas.\n\n"
+      + "Desde el teléfono se abre el menú de compartir y eliges WhatsApp.");
 }
 document.getElementById("ckWa").addEventListener("click", informeSemanalWa);
 document.getElementById("ckPdf").addEventListener("click", informeSemanalPdf);
