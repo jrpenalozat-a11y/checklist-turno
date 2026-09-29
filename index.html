@@ -1760,6 +1760,80 @@ document.getElementById("pdfSave").addEventListener("click", () => {
 });
 document.getElementById("pdfCerrar").addEventListener("click", () => pdfOvl.classList.remove("on"));
 
+/* ---- Identidad François en los PDF: Montserrat + banda coral con el logo ----
+   Las fuentes van en /fonts (recortadas al alfabeto latino, ~15 KB cada una)
+   y se guardan en caché, así el PDF sale igual sin señal. */
+const PDF_COL = { coral:[234,86,80], crema:[254,236,214], tinta:[59,46,42], grafito:[122,92,80],
+                  ambar:[160,108,20], verde:[40,120,70], linea:[232,214,196] };
+let _pdfRec = null;
+function recursosPdf(){
+  if(_pdfRec) return _pdfRec;
+  const b64 = async url => {
+    const r = await fetch(url); if(!r.ok) throw new Error(url);
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let bin = ""; for(let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    return btoa(bin);
+  };
+  _pdfRec = Promise.all([
+    b64("fonts/Montserrat-Regular.ttf"), b64("fonts/Montserrat-SemiBold.ttf"), b64("fonts/Montserrat-Bold.ttf"),
+    b64("logo-francois.png")
+  ]).then(([r, sb, b, logo]) => ({ r, sb, b, logo:"data:image/png;base64," + logo }))
+    .catch(() => { _pdfRec = null; return null; });
+  return _pdfRec;
+}
+/* Registra Montserrat en el documento. Devuelve los nombres a usar; si las
+   fuentes no cargaron, cae a Helvetica y el PDF sale igual. */
+async function fuentesPdf(doc){
+  const R = await recursosPdf();
+  if(!R) return { R:null, reg:["helvetica","normal"], sb:["helvetica","bold"], b:["helvetica","bold"] };
+  doc.addFileToVFS("Mont-R.ttf", R.r);  doc.addFont("Mont-R.ttf", "Montserrat", "normal");
+  doc.addFileToVFS("Mont-SB.ttf", R.sb); doc.addFont("Mont-SB.ttf", "MontserratSB", "normal");
+  doc.addFileToVFS("Mont-B.ttf", R.b);  doc.addFont("Mont-B.ttf", "Montserrat", "bold");
+  return { R, reg:["Montserrat","normal"], sb:["MontserratSB","normal"], b:["Montserrat","bold"] };
+}
+/* Banda coral a todo el ancho con el logo en crema, el tipo de documento a la
+   derecha y, debajo, el título grande. Devuelve la «y» donde sigue el texto. */
+function encabezadoPdf(doc, F, o){
+  const C = PDF_COL;
+  doc.setFillColor(...C.coral); doc.rect(0, 0, 210, 34, "F");
+  if(F.R && F.R.logo) doc.addImage(F.R.logo, "PNG", 18, 8.5, 46, 15.9);
+  else { doc.setFont(...F.b); doc.setFontSize(20); doc.setTextColor(...C.crema); doc.text("françois", 18, 20); }
+  doc.setTextColor(...C.crema);
+  doc.setFont(...F.sb); doc.setFontSize(8.5);
+  doc.text((o.tipo || "").toUpperCase(), 192, 15, { align:"right", charSpace:0.9 });
+  doc.setFont(...F.reg); doc.setFontSize(8.5);
+  doc.text("LA FLORIDA", 192, 21, { align:"right", charSpace:1.4 });
+  if(o.fecha){ doc.setFontSize(8.5); doc.text(o.fecha, 192, 27, { align:"right" }); }
+
+  let y = 49;
+  doc.setFont(...F.b); doc.setFontSize(21); doc.setTextColor(...C.tinta);
+  doc.text(o.titulo, 18, y); y += 7.5;
+  if(o.sub){ doc.setFont(...F.reg); doc.setFontSize(10); doc.setTextColor(...C.grafito); doc.text(o.sub, 18, y); y += 6; }
+  if(o.pct != null){
+    /* barra de avance con el porcentaje al lado */
+    y += 1.5;
+    doc.setFillColor(...C.linea); doc.roundedRect(18, y, 142, 3.2, 1.6, 1.6, "F");
+    const w = Math.max(3.2, 142 * Math.min(100, o.pct) / 100);
+    doc.setFillColor(...(o.pct >= 100 ? C.verde : C.coral)); doc.roundedRect(18, y, w, 3.2, 1.6, 1.6, "F");
+    doc.setFont(...F.sb); doc.setFontSize(10); doc.setTextColor(...C.tinta);
+    doc.text(o.avance || (o.pct + "%"), 192, y + 2.9, { align:"right" });
+    y += 9;
+  }
+  doc.setDrawColor(...C.linea); doc.setLineWidth(0.4); doc.line(18, y, 192, y);
+  return y + 9;
+}
+/* pie en cada página: marca a la izquierda, número de página a la derecha */
+function piePdf(doc, F){
+  const n = doc.getNumberOfPages();
+  for(let i = 1; i <= n; i++){
+    doc.setPage(i);
+    doc.setDrawColor(...PDF_COL.linea); doc.setLineWidth(0.3); doc.line(18, 287, 192, 287);
+    doc.setFont(...F.reg); doc.setFontSize(7.5); doc.setTextColor(...PDF_COL.grafito);
+    doc.text("françois · pastelería clásica", 18, 291.5);
+    doc.text(i + " / " + n, 192, 291.5, { align:"right" });
+  }
+}
+
 /* Foto lista para meter al PDF: primero la copia del teléfono (sirve sin
    señal), si no, la del servidor. Se achica a 1000 px para que el PDF no
    pase el peso que WhatsApp acepta cómodo. */
@@ -3288,45 +3362,55 @@ document.getElementById("infPdf").addEventListener("click", async () => {
     const I = infActual;
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:"mm", format:"a4" });
-    const L = s => String(s).replace(/[—–]/g, "-");
+    btn.textContent = "Preparando…";
+    const F = await fuentesPdf(doc);
+    const C = PDF_COL;
+    /* con Montserrat los guiones largos se ven bien; sólo Helvetica los deja huecos */
+    const L = s => F.R ? String(s) : String(s).replace(/[—–]/g, "-");
     const T = (s, x, y) => doc.text(L(s), x, y);
-    const W = (s, x, y, ancho) => { const ls = doc.splitTextToSize(L(s), ancho); ls.forEach((l, i) => doc.text(l, x, y + i*4.6)); return ls.length * 4.6; };
-    let y = 20;
-    const salto = n => { if(y + n > 285){ doc.addPage(); y = 20; } };
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(9);  doc.setTextColor(234,86,80); T("FRANÇOIS · LA FLORIDA", 18, y); y += 8;
-    doc.setFontSize(15); doc.setTextColor(20);        T("Informe de turno - " + I.area, 18, y); y += 6;
-    doc.setFontSize(10); doc.setTextColor(110);
-    T(I.f + " · " + I.hora + (I.quien ? "   ·   " + I.quien : ""), 18, y); y += 5;
-    T("Avance: " + I.hechas.length + " de " + I.marcables.length + " (" + I.pct + "%)", 18, y); y += 4;
-    doc.setDrawColor(200); doc.line(18, y, 192, y); y += 8;
+    const W = (s, x, y, ancho) => { const ls = doc.splitTextToSize(L(s), ancho); ls.forEach((l, i) => doc.text(l, x, y + i*4.8)); return ls.length * 4.8; };
+    const salto = n => { if(y + n > 280){ doc.addPage(); y = 20; } };
+    /* título de sección: SemiBold, con una marquita coral a la izquierda */
+    const sec = txt => {
+      doc.setFillColor(...C.coral); doc.rect(18, y - 3.6, 1.2, 4.6, "F");
+      doc.setFont(...F.sb); doc.setFontSize(12); doc.setTextColor(...C.tinta); T(txt, 22, y);
+      doc.setFont(...F.reg);
+    };
+    let y = encabezadoPdf(doc, F, {
+      tipo: "Informe de turno",
+      fecha: I.f.charAt(0).toUpperCase() + I.f.slice(1),
+      titulo: I.area,
+      sub: I.hora + " h" + (I.quien ? "   ·   " + I.quien : ""),
+      pct: I.pct,
+      avance: I.hechas.length + " de " + I.marcables.length + " · " + I.pct + "%"
+    });
+    doc.setFont(...F.reg);
 
     if(I.pend.length){
-      doc.setFontSize(12); doc.setTextColor(20); T("No se pudieron hacer · " + I.pend.length, 18, y); y += 7;
+      sec("No se pudieron hacer · " + I.pend.length); y += 7;
       I.pend.forEach(x => {
         salto(14);
-        doc.setFontSize(10.5); doc.setTextColor(20); y += W(limpio(x.t), 18, y, 174);
-        doc.setFontSize(9.5); doc.setTextColor(150,105,20); y += W("Motivo: " + I.mot[x.id], 21, y, 170) + 3;
+        doc.setFontSize(10.5); doc.setTextColor(...C.tinta); y += W(limpio(x.t), 22, y, 170);
+        doc.setFontSize(9.5); doc.setTextColor(...C.ambar); y += W("Motivo: " + I.mot[x.id], 22, y, 170) + 3;
       });
       y += 3;
     } else {
-      doc.setFontSize(11); doc.setTextColor(40,120,70); T("Se completaron todas las tareas del área.", 18, y); y += 9;
+      doc.setFont(...F.sb); doc.setFontSize(11); doc.setTextColor(...C.verde); T("Se completaron todas las tareas del área.", 18, y); doc.setFont(...F.reg); y += 10;
     }
     if(I.exOk.length){
-      salto(12); doc.setFontSize(12); doc.setTextColor(20); T("Extras realizadas · " + I.exOk.length, 18, y); y += 6;
-      doc.setFontSize(10); doc.setTextColor(60);
-      I.exOk.forEach(x => { salto(6); y += W("• " + x.t, 20, y, 172); }); y += 4;
+      salto(12); sec("Extras realizadas · " + I.exOk.length); y += 6.5;
+      doc.setFontSize(10); doc.setTextColor(...C.tinta);
+      I.exOk.forEach(x => { salto(6); y += W("• " + x.t, 22, y, 170); }); y += 4;
     }
     if(I.notas.length){
-      salto(12); doc.setFontSize(12); doc.setTextColor(20); T("Notas · " + I.notas.length, 18, y); y += 6;
-      doc.setFontSize(10); doc.setTextColor(60);
-      I.notas.forEach(x => { salto(6); y += W("• " + x.t, 20, y, 172); }); y += 4;
+      salto(12); sec("Notas · " + I.notas.length); y += 6.5;
+      doc.setFontSize(10); doc.setTextColor(...C.tinta);
+      I.notas.forEach(x => { salto(6); y += W("• " + x.t, 22, y, 170); }); y += 4;
     }
 
     if(I.conFoto.length){
       salto(20); y += 2;
-      doc.setFontSize(12); doc.setTextColor(20); T("Fotos · " + I.conFoto.length, 18, y); y += 3;
-      doc.setDrawColor(215); doc.line(18, y, 192, y); y += 6;
+      sec("Fotos · " + I.conFoto.length); y += 8;
       const ANCHO = 174, MAXALTO = 108;
       let faltan = 0;
       for(let i = 0; i < I.conFoto.length; i++){
@@ -3338,16 +3422,18 @@ document.getElementById("infPdf").addEventListener("click", async () => {
         if(h > MAXALTO){ h = MAXALTO; w = im.w / im.h * MAXALTO; }
         salto(h + 16);
         doc.addImage(im.data, "JPEG", 18, y, w, h); y += h + 5;
-        doc.setFontSize(10.5); doc.setTextColor(20); y += W(limpio(x.t), 18, y, 174) - 0.4;
+        doc.setFont(...F.sb); doc.setFontSize(10.5); doc.setTextColor(...C.tinta); y += W(limpio(x.t), 18, y, 174) - 0.4;
+        doc.setFont(...F.reg);
         const fp = I.st.fpor[x.id];
-        doc.setFontSize(9); doc.setTextColor(115);
+        doc.setFontSize(9); doc.setTextColor(...C.grafito);
         T((fp && fp.q ? fp.q : "") + (fp && fp.h ? "   ·   " + fp.h : "") + (I.st.done.has(x.id) ? "" : "   ·   no marcada"), 18, y);
         y += 10;
       }
       if(faltan){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T(faltan + " foto(s) no se pudieron agregar (sin señal y sin copia en este teléfono).", 18, y); y += 6; }
     }
-    salto(10); doc.setFontSize(8.5); doc.setTextColor(130);
+    salto(10); doc.setFontSize(8.5); doc.setTextColor(...C.grafito);
     T("Detalle en la app: " + APP_URL + "/#dia/" + fechaISO(new Date()), 18, y);
+    piePdf(doc, F);
 
     document.getElementById("infOvl").classList.remove("on");
     const slug = I.area.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "_").toLowerCase();
