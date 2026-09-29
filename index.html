@@ -1799,10 +1799,16 @@ function encabezadoPdf(doc, F, o){
   if(F.R && F.R.logo) doc.addImage(F.R.logo, "PNG", 18, 8.5, 46, 15.9);
   else { doc.setFont(...F.b); doc.setFontSize(20); doc.setTextColor(...C.crema); doc.text("françois", 18, 20); }
   doc.setTextColor(...C.crema);
+  /* con espaciado entre letras, align:"right" de jsPDF calcula mal el ancho:
+     se mide a mano para que las tres líneas terminen parejas en el margen */
+  const derecha = (t, y, cs) => {
+    const w = doc.getTextWidth(t) + cs * (t.length - 1);
+    doc.text(t, 192 - w, y, { charSpace:cs });
+  };
   doc.setFont(...F.sb); doc.setFontSize(8.5);
-  doc.text((o.tipo || "").toUpperCase(), 192, 15, { align:"right", charSpace:0.9 });
+  derecha((o.tipo || "").toUpperCase(), 15, 0.9);
   doc.setFont(...F.reg); doc.setFontSize(8.5);
-  doc.text("LA FLORIDA", 192, 21, { align:"right", charSpace:1.4 });
+  derecha("LA FLORIDA", 21, 1.4);
   if(o.fecha){ doc.setFontSize(8.5); doc.text(o.fecha, 192, 27, { align:"right" }); }
 
   let y = 49;
@@ -1823,13 +1829,14 @@ function encabezadoPdf(doc, F, o){
   return y + 9;
 }
 /* pie en cada página: marca a la izquierda, número de página a la derecha */
-function piePdf(doc, F){
+function piePdf(doc, F, link){
   const n = doc.getNumberOfPages();
   for(let i = 1; i <= n; i++){
     doc.setPage(i);
     doc.setDrawColor(...PDF_COL.linea); doc.setLineWidth(0.3); doc.line(18, 287, 192, 287);
     doc.setFont(...F.reg); doc.setFontSize(7.5); doc.setTextColor(...PDF_COL.grafito);
     doc.text("françois · pastelería clásica", 18, 291.5);
+    if(link) doc.text(link, 105, 291.5, { align:"center" });
     doc.text(i + " / " + n, 192, 291.5, { align:"right" });
   }
 }
@@ -3432,9 +3439,8 @@ document.getElementById("infPdf").addEventListener("click", async () => {
       }
       if(faltan){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T(faltan + " foto(s) no se pudieron agregar (sin señal y sin copia en este teléfono).", 18, y); y += 6; }
     }
-    salto(10); doc.setFontSize(8.5); doc.setTextColor(...C.grafito);
-    T("Detalle en la app: " + APP_URL + "/#dia/" + fechaISO(new Date()), 18, y);
-    piePdf(doc, F);
+    /* el link al detalle va en el pie: antes quedaba solo en una página en blanco */
+    piePdf(doc, F, "Detalle: " + APP_URL.replace(/^https?:\/\//, "") + "/#dia/" + fechaISO(new Date()));
 
     document.getElementById("infOvl").classList.remove("on");
     const slug = I.area.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "_").toLowerCase();
