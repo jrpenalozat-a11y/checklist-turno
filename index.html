@@ -65,6 +65,9 @@
   .tab-panel.on{display:block}
   /* pestaña «Turno» apagada (ver TURNO_ACTIVO): se oculta todo lo que depende de ella */
   body.sin-turno .solo-turno{display:none !important}
+  #finBar{margin:10px 0;padding:12px;border-radius:14px;background:#E6F4EA;border:1px solid #BFE3CB}
+  #finBar .fin-t{font-weight:700;color:#1E6B3A;margin-bottom:8px;font-size:14px}
+  #finBar button{width:100%}
   /* guía diaria */
   li.gsec-li{border-bottom:0;padding:0}
   .gsec{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grafito);font-weight:700;display:block;margin:16px 0 0}
@@ -552,6 +555,7 @@
     </div>
     <div id="areaTabs"></div>
     <div id="pendBar"></div>
+    <div id="finBar" style="display:none"></div>
     <ul id="guiaLista"></ul>
     <div id="extraAdd"></div>
     <div id="guiaAdd"></div>
@@ -690,7 +694,7 @@
 
 <div class="overlay centro" id="infOvl" style="z-index:40">
   <div class="hoja quien-hoja">
-    <h2>📤 Enviar informe</h2>
+    <h2 id="infTitulo">📤 Enviar informe</h2>
     <div class="rango" id="infInfo" style="margin-bottom:14px"></div>
     <button class="accion wsp" id="infPdf" style="width:100%">📄 PDF con las fotos</button>
     <div class="fila2">
@@ -2938,7 +2942,7 @@ function pedirMotivo(id, texto, porFoto){
     const val = b.dataset.m === "__libre" ? inp.value.trim() : b.dataset.m;
     const mm = cargarMot();
     if(val) mm[id] = val; else delete mm[id];
-    guardarMot(mm); cerrar(); renderGuia(); syncGuiaRemoto();
+    guardarMot(mm); cerrar(); renderGuia(); syncGuiaRemoto(); avisarSiTerminada();
   });
   ovl.addEventListener("keydown", e => {
     if(e.key === "Enter" && e.target === inp){ e.preventDefault(); ovl.querySelector(".op.qt").click(); }
@@ -3170,6 +3174,13 @@ function renderGuia(){
       + (sinMot ? " · <b>" + sinMot + "</b> sin explicar — toca el botón de cada una" : " · todas explicadas ✓")
     : "";
   barraP.dataset.base = hayQueDecir ? barraP.innerHTML : "";
+  const fin = document.getElementById("finBar");
+  if(fin){
+    const ok = quienActual() && puestosHoy() && areaSel !== "todos" && areaTerminada();
+    fin.style.display = ok ? "" : "none";
+    fin.innerHTML = ok ? '<div class="fin-t">✅ ' + esc(dnd || "Área") + ' terminada</div>'
+      + '<button class="accion wsp" id="finPdf">📄 Generar informe PDF con fotos</button>' : "";
+  }
   avisoFotoPend();
 
   firmarThumbs("#guiaLista");
@@ -3177,7 +3188,8 @@ function renderGuia(){
 }
 
 /* ---- Informe del área por WhatsApp: exige motivo en TODO lo pendiente ---- */
-function enviarInforme(){
+function enviarInforme(titulo){
+  document.getElementById("infTitulo").textContent = titulo || "📤 Enviar informe";
   const st = cargarDia(), mot = cargarMot();
   const area = areaActiva() || "el local";
   const ex = extrasDe(areaSel);
@@ -3229,6 +3241,11 @@ function enviarInforme(){
     + " · " + conFoto.length + (conFoto.length === 1 ? " foto" : " fotos");
   document.getElementById("infOvl").classList.add("on");
 }
+document.getElementById("finBar").addEventListener("click", e => {
+  if(!e.target.closest("#finPdf")) return;
+  enviarInforme("📄 Informe del área");
+  if(document.getElementById("infOvl").classList.contains("on")) document.getElementById("infPdf").click();
+});
 /* ---- Informe: el colaborador elige PDF con fotos o solo texto ---- */
 let infActual = null;
 function avisoFotoPend(){
@@ -3341,6 +3358,30 @@ document.getElementById("infPdf").addEventListener("click", async () => {
     alert("No se pudo armar el PDF: " + ((e && e.message) || e) + "\nPuedes enviar «Solo texto».");
   }finally{ btn.disabled = false; btn.textContent = txt0; }
 });
+/* ---- Área terminada → ofrecer el informe PDF al tiro ----
+   «Terminada» = no queda nada sin resolver: cada tarea está hecha o tiene su
+   motivo (y las que exigen foto, la tienen o explican por qué). En ese momento
+   se abre sola la tarjeta del informe con «📄 PDF con las fotos» primero.
+   Se ofrece una vez por área y día; si después se desmarca algo y se vuelve a
+   terminar, se ofrece de nuevo. Cerrarla no bloquea nada: el botón «📤 Enviar
+   informe» sigue abajo. */
+function areaTerminada(){
+  const st = cargarDia(), mot = cargarMot();
+  const marcables = contablesDe(areaSel);
+  if(!marcables.length) return false;
+  return porExplicar(marcables, st).filter(x => !mot[x.id]).length === 0;
+}
+function avisarSiTerminada(){
+  if(!quienActual() || !puestosHoy()) return;
+  if(areaSel === "todos") return;
+  const k = "aviso.fin." + fechaISO(new Date()) + "." + areaSel;
+  let visto = false; try{ visto = localStorage.getItem(k) === "1"; }catch(e){}
+  if(!areaTerminada()){ try{ localStorage.removeItem(k); }catch(e){} return; }
+  if(visto) return;
+  try{ localStorage.setItem(k, "1"); }catch(e){}
+  const area = areaActiva() || "el local";
+  setTimeout(() => enviarInforme("✅ ¡Terminaste " + area + "!"), 250);
+}
 function renderGuiaAdd(){
   const c = document.getElementById("guiaAdd"); if(!c) return;
   if(!puedeEditarRutina()){ c.innerHTML = ""; return; }
@@ -3377,7 +3418,7 @@ document.getElementById("extraAdd").addEventListener("click", e => {
     const nuevo = { id:"ex" + Date.now().toString(36), t, a:areaActiva(), k:a.dataset.k };
     ex.push(nuevo); guardarEx(ex);
     if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); st.por[nuevo.id] = sello(); guardarDia(st); }  // realizada = ya marcada
-    inp.value = ""; renderGuia(); syncGuiaRemoto();
+    inp.value = ""; renderGuia(); syncGuiaRemoto(); avisarSiTerminada();
     return;
   }
   if(e.target.closest("#btnInforme")) enviarInforme();
@@ -3401,7 +3442,7 @@ document.getElementById("guiaLista").addEventListener("change", e => {
   const st = cargarDia(), id = e.target.dataset.gid;
   if(e.target.checked){ st.done.add(id); st.por[id] = sello(); }
   else { st.done.delete(id); delete st.por[id]; }
-  guardarDia(st); renderGuia(); syncGuiaRemoto();
+  guardarDia(st); renderGuia(); syncGuiaRemoto(); avisarSiTerminada();
 });
 document.getElementById("guiaLista").addEventListener("click", async e => {
   const fb = e.target.closest(".tfoto, .tthumb"); if(!fb) return;
@@ -3427,6 +3468,7 @@ document.getElementById("guiaLista").addEventListener("click", async e => {
   st2.fpor[id] = sello();          // quién la tomó, en qué puesto y a qué hora
   guardarDia(st2);
   renderGuia();
+  avisarSiTerminada();
   try{
     if(!getSB()) throw new Error("sin base");
     await subirFoto(path, blob);
