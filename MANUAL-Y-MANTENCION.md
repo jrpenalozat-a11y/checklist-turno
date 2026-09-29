@@ -121,6 +121,14 @@ con lo que muestra.**
 - **Datos en Supabase** (proyecto François): usuarios, rutina, informes del día y fotos.
 - **Deploy:** `git push` a `master` → Vercel publica solo. No hay paso intermedio.
 
+### Pestaña «Turno» apagada (29-sep-2026)
+
+Por decisión del dueño, para simplificar, **no se muestra** la pestaña 📋 Turno (pendientes al
+próximo turno, Entrega/Recibe, Registrar y enviar, 📸 Traspaso verificado), ni la sub-pestaña
+📸 Traspasos de Supervisión. Basta con la Guía diaria: cada tarea queda con **foto, motivo y
+nombre**. El código y los datos siguen: para volver, `TURNO_ACTIVO = true` en `index.html` y
+subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno`.
+
 ### Dónde vive cada cosa (importante antes de tocar nada)
 
 | Dato | Dónde | Se borra si… |

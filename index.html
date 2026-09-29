@@ -63,6 +63,8 @@
   .tab.on{background:var(--pino);color:var(--crema)}
   .tab-panel{display:none}
   .tab-panel.on{display:block}
+  /* pestaña «Turno» apagada (ver TURNO_ACTIVO): se oculta todo lo que depende de ella */
+  body.sin-turno .solo-turno{display:none !important}
   /* guía diaria */
   li.gsec-li{border-bottom:0;padding:0}
   .gsec{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grafito);font-weight:700;display:block;margin:16px 0 0}
@@ -461,12 +463,12 @@
   </div>
 
   <div class="tabs" id="tabs">
-    <button class="tab on" data-tab="turno">📋 Turno</button>
-    <button class="tab" data-tab="guia">📅 Guía diaria</button>
+    <button class="tab solo-turno" data-tab="turno">📋 Turno</button>
+    <button class="tab on" data-tab="guia">📅 Guía diaria</button>
     <button class="tab" data-tab="semanal">🗓️ Semanal</button>
   </div>
 
-  <section class="tab-panel on" data-tab="turno">
+  <section class="tab-panel" data-tab="turno">
   <h1 id="titulo" contenteditable="true">Checklist para turno</h1>
   <div class="fecha" id="fecha"></div>
   <div class="vf-sub" style="margin-top:8px">Pendientes que dejas al <b>próximo turno</b> (ej. recibir pedido, hablar con proveedor, comprar producto). Cualquiera puede agregar, marcar o borrar.</div>
@@ -539,7 +541,7 @@
   </section>
   </section>
 
-  <section class="tab-panel" data-tab="guia">
+  <section class="tab-panel on" data-tab="guia">
     <h1>Guía diaria</h1>
     <div class="fecha" id="guiaFecha"></div>
     <div id="guiaAviso"></div>
@@ -599,7 +601,7 @@
     </div>
     <div class="sup-sub" id="supSub">
       <span class="ssub on" data-sub="checklists">📋 Informe del día</span>
-      <span class="ssub" data-sub="traspasos">📸 Traspasos</span>
+      <span class="ssub solo-turno" data-sub="traspasos">📸 Traspasos</span>
     </div>
     <div id="supPanelTraspasos" style="display:none">
       <div class="sup-filtros" id="supFiltros">
@@ -748,8 +750,8 @@
         <li>Elige <b>tu nombre</b> y luego <b>tu(s) puesto(s) de hoy</b> (Cocina, Caja, Barismo/Vitrina, Terminados, Salón — puedes marcar varios).</li>
         <li>Se pregunta <b>cada día</b> y queda en tus registros. Tu nombre y puesto se ven arriba (botón 👤); tócalo para cambiar.</li>
       </ul>
-      <h3>📋 Pestaña Turno — pendientes al próximo turno</h3>
-      <ul>
+      <h3 class="solo-turno">📋 Pestaña Turno — pendientes al próximo turno</h3>
+      <ul class="solo-turno">
         <li>Es para <b>dejar pendientes al que sigue</b> (ej. recibir pedido, hablar con proveedor, comprar un producto). <b>Cualquiera</b> puede agregar, marcar o borrar.</li>
         <li><b>Agregar</b>: escribe abajo (＋ o Enter). <b>📷</b> junto a la tarea adjunta una foto en vivo de respaldo; tócala de nuevo para verla o repetirla.</li>
         <li><b>Entrega / Recibe</b>: elige del menú quién sale y quién entra del turno.</li>
@@ -764,13 +766,14 @@
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
         <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
         <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área.</li>
-        <li><b>📤 Enviar informe</b>: manda por WhatsApp el resumen del área con las tareas que <b>no se pudieron hacer y su motivo</b>, más los extras y las notas. <b>No deja enviar si falta algún motivo.</b></li>
+        <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
+        <li><b>Sin señal</b> sigue marcando y sacando fotos: quedan guardadas en el teléfono y se suben solas cuando vuelve la conexión.</li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
       </ul>
       <h3>🗓️ Pestaña Semanal — solo lectura</h3>
       <p>Ves la rutina completa de la semana y las <b>fotos de referencia</b> (cómo debe quedar cada cosa). La editan los dueños, el encargado y el encargado de local.</p>
-      <h3>📸 Traspaso verificado — tu firma con evidencia</h3>
-      <ul>
+      <h3 class="solo-turno">📸 Traspaso verificado — tu firma con evidencia</h3>
+      <ul class="solo-turno">
         <li>Certifica <b>quién</b>, <b>cuándo</b> (hora del servidor, no del teléfono) y <b>dónde</b>, con foto en vivo.</li>
         <li>Elige <b>tu nombre y el turno</b> → <b>Abrir cámara</b> → <b>Tomar y registrar</b>.</li>
         <li>Necesitas <b>permitir cámara y ubicación</b>. <b>Sin ubicación no se puede registrar</b> (actívala y reintenta).</li>
@@ -807,7 +810,7 @@
       </ul>
       <h3>👀 Supervisión (el tablero)</h3>
       <ul>
-        <li><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, <b>puesto</b>, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
+        <li class="solo-turno"><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, <b>puesto</b>, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
         <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
@@ -823,8 +826,8 @@
         <li>Con <b>📷</b> pones la <b>foto de referencia</b> (el estándar). Los colaboradores la ven, no la cambian.</li>
         <li>Puedes vaciar la planilla <b>Rutina_Francois_para_app.xlsx</b> (la llena Ángel, ya con columna Puesto) y copiar las tareas aquí.</li>
       </ul>
-      <h3>📊 Registro semanal</h3>
-      <p>Efectividad de los traspasos del checklist (promedio %, detalle por día), con PDF y exportar/importar respaldo.</p>
+      <h3 class="solo-turno">📊 Registro semanal</h3>
+      <p class="solo-turno">Efectividad de los traspasos del checklist (promedio %, detalle por día), con PDF y exportar/importar respaldo.</p>
       <h3>🗄️ Datos y limpieza automática</h3>
       <ul>
         <li>Todo se guarda en <b>Supabase</b> (proyecto François): fotos, traspasos, usuarios y rutina.</li>
@@ -3526,14 +3529,23 @@ if(semanalCont){
   });
 }
 
-/* ---- pestañas ---- */
-document.getElementById("tabs").addEventListener("click", e => {
-  const b = e.target.closest(".tab"); if(!b) return;
-  const name = b.dataset.tab;
-  document.querySelectorAll("#tabs .tab").forEach(t => t.classList.toggle("on", t === b));
+/* ---- Pestaña «Turno» (pendientes al próximo turno + traspaso verificado) ----
+   Apagada por decisión del dueño (29-sep-2026) para simplificar: basta con la
+   Guía diaria, donde cada tarea queda con foto, motivo y nombre. El código y
+   los datos siguen intactos: para volver a mostrarla, poner true y subir CACHE. */
+const TURNO_ACTIVO = false;
+document.body.classList.toggle("sin-turno", !TURNO_ACTIVO);
+function mostrarTab(name){
+  document.querySelectorAll("#tabs .tab").forEach(t => t.classList.toggle("on", t.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("on", p.dataset.tab === name));
   if(name === "guia") renderGuia();
   if(name === "semanal") renderSemanal();
+}
+
+/* ---- pestañas ---- */
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest(".tab"); if(!b) return;
+  mostrarTab(b.dataset.tab);
 });
 
 /* ---- arranque: prioriza el estado del link, luego el guardado local ---- */
@@ -3575,7 +3587,9 @@ function limpiarDiasViejos(){
   limpiarDiasViejos();
   cargarRutina();  // pinta al tiro con el cache local; se refresca cuando SB esté listo
   const hash = location.hash.slice(1);
+  if(TURNO_ACTIVO) mostrarTab("turno");
   if(hash.indexOf("c/") === 0){
+    mostrarTab("turno");              // un link viejo de traspaso se sigue pudiendo abrir
     await esperarSB(4000);            // el link corto necesita supabase-js cargado
     cargarChecklistRemoto(hash.slice(2));
   } else if(/^dia\/\d{4}-\d{2}-\d{2}$/.test(hash)){
