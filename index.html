@@ -655,6 +655,7 @@
     </div>
     <div class="fila2">
       <button class="accion" id="usrClave">Cambiar clave</button>
+      <button class="accion" id="usrDestino">📱 WhatsApp informes</button>
       <button class="accion cerrar" id="usrCerrar">Cerrar</button>
     </div>
   </div>
@@ -669,6 +670,32 @@
       <button class="accion vftomar" id="camCapturar">📸 Capturar</button>
       <button class="accion cerrar" id="camCancelar">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay centro" id="pdfOvl" style="z-index:40">
+  <div class="hoja quien-hoja">
+    <h2>📄 PDF listo</h2>
+    <div class="rango" id="pdfInfo" style="margin-bottom:14px"></div>
+    <button class="accion wsp" id="pdfShare" style="width:100%">📤 Enviar por WhatsApp</button>
+    <div class="fila2">
+      <button class="accion" id="pdfSave">⬇️ Guardar en el teléfono</button>
+      <button class="accion cerrar" id="pdfCerrar">Cerrar</button>
+    </div>
+    <div class="insp-nota" id="pdfNota" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<div class="overlay centro" id="infOvl" style="z-index:40">
+  <div class="hoja quien-hoja">
+    <h2>📤 Enviar informe</h2>
+    <div class="rango" id="infInfo" style="margin-bottom:14px"></div>
+    <button class="accion wsp" id="infPdf" style="width:100%">📄 PDF con las fotos</button>
+    <div class="fila2">
+      <button class="accion" id="infTxt">💬 Solo texto</button>
+      <button class="accion cerrar" id="infCerrar">Cancelar</button>
+    </div>
+    <div class="insp-nota" style="margin-top:12px">Lo marcado ya está guardado: enviar o no el informe no cambia nada de la guía.</div>
   </div>
 </div>
 
@@ -1236,7 +1263,7 @@ vfTomar.addEventListener("click", async () => {
   }
   // b. fotograma actual -> canvas -> JPEG ~0.7
   vfMsg("Capturando…", "info");
-  const w = vfVideo.videoWidth, h = vfVideo.videoHeight;
+  const { w, h } = medidaTope(vfVideo.videoWidth, vfVideo.videoHeight);
   vfCanvas.width = w; vfCanvas.height = h;
   vfCanvas.getContext("2d").drawImage(vfVideo, 0, 0, w, h);
   const blob = await new Promise(r => vfCanvas.toBlob(r, "image/jpeg", 0.7));
@@ -1683,31 +1710,67 @@ document.getElementById("btnInspeccion").addEventListener("click", abrirInspecci
    nada. Es lo que le sirve a quien no usa la app. */
 let inspUltimo = { fotos:[], pend:[] };
 
-/* Manda el PDF por el menú de compartir del teléfono (ahí aparece WhatsApp) en
-   vez de dejarlo en Descargas. Si el navegador no sabe compartir archivos
-   —PC de escritorio, navegadores viejos— lo descarga como antes y lo dice. */
-async function compartirPdf(doc, nombre, titulo){
+/* PDF listo → se muestra una tarjeta con «Enviar por WhatsApp» y «Guardar en el
+   teléfono». El menú de compartir se abre con ESE toque y no al terminar de armar
+   el PDF: el teléfono sólo deja compartir justo después de que la persona toca
+   algo, y bajar fotos toma más que esos segundos (antes a veces fallaba y el
+   PDF se iba solo a Descargas). Si no se puede compartir, se guarda y desde
+   WhatsApp se adjunta como Documento. */
+const pdfOvl = document.getElementById("pdfOvl");
+let pdfActual = null;
+function compartirPdf(doc, nombre, titulo, destino){
   const blob = doc.output("blob");
+  const f = new File([blob], nombre, { type:"application/pdf" });
+  let puede = false;
+  try{ puede = !!(navigator.canShare && navigator.canShare({ files:[f] })); }catch(e){}
+  pdfActual = { f, blob, nombre, titulo };
+  const kb = Math.max(1, Math.round(blob.size / 1024));
+  document.getElementById("pdfInfo").textContent = nombre + " · " + (kb > 1024 ? (kb/1024).toFixed(1) + " MB" : kb + " KB");
+  document.getElementById("pdfShare").style.display = puede ? "" : "none";
+  document.getElementById("pdfNota").innerHTML = puede
+    ? (destino ? "En WhatsApp elige <b>" + esc(destino) + "</b>." : "En el menú elige WhatsApp y el chat del informe.")
+      + "<br>Si no aparece WhatsApp: «Guardar» y luego en el chat 📎 → Documento."
+    : "Este navegador no comparte archivos: guárdalo y en WhatsApp adjúntalo con 📎 → Documento.";
+  pdfOvl.classList.add("on");
+}
+document.getElementById("pdfShare").addEventListener("click", async () => {
+  if(!pdfActual) return;
   try{
-    const f = new File([blob], nombre, { type:"application/pdf" });
-    if(navigator.canShare && navigator.canShare({ files:[f] })){
-      await navigator.share({ files:[f], title: titulo, text: titulo });
-      return "compartido";
-    }
+    await navigator.share({ files:[pdfActual.f], title:pdfActual.titulo, text:pdfActual.titulo });
+    pdfOvl.classList.remove("on");
   }catch(e){
-    /* si la persona cancela el menú de compartir no hay que descargar nada */
-    if(e && e.name === "AbortError") return "cancelado";
+    if(e && e.name === "AbortError") return;           // cerró el menú: puede volver a intentar
+    alert("No se pudo abrir el menú de compartir. Toca «Guardar en el teléfono» y adjúntalo desde WhatsApp (📎 → Documento).");
   }
-  doc.save(nombre);
-  return "descargado";
-}
-async function comoDataURL(url){
-  const r = await fetch(url); if(!r.ok) throw new Error("no se pudo bajar la foto");
-  const b = await r.blob();
-  return await new Promise((ok, err) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = err; fr.readAsDataURL(b); });
-}
-function medirImagen(src){
-  return new Promise(ok => { const i = new Image(); i.onload = () => ok({ w:i.naturalWidth, h:i.naturalHeight }); i.onerror = () => ok(null); i.src = src; });
+});
+document.getElementById("pdfSave").addEventListener("click", () => {
+  if(!pdfActual) return;
+  const u = URL.createObjectURL(pdfActual.blob);
+  const a = document.createElement("a"); a.href = u; a.download = pdfActual.nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+  document.getElementById("pdfNota").innerHTML = "✅ Guardado en <b>Descargas</b> como «" + esc(pdfActual.nombre) + "».<br>En WhatsApp: 📎 → Documento → elígelo.";
+});
+document.getElementById("pdfCerrar").addEventListener("click", () => pdfOvl.classList.remove("on"));
+
+/* Foto lista para meter al PDF: primero la copia del teléfono (sirve sin
+   señal), si no, la del servidor. Se achica a 1000 px para que el PDF no
+   pase el peso que WhatsApp acepta cómodo. */
+async function fotoParaPdf(path){
+  let b = await fotoLocal(path);
+  if(!b){
+    await firmarFotos([path]);
+    const u = fotoCache[path]; if(!u) return null;
+    try{ const r = await fetch(u); if(!r.ok) return null; b = await r.blob(); }catch(e){ return null; }
+  }
+  try{
+    const bmp = await createImageBitmap(b);
+    const k = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+    cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+    return { data: cv.toDataURL("image/jpeg", 0.72), w: cv.width, h: cv.height };
+  }catch(e){ return null; }
 }
 async function inspeccionPdf(){
   const btn = document.getElementById("inspPdf");
@@ -1731,11 +1794,9 @@ async function inspeccionPdf(){
     for(let i = 0; i < fotos.length; i++){
       const t = fotos[i];
       btn.textContent = "Preparando " + (i+1) + " de " + fotos.length + "…";
-      let src = fotoCache[t.foto];
-      if(!src) continue;
-      let dataUrl, dim;
-      try{ dataUrl = await comoDataURL(src); dim = await medirImagen(dataUrl); }catch(e){ continue; }
-      if(!dim) continue;
+      const im = await fotoParaPdf(t.foto);
+      if(!im) continue;
+      const dataUrl = im.data, dim = { w:im.w, h:im.h };
       let w = ANCHO, h = dim.h / dim.w * ANCHO;
       if(h > MAXALTO){ h = MAXALTO; w = dim.w / dim.h * MAXALTO; }
       if(y + h + 16 > 285){ doc.addPage(); y = 20; }
@@ -1767,11 +1828,7 @@ async function inspeccionPdf(){
       : inspFiltro === "ayer" ? fechaISO(new Date(Date.now() - 864e5))
       : inspFiltro === "hoy"  ? fechaISO(new Date())
       : "7dias_al_" + fechaISO(new Date());
-    const r = await compartirPdf(doc, "fotos_tareas_" + sufijo + ".pdf",
-                                 "Fotos de las tareas — François · " + per);
-    if(r === "descargado")
-      alert("Este navegador no puede compartir archivos, así que el PDF quedó en Descargas.\n\n"
-        + "Desde el teléfono sí se puede: se abre el menú de compartir y eliges WhatsApp.");
+    compartirPdf(doc, "fotos_tareas_" + sufijo + ".pdf", "Fotos de las tareas — François · " + per);
   }catch(e){
     alert("No se pudo armar el PDF: " + ((e && e.message) || e));
   }finally{ btn.disabled = false; btn.textContent = txt0; }
@@ -1896,11 +1953,7 @@ async function informeSemanalPdf(){
   T("«Sin reporte» no significa que el trabajo no se hiciera: puede que ese dia no", 20, y); y += 4;
   T("hubiera nadie en esa area. Solo se cuentan los pendientes que llevan motivo.", 20, y);
 
-  const r = await compartirPdf(doc, "informe_semanal_" + fechaISO(s.hoy0) + ".pdf",
-                               "Informe semanal — François");
-  if(r === "descargado")
-    alert("Este navegador no puede compartir archivos, así que el PDF quedó en Descargas.\n\n"
-      + "Desde el teléfono se abre el menú de compartir y eliges WhatsApp.");
+  compartirPdf(doc, "informe_semanal_" + fechaISO(s.hoy0) + ".pdf", "Informe semanal — François");
 }
 document.getElementById("ckWa").addEventListener("click", informeSemanalWa);
 document.getElementById("ckPdf").addEventListener("click", informeSemanalPdf);
@@ -1990,7 +2043,11 @@ if("serviceWorker" in navigator){
 const USUARIOS_DEFAULT = [
   { nombre:"María José", rol:"dueño" }, { nombre:"Maximiliano", rol:"dueño" },
   { nombre:"Ricardo", rol:"encargado" }, { nombre:"Ángel Magallanes", rol:"encargado de local" },
-  { nombre:"Vanessa", rol:"colaborador" }, { nombre:"María", rol:"colaborador" }
+  { nombre:"Vanessa", rol:"colaborador" }, { nombre:"María", rol:"colaborador" },
+  { nombre:"Alison", rol:"colaborador" }, { nombre:"Danae", rol:"colaborador" },
+  { nombre:"Eduardo", rol:"colaborador" }, { nombre:"Francisca", rol:"colaborador" },
+  { nombre:"Jean", rol:"colaborador" }, { nombre:"Kiara", rol:"colaborador" },
+  { nombre:"Mariana", rol:"colaborador" }, { nombre:"Néstor", rol:"colaborador" }
 ];
 const ROLES = [["dueño","👑 Dueño"], ["encargado","📋 Encargado"], ["encargado de local","🏪 Encargado de local"], ["colaborador","Colaborador"]];
 const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // roles con nivel supervisor
@@ -2061,10 +2118,20 @@ async function cargarUsuarios(){
     try{
       await vfSesion(client);
       const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
-      if(!error && data && data.length){ USUARIOS = data; llenarSelectColab(); aplicarModoAdmin(); return; }
+      if(!error && data && data.length){
+        USUARIOS = data;
+        /* copia local de la lista: si mañana se corta la red, cada uno sigue
+           encontrando su nombre y puede marcar */
+        try{ localStorage.setItem("usuarios_cache", JSON.stringify(data.map(u => ({ nombre:u.nombre, rol:u.rol, activo:u.activo, puesto:u.puesto })))); }catch(e){}
+        llenarSelectColab(); aplicarModoAdmin(); return;
+      }
     }catch(e){}
   }
-  USUARIOS = USUARIOS_DEFAULT.map(u => ({ ...u, activo:true }));  // respaldo antes de correr el SQL
+  /* sin base: primero la última lista que se bajó en este teléfono; si nunca
+     se bajó, la lista fija de los 14 */
+  let cache = null;
+  try{ cache = JSON.parse(localStorage.getItem("usuarios_cache") || "null"); }catch(e){}
+  USUARIOS = (cache && cache.length) ? cache : USUARIOS_DEFAULT.map(u => ({ ...u, activo:true }));
   llenarSelectColab();
   aplicarModoAdmin();
 }
@@ -2233,6 +2300,7 @@ async function abrirUsuarios(){
     const admin = esAdmin();
     const addBox = usrOvl.querySelector(".usr-add"); if(addBox) addBox.style.display = admin ? "flex" : "none";
     const claveBtn = document.getElementById("usrClave"); if(claveBtn) claveBtn.style.display = admin ? "" : "none";
+    const destBtn = document.getElementById("usrDestino"); if(destBtn) destBtn.style.display = admin ? "" : "none";
     const aviso = admin ? "" : '<div class="sem-vacio" style="margin-bottom:8px">👀 Solo lectura. A los usuarios los gestionan los dueños y el encargado (María José, Maximiliano, Ricardo).</div>';
     usrLista.innerHTML = USUARIOS.length ? (aviso + USUARIOS.map(u => {
       const act = u.activo !== false;
@@ -2330,6 +2398,22 @@ document.getElementById("usrClave").addEventListener("click", async () => {
   if(!nuevo || nuevo.trim().length < 4) return;
   try{ await setConfig("sup_pin", await sha256(nuevo.trim())); localStorage.setItem("sup_ok", "pin:" + quienActual()); alert("Clave actualizada."); }
   catch(e){ alert("No se pudo: " + ((e && e.message) || e)); }
+});
+/* Número fijo para los informes. Va en config («wa_informe»), sin tocar tablas.
+   El texto llega directo a ese chat. El PDF no: WhatsApp no deja elegir el chat
+   desde afuera cuando va un archivo, así que la tarjeta dice a quién mandarlo. */
+document.getElementById("usrDestino").addEventListener("click", async () => {
+  if(!esAdmin()){ alert("Solo los de mando pueden cambiarlo."); return; }
+  const actual = WA_DESTINO ? WA_DESTINO.num : "";
+  const num = prompt("Número de WhatsApp que recibe los informes (con código de país, ej. 56912345678).\nDéjalo vacío para quitarlo:", actual || "");
+  if(num === null) return;
+  const limpioN = num.replace(/\D/g, "");
+  if(limpioN && limpioN.length < 10){ alert("El número parece incompleto. Ej.: 56912345678"); return; }
+  let nombre = "";
+  if(limpioN){ nombre = prompt("¿Cómo se llama ese chat o persona? (así lo verá quien comparte el PDF)", (WA_DESTINO && WA_DESTINO.nombre) || "") || ""; }
+  const v = limpioN ? JSON.stringify({ num:limpioN, nombre:nombre.trim() }) : "";
+  try{ await setConfig("wa_informe", v); await cargarDestino(); alert(limpioN ? "Listo: los informes van a " + (nombre.trim() || limpioN) + "." : "Número quitado."); }
+  catch(e){ alert("No se pudo guardar: " + ((e && e.message) || e)); }
 });
 document.getElementById("usrCerrar").addEventListener("click", () => usrOvl.classList.remove("on"));
 usrOvl.addEventListener("click", e => { if(e.target === usrOvl) usrOvl.classList.remove("on"); });
@@ -2519,9 +2603,17 @@ function estamparFoto(cv, ctx){
     ctx.fillText(l2, x + pad, y + pad*0.8 + Math.round(s*1.18));
   }
 }
+/* Tope de resolución: el lado largo no pasa de FOTO_MAX. Una cámara buena
+   entrega 4000 px y la foto pesaría ~10 veces más sin que se vea mejor en un
+   teléfono ni en el PDF. Con 1280 px se lee una etiqueta y pesa ~150 KB. */
+const FOTO_MAX = 1280;
+function medidaTope(w, h){
+  const k = Math.min(1, FOTO_MAX / Math.max(w, h || 1));
+  return { w: Math.round(w * k), h: Math.round(h * k) };
+}
 document.getElementById("camCapturar").addEventListener("click", async () => {
   if(!camStream) return;
-  const w = camVideo.videoWidth, h = camVideo.videoHeight;
+  const { w, h } = medidaTope(camVideo.videoWidth, camVideo.videoHeight);
   const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
   const ctx = cv.getContext("2d");
   ctx.drawImage(camVideo, 0, 0, w, h);
@@ -2621,6 +2713,64 @@ async function guardarRutina(){
 /* ---- Guía diaria: checkeable, reinicia cada día (estado local por fecha) ---- */
 /* helpers de fotos compartidos (guía y semanal) */
 function deviceId(){ let v = localStorage.getItem("dev.id"); if(!v){ v = Math.random().toString(36).slice(2,8); localStorage.setItem("dev.id", v); } return v; }
+/* ---- Copia de las fotos en el teléfono (IndexedDB) ----
+   La foto se guarda aquí ANTES de subirla. Sin señal la tarea igual queda con
+   su foto, la guía sigue y se sube sola cuando vuelve la conexión. Además el
+   PDF del informe la toma de aquí, sin bajarla de nuevo. Se borran solas a los
+   4 días (ya están en el servidor). */
+let _idb = null;
+function idb(){
+  if(_idb) return _idb;
+  _idb = new Promise((ok, err) => {
+    const r = indexedDB.open("francois-fotos", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("fotos");
+    r.onsuccess = () => ok(r.result); r.onerror = () => err(r.error);
+  }).catch(() => null);
+  return _idb;
+}
+async function idbOp(modo, fn){
+  const db = await idb(); if(!db) return null;
+  return new Promise(ok => {
+    try{
+      const tx = db.transaction("fotos", modo), r = fn(tx.objectStore("fotos"));
+      tx.oncomplete = () => ok(r && r.result); tx.onerror = tx.onabort = () => ok(null);
+    }catch(e){ ok(null); }
+  });
+}
+const fotoLocal     = path => path ? idbOp("readonly", o => o.get(path)) : Promise.resolve(null);
+const guardarLocalF = (path, blob) => idbOp("readwrite", o => o.put(blob, path));
+function fotosPend(){ try{ return JSON.parse(localStorage.getItem("fotos.pend") || "[]"); }catch(e){ return []; } }
+function setFotosPend(a){ try{ localStorage.setItem("fotos.pend", JSON.stringify([...new Set(a)])); }catch(e){} }
+let subiendoPend = false;
+async function subirPendientes(){
+  if(subiendoPend || !navigator.onLine) return;
+  const pend = fotosPend(); if(!pend.length) return;
+  subiendoPend = true;
+  let alguna = false;
+  try{
+    for(const path of pend){
+      const b = await fotoLocal(path);
+      if(!b){ setFotosPend(fotosPend().filter(x => x !== path)); continue; }
+      try{ await subirFoto(path, b); setFotosPend(fotosPend().filter(x => x !== path)); alguna = true; }
+      catch(e){ break; }                                   // sigue sin red: otro intento después
+    }
+  }finally{ subiendoPend = false; }
+  if(alguna){ try{ renderGuia(); }catch(e){} syncGuiaRemoto(); }
+}
+async function limpiarFotosLocales(){
+  const lim = fechaISO(new Date(Date.now() - 4*864e5)), pend = new Set(fotosPend());
+  await idbOp("readwrite", o => {
+    const r = o.openCursor();
+    r.onsuccess = () => { const c = r.result; if(!c) return;
+      const m = /^guia\/(\d{4}-\d{2}-\d{2})\//.exec(c.key);
+      if(m && m[1] < lim && !pend.has(c.key)) c.delete();
+      c.continue(); };
+    return null;
+  });
+}
+window.addEventListener("online", subirPendientes);
+document.addEventListener("visibilitychange", () => { if(!document.hidden) subirPendientes(); });
+setTimeout(() => { subirPendientes(); limpiarFotosLocales(); }, 4000);
 async function subirFoto(path, blob){
   const client = getSB(); if(!client) throw new Error("Falta configurar Supabase");
   await vfSesion(client);
@@ -2632,7 +2782,12 @@ async function subirFoto(path, blob){
 async function firmarThumbs(sel){
   const imgs = [...document.querySelectorAll(sel + " img[data-foto]")];
   await firmarFotos(imgs.map(im => im.dataset.foto));
-  imgs.forEach(im => { const u = fotoCache[im.dataset.foto]; if(u) im.src = u; });
+  for(const im of imgs){
+    const u = fotoCache[im.dataset.foto];
+    if(u){ im.src = u; continue; }
+    const b = await fotoLocal(im.dataset.foto);         // aún sin subir: se ve igual
+    if(b) im.src = URL.createObjectURL(b);
+  }
 }
 
 /* Guía diaria: check + FOTO DEL DÍA (prueba), estado local por fecha */
@@ -3011,6 +3166,8 @@ function renderGuia(){
       + (faltanFoto.length ? (pend.length ? " · " : "") + "📷 <b>" + faltanFoto.length + "</b> marcada(s) sin la foto que piden" : "")
       + (sinMot ? " · <b>" + sinMot + "</b> sin explicar — toca el botón de cada una" : " · todas explicadas ✓")
     : "";
+  barraP.dataset.base = hayQueDecir ? barraP.innerHTML : "";
+  avisoFotoPend();
 
   firmarThumbs("#guiaLista");
   renderGuiaAdd();
@@ -3063,10 +3220,124 @@ function enviarInforme(){
      fecha, con las fotos. Sólo entra quien es de mando. */
   t += "\nVer el detalle con fotos:\n" + APP_URL + "/#dia/" + fechaISO(new Date()) + "\n";
 
-  const wa = "https://wa.me/?text=" + encodeURIComponent(t);
-  const w = window.open(wa, "_blank");
-  if(!w) location.href = wa;
+  const conFoto = marcables.filter(x => st.fotos[x.id]);
+  infActual = { texto:t, area, quien, f, hora, marcables, hechas, pend, pct, exOk, notas, conFoto, st, mot };
+  document.getElementById("infInfo").textContent = area + " · " + hechas.length + " de " + marcables.length
+    + " · " + conFoto.length + (conFoto.length === 1 ? " foto" : " fotos");
+  document.getElementById("infOvl").classList.add("on");
 }
+/* ---- Informe: el colaborador elige PDF con fotos o solo texto ---- */
+let infActual = null;
+function avisoFotoPend(){
+  const n = fotosPend().length; if(!n) return;
+  const b = document.getElementById("pendBar"); if(!b) return;
+  b.style.display = "flex";
+  const prev = b.dataset.base || "";
+  b.innerHTML = "📶 " + n + (n === 1 ? " foto guardada" : " fotos guardadas")
+    + " en el teléfono, sin subir. Se suben solas cuando vuelva la señal — sigue marcando."
+    + (prev ? "<br>" + prev : "");
+}
+let WA_DESTINO = null;   // { num, nombre } — número fijo para los informes (config «wa_informe»)
+try{ WA_DESTINO = JSON.parse(localStorage.getItem("wa_informe") || "null"); }catch(e){}
+async function cargarDestino(){
+  try{
+    const client = getSB(); if(!client) return;
+    await vfSesion(client);
+    const v = await getConfig("wa_informe");
+    WA_DESTINO = v ? JSON.parse(v) : null;
+    if(v) localStorage.setItem("wa_informe", v); else localStorage.removeItem("wa_informe");
+  }catch(e){}
+}
+setTimeout(cargarDestino, 2500);
+function waLink(texto){
+  const n = WA_DESTINO && WA_DESTINO.num ? String(WA_DESTINO.num).replace(/\D/g, "") : "";
+  return "https://wa.me/" + n + "?text=" + encodeURIComponent(texto);
+}
+document.getElementById("infCerrar").addEventListener("click", () => document.getElementById("infOvl").classList.remove("on"));
+document.getElementById("infTxt").addEventListener("click", () => {
+  if(!infActual) return;
+  document.getElementById("infOvl").classList.remove("on");
+  const wa = waLink(infActual.texto);
+  const w = window.open(wa, "_blank"); if(!w) location.href = wa;
+});
+document.getElementById("infPdf").addEventListener("click", async () => {
+  if(!infActual) return;
+  const btn = document.getElementById("infPdf"), txt0 = btn.textContent;
+  btn.disabled = true;
+  try{
+    const I = infActual;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:"mm", format:"a4" });
+    const L = s => String(s).replace(/[—–]/g, "-");
+    const T = (s, x, y) => doc.text(L(s), x, y);
+    const W = (s, x, y, ancho) => { const ls = doc.splitTextToSize(L(s), ancho); ls.forEach((l, i) => doc.text(l, x, y + i*4.6)); return ls.length * 4.6; };
+    let y = 20;
+    const salto = n => { if(y + n > 285){ doc.addPage(); y = 20; } };
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(9);  doc.setTextColor(234,86,80); T("FRANÇOIS · LA FLORIDA", 18, y); y += 8;
+    doc.setFontSize(15); doc.setTextColor(20);        T("Informe de turno - " + I.area, 18, y); y += 6;
+    doc.setFontSize(10); doc.setTextColor(110);
+    T(I.f + " · " + I.hora + (I.quien ? "   ·   " + I.quien : ""), 18, y); y += 5;
+    T("Avance: " + I.hechas.length + " de " + I.marcables.length + " (" + I.pct + "%)", 18, y); y += 4;
+    doc.setDrawColor(200); doc.line(18, y, 192, y); y += 8;
+
+    if(I.pend.length){
+      doc.setFontSize(12); doc.setTextColor(20); T("No se pudieron hacer · " + I.pend.length, 18, y); y += 7;
+      I.pend.forEach(x => {
+        salto(14);
+        doc.setFontSize(10.5); doc.setTextColor(20); y += W(limpio(x.t), 18, y, 174);
+        doc.setFontSize(9.5); doc.setTextColor(150,105,20); y += W("Motivo: " + I.mot[x.id], 21, y, 170) + 3;
+      });
+      y += 3;
+    } else {
+      doc.setFontSize(11); doc.setTextColor(40,120,70); T("Se completaron todas las tareas del área.", 18, y); y += 9;
+    }
+    if(I.exOk.length){
+      salto(12); doc.setFontSize(12); doc.setTextColor(20); T("Extras realizadas · " + I.exOk.length, 18, y); y += 6;
+      doc.setFontSize(10); doc.setTextColor(60);
+      I.exOk.forEach(x => { salto(6); y += W("• " + x.t, 20, y, 172); }); y += 4;
+    }
+    if(I.notas.length){
+      salto(12); doc.setFontSize(12); doc.setTextColor(20); T("Notas · " + I.notas.length, 18, y); y += 6;
+      doc.setFontSize(10); doc.setTextColor(60);
+      I.notas.forEach(x => { salto(6); y += W("• " + x.t, 20, y, 172); }); y += 4;
+    }
+
+    if(I.conFoto.length){
+      salto(20); y += 2;
+      doc.setFontSize(12); doc.setTextColor(20); T("Fotos · " + I.conFoto.length, 18, y); y += 3;
+      doc.setDrawColor(215); doc.line(18, y, 192, y); y += 6;
+      const ANCHO = 174, MAXALTO = 108;
+      let faltan = 0;
+      for(let i = 0; i < I.conFoto.length; i++){
+        const x = I.conFoto[i];
+        btn.textContent = "Preparando foto " + (i+1) + " de " + I.conFoto.length + "…";
+        const im = await fotoParaPdf(I.st.fotos[x.id]);
+        if(!im){ faltan++; continue; }
+        let w = ANCHO, h = im.h / im.w * ANCHO;
+        if(h > MAXALTO){ h = MAXALTO; w = im.w / im.h * MAXALTO; }
+        salto(h + 16);
+        doc.addImage(im.data, "JPEG", 18, y, w, h); y += h + 5;
+        doc.setFontSize(10.5); doc.setTextColor(20); y += W(limpio(x.t), 18, y, 174) - 0.4;
+        const fp = I.st.fpor[x.id];
+        doc.setFontSize(9); doc.setTextColor(115);
+        T((fp && fp.q ? fp.q : "") + (fp && fp.h ? "   ·   " + fp.h : "") + (I.st.done.has(x.id) ? "" : "   ·   no marcada"), 18, y);
+        y += 10;
+      }
+      if(faltan){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T(faltan + " foto(s) no se pudieron agregar (sin señal y sin copia en este teléfono).", 18, y); y += 6; }
+    }
+    salto(10); doc.setFontSize(8.5); doc.setTextColor(130);
+    T("Detalle en la app: " + APP_URL + "/#dia/" + fechaISO(new Date()), 18, y);
+
+    document.getElementById("infOvl").classList.remove("on");
+    const slug = I.area.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "_").toLowerCase();
+    compartirPdf(doc, "informe_" + slug + "_" + fechaISO(new Date()) + ".pdf",
+                 "Informe de turno — " + I.area + " · " + I.f,
+                 WA_DESTINO && WA_DESTINO.nombre);
+  }catch(e){
+    alert("No se pudo armar el PDF: " + ((e && e.message) || e) + "\nPuedes enviar «Solo texto».");
+  }finally{ btn.disabled = false; btn.textContent = txt0; }
+});
 function renderGuiaAdd(){
   const c = document.getElementById("guiaAdd"); if(!c) return;
   if(!puedeEditarRutina()){ c.innerHTML = ""; return; }
@@ -3134,22 +3405,33 @@ document.getElementById("guiaLista").addEventListener("click", async e => {
   const id = fb.dataset.gid; const st = cargarDia();
   if(st.fotos[id]){
     if(confirm("Esta tarea ya tiene foto de hoy.\nAceptar = ver · Cancelar = tomar otra")){
-      const u = await urlFirmada(st.fotos[id]); if(u) window.open(u, "_blank"); else alert("No se pudo abrir la foto."); return;
+      const u = await urlFirmada(st.fotos[id]);
+      if(u){ window.open(u, "_blank"); return; }
+      const b = await fotoLocal(st.fotos[id]);
+      if(b){ window.open(URL.createObjectURL(b), "_blank"); return; }
+      alert("No se pudo abrir la foto."); return;
     }
   }
-  const client = getSB(); if(!client){ alert("Falta configurar Supabase para las fotos."); return; }
   const blob = await pedirFoto("Foto de hoy"); if(!blob) return;
+  /* el equipo va en la ruta: antes dos personas que fotografiaban la misma
+     tarea el mismo día compartían archivo y la segunda borraba a la primera */
+  const path = "guia/" + fechaISO(new Date()) + "/" + id + "-" + deviceId() + ".jpg";
+  /* la foto queda en el teléfono y en la tarea AL TIRO; subirla va aparte.
+     Si no hay señal, la guía no se detiene: se sube sola al volver la red. */
+  await guardarLocalF(path, blob);
+  const st2 = cargarDia();
+  st2.fotos[id] = path;
+  st2.fpor[id] = sello();          // quién la tomó, en qué puesto y a qué hora
+  guardarDia(st2);
+  renderGuia();
   try{
-    /* el equipo va en la ruta: antes dos personas que fotografiaban la misma
-       tarea el mismo día compartían archivo y la segunda borraba a la primera */
-    const path = "guia/" + fechaISO(new Date()) + "/" + id + "-" + deviceId() + ".jpg";
+    if(!getSB()) throw new Error("sin base");
     await subirFoto(path, blob);
-    const st2 = cargarDia();
-    st2.fotos[id] = path;
-    st2.fpor[id] = sello();          // quién la tomó, en qué puesto y a qué hora
-    guardarDia(st2);
-    renderGuia(); syncGuiaRemoto();
-  }catch(err){ alert("No se pudo subir la foto: " + ((err && err.message) || err)); }
+    syncGuiaRemoto();
+  }catch(err){
+    setFotosPend(fotosPend().concat(path));
+    avisoFotoPend();
+  }
 });
 
 /* ---- Semanal: editar la rutina (solo supervisor) ---- */

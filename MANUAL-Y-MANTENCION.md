@@ -127,9 +127,17 @@ con lo que muestra.**
 |---|---|---|
 | La rutina (las 90 tareas) | Supabase, tabla `config`, clave `rutina` | alguien la edita en Semanal |
 | Usuarios y puestos | Supabase, tabla `usuarios` | se eliminan desde Supervisor |
-| Informe del día | Supabase, tabla `checklists` | pasa 90 días |
-| Fotos | Supabase Storage | pasa 90 días (las de referencia, nunca) |
+| Informe del día | Supabase, tabla `checklists` | pasa 90 días (*ver nota*) |
+| Fotos | Supabase Storage | pasa 90 días (las de referencia, nunca) (*ver nota*) |
+| Copia de las fotos del día en el teléfono | IndexedDB `francois-fotos` | pasan 4 días (si ya se subió) |
+| Fotos tomadas sin señal, por subir | lista `fotos.pend` en `localStorage` | se suben solas al volver la red |
+| Número de WhatsApp de los informes | Supabase, tabla `config`, clave `wa_informe` | lo cambia alguien de mando en 👥 Usuarios |
 | Marcado del día, motivos, extras | `localStorage` del teléfono | se borran los **datos del sitio** |
+
+> **Nota (29-sep-2026):** la limpieza de 90 días **no está en el código de la app**. Si existe,
+> es una tarea programada en Supabase (`select jobname, schedule, command from cron.job;` en el
+> SQL Editor). Si esa consulta no devuelve nada, **no se está borrando nada** — hoy no es
+> problema por el espacio (sobra por años), pero la Ayuda lo promete.
 
 **La distinción que más importa:** actualizar la app renueva la *caché de archivos*, que es
 otra cosa distinta del *localStorage*. Por eso una actualización **nunca** desmarca tareas.
