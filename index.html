@@ -3361,7 +3361,8 @@ document.getElementById("infPdf").addEventListener("click", async () => {
   try{
     const I = infActual;
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit:"mm", format:"a4" });
+    /* compress: con las fuentes incrustadas el PDF pasaba de 25 KB a ~400 KB */
+    const doc = new jsPDF({ unit:"mm", format:"a4", compress:true });
     btn.textContent = "Preparando…";
     const F = await fuentesPdf(doc);
     const C = PDF_COL;
