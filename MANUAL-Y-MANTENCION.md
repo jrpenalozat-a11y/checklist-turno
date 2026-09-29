@@ -134,10 +134,11 @@ con lo que muestra.**
 | Número de WhatsApp de los informes | Supabase, tabla `config`, clave `wa_informe` | lo cambia alguien de mando en 👥 Usuarios |
 | Marcado del día, motivos, extras | `localStorage` del teléfono | se borran los **datos del sitio** |
 
-> **Nota (29-sep-2026):** la limpieza de 90 días **no está en el código de la app**. Si existe,
-> es una tarea programada en Supabase (`select jobname, schedule, command from cron.job;` en el
-> SQL Editor). Si esa consulta no devuelve nada, **no se está borrando nada** — hoy no es
-> problema por el espacio (sobra por años), pero la Ayuda lo promete.
+> **Nota (29-sep-2026):** la limpieza **no está en el código de la app, pero sí existe en
+> Supabase**: tarea programada (pg_cron) `limpiar-antiguos-semanal`, `0 8 * * 1` (lunes 08:00 UTC,
+> madrugada en Chile), que llama con `net.http_post` a una Edge Function del proyecto. Para verla:
+> `select jobname, schedule, command from cron.job;` y el código en Supabase → Edge Functions.
+> Si se toca, cuidar que siga sin borrar `rutina/` ni las fotos de referencia.
 
 **La distinción que más importa:** actualizar la app renueva la *caché de archivos*, que es
 otra cosa distinta del *localStorage*. Por eso una actualización **nunca** desmarca tareas.
