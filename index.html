@@ -120,6 +120,12 @@
   .sem-pi.on{opacity:1;border-color:#EA5650;background:#FDE7E2;color:#C63F39}
   .pi-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
     border-radius:99px;background:#FDE7E2;color:#C63F39;margin-left:6px;white-space:nowrap}
+  /* cuántas tareas van al informe (PI) en el área elegida */
+  #piBar{margin:6px 0 2px;padding:8px 12px;border-radius:12px;background:#FDE7E2;color:#9C332E;
+    font-family:inherit;font-weight:600;font-size:12px;line-height:1.35}
+  #piBar b{font-weight:800}
+  #piBar:empty{display:none}
+  #piBar.cero{background:transparent;border:1.5px dashed var(--linea);color:inherit;opacity:.75}
   /* hasta 4 fotos por tarea: miniatura con contador + tarjeta para ver/quitar/agregar */
   .tfwrap{position:relative;flex:none;line-height:0}
   .tfwrap .tn{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;
@@ -574,6 +580,7 @@
       <div class="barra"><i id="guiaFill"></i></div>
     </div>
     <div id="areaTabs"></div>
+    <div id="piBar"></div>
     <div id="pendBar"></div>
     <div id="finBar" style="display:none"></div>
     <ul id="guiaLista"></ul>
@@ -3331,6 +3338,17 @@ function renderGuia(){
   const hechas = cuenta.filter(x => st.done.has(x.id)).length;
   document.getElementById("guiaCuenta").innerHTML = "<b>" + hechas + "</b> de " + cuenta.length;
   document.getElementById("guiaFill").style.width = (cuenta.length ? Math.round(hechas/cuenta.length*100) : 0) + "%";
+
+  /* cuántas tareas van al informe (PI): en esta área, con foto hoy, y en el local */
+  const piArea = items.filter(x => x.pi), piLocal = itemsDe("todos").filter(x => x.pi).length;
+  const piFoto = piArea.filter(x => fotosDe(st, x.id).length).length;
+  const piBar = document.getElementById("piBar");
+  piBar.classList.toggle("cero", !piLocal);
+  piBar.innerHTML = !piLocal
+    ? "<b>PI</b> · Ninguna tarea marcada para el informe: por ahora lleva todas las fotos."
+    : "<b>PI</b> · <b>" + piArea.length + "</b> de " + items.length + (piArea.length === 1 ? " tarea va" : " tareas van") + " al informe"
+      + (piArea.length ? " · <b>" + piFoto + "</b> ya con foto" : "")
+      + (areaSel === "todos" ? "" : " · " + piLocal + " en todo el local");
 
   function foto(x){
     const fs = fotosDe(st, x.id);
