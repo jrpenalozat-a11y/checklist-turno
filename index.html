@@ -794,7 +794,7 @@
         <li>Dentro de cada área las tareas van agrupadas por momento: <b>🌅 Apertura · ☀️ Durante el turno · 🌙 Al cierre</b>.</li>
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
         <li><b>Hasta 4 fotos por tarea</b>: toca la miniatura para verlas, quitar una o <b>agregar otra</b>. En la cámara, <b>↔️ Panorámica 0,5×</b> abre el lente ancho si tu teléfono lo permite; si no aparece, usa <b>📱 Cámara del teléfono</b> y elige el 0,5× ahí.</li>
-        <li>Las tareas con la marca <b>📷 foto para el informe</b> son las que llevan sus fotos al informe; las demás fotos las ve el supervisor en la app.</li>
+        <li>El botón <b>PI</b> de cada tarea la agrega al informe: desde entonces sus fotos van en el informe todos los días (y la tarea pide foto). Las demás fotos las ve el supervisor en la app. Sacar una tarea del informe lo hace quien mantiene la rutina.</li>
         <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
         <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área.</li>
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
@@ -3361,6 +3361,8 @@ function renderGuia(){
       + '<label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
       + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
       + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + req + '</span>'
+      + (esExtra ? "" : '<button class="sem-pi' + (x.pi ? " on" : "") + '" data-pi="' + x.id
+          + '" aria-label="' + (x.pi ? "Sus fotos van al informe" : "Agregar sus fotos al informe") + '">PI</button>')
       + foto(x) + btn + '</li>';
   }
   const MOM = [["ap","🌅 Apertura"], ["du","☀️ Durante el turno"], ["ci","🌙 Al cierre"]];
@@ -3716,6 +3718,44 @@ document.getElementById("guiaLista").addEventListener("click", async e => {
   const id = fb.dataset.gid;
   /* con fotos: la tarjeta para verlas, quitar o agregar. Sin fotos: la cámara */
   if(fotosDe(cargarDia(), id).length) abrirFotos(id); else tomarFoto(id);
+});
+/* Botón PI en la guía: cualquiera puede AGREGAR una tarea al informe y queda
+   fija para todos (es la misma marca de la pestaña Semanal). Sacarla es sólo de
+   quien mantiene la rutina: si no, bastaría un toque para librarse de la foto.
+   Se lee la rutina del servidor justo antes de guardar, para no pisar un cambio
+   que otra persona haya hecho mientras tanto. */
+let piOcupado = false;
+async function alternarPI(id){
+  if(piOcupado) return;
+  if(!quienActual()){ alert("Elige tu nombre antes de cambiar qué va al informe."); return; }
+  const busca = r => (r.base || []).concat(...Object.values(r.dias || {})).find(t => t && t.id === id);
+  const x = busca(RUTINA); if(!x) return;
+  if(x.pi && !puedeEditarRutina()){
+    alert("Las fotos de esta tarea ya van al informe.\nSacarla del informe lo hace quien mantiene la rutina, en la pestaña Semanal.");
+    return;
+  }
+  const poner = !x.pi;
+  piOcupado = true;
+  try{
+    const client = getSB(); if(!client) throw new Error("sin base");
+    await vfSesion(client);
+    const v = await getConfig("rutina"); if(!v) throw new Error("sin rutina");
+    const r = normalizaRutina(JSON.parse(v)), y = busca(r);
+    if(!y) throw new Error("la tarea ya no existe");
+    if(poner) y.pi = true; else delete y.pi;
+    const s = JSON.stringify(r);
+    await setConfig("rutina", s);
+    RUTINA = r; try{ localStorage.setItem("rutina.cache", s); }catch(e){}
+  }catch(e){
+    alert("No se pudo guardar. Para cambiar qué va al informe se necesita conexión.");
+    return;
+  }finally{ piOcupado = false; }
+  renderGuia(); renderSemanal(); avisarSiTerminada();
+}
+document.getElementById("guiaLista").addEventListener("click", e => {
+  const b = e.target.closest(".sem-pi"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  alternarPI(b.dataset.pi);
 });
 async function tomarFoto(id){
   const n = fotosDe(cargarDia(), id).length;

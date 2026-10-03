@@ -145,6 +145,9 @@ subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno
   El informe (PDF y conteo) lleva **solo las fotos de las tareas PI**; las demás se ven en
   Supervisión e Inspección. **PI exige foto** (`exigeFoto = req || pi`). Mientras **ninguna**
   tarea de la rutina tenga PI, el informe lleva todas las fotos como antes (`rutinaConPI()`).
+  El botón **PI** está también en cada tarea de la **Guía diaria** (`alternarPI`): cualquiera
+  puede **agregar** una tarea al informe y queda fija para todos; **sacarla** es solo de quien
+  mantiene la rutina. Lee la rutina del servidor justo antes de guardar, para no pisar cambios.
 - **Panorámica 0,5×** — depende del teléfono: una web no siempre puede elegir el lente ancho.
   `detectarAncho()` prueba zoom menor a 1 (Android), cámara trasera «ultra wide» por nombre
   (iPhone) o, si hay varias traseras sin nombre claro, un botón para ir cambiando de lente. Si
