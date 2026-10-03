@@ -27,11 +27,15 @@ Las **90 tareas** de la planilla de Ángel, repartidas por área tal como estaba
 
 | Área | Tareas | Durante el turno | Al cierre |
 |---|---:|---:|---:|
-| 🌅 Turno 1 (apertura) | 12 | — | — |
+| 🌅 Turno 1 (apertura) | 15 | — | — |
 | Cocina | 27 | 11 | 16 |
 | Barismo/Vitrina | 22 | 9 | 13 |
 | Caja | 17 | 11 | 6 |
 | Salón | 12 | 5 | 7 |
+
+> **3-oct-2026:** se agregaron al Turno 1 «Barrer y trapear piso», «Bajar sillas» y «Alinear y
+> nivelar mesas» (ids `pl091`–`pl093`). En las pestañas de la Guía diaria, el rótulo **Turno 2**
+> va ahora antes de **Salón** (`AREAS_T2`); Cocina, Barismo/Vitrina y Caja quedan con el Turno 1.
 
 Cada persona elige su **puesto del día** al entrar y ve su lista corta. Nadie tiene que
 leer 90 tareas para encontrar las suyas.

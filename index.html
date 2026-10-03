@@ -790,7 +790,7 @@
       <h3>📅 Pestaña Guía diaria — la rutina del local</h3>
       <ul>
         <li>Es la <b>rutina fija</b>: sale sola cada día (tareas de todos los días + las del día que toca).</li>
-        <li><b>Pestañas por área</b>, igual que la planilla: <b>🌅 Turno 1</b> y, tras el separador, las áreas del <b>Turno 2</b> (Cocina · Barismo/Vitrina · Caja · Salón). Cada pestaña muestra <b>sólo sus tareas</b> y su avance; se pone <b>verde ✓</b> al completarla. <b>👤 Mi puesto</b> arma la lista con el puesto que elegiste hoy.</li>
+        <li><b>Pestañas por área</b>, igual que la planilla: primero las del <b>Turno 1</b> (🌅 Turno 1 · Cocina · Barismo/Vitrina · Caja) y, tras el separador <b>Turno 2</b>, <b>Salón</b>. Cada pestaña muestra <b>sólo sus tareas</b> y su avance; se pone <b>verde ✓</b> al completarla. <b>👤 Mi puesto</b> arma la lista con el puesto que elegiste hoy.</li>
         <li>Dentro de cada área las tareas van agrupadas por momento: <b>🌅 Apertura · ☀️ Durante el turno · 🌙 Al cierre</b>.</li>
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
         <li><b>Hasta 4 fotos por tarea</b>: toca la miniatura para verlas, quitar una o <b>agregar otra</b>. En la cámara, <b>↔️ Panorámica 0,5×</b> abre el lente ancho si tu teléfono lo permite; si no aparece, usa <b>📱 Cámara del teléfono</b> y elige el 0,5× ahí.</li>
@@ -3086,9 +3086,12 @@ const AREAS_TAB = [
   { a:"Cocina", n:"Cocina" },
   { a:"Barismo/Vitrina", n:"Barismo/Vitrina" },
   { a:"Caja", n:"Caja" },
-  { a:"Salón", n:"Salón" },
-  { a:"Terminados", n:"Terminados" }
+  { a:"Terminados", n:"Terminados" },
+  { a:"Salón", n:"Salón" }
 ];
+/* áreas que trabajan en el Turno 2: van al final, tras el rótulo «Turno 2».
+   Todo lo demás (generales, Cocina, Barismo/Vitrina, Caja) es del Turno 1. */
+const AREAS_T2 = ["Salón"];
 let areaSel = "mio";                       // mio | todos | gen | <puesto>
 
 function momentoDe(t){
@@ -3312,9 +3315,8 @@ function renderGuia(){
     if(t.a === repetida) return false;
     return contablesDe(t.a).length > 0;              // área sin tareas: no se muestra
   });
-  /* el rótulo «Turno 2» va en la primera área visible, no clavado en Cocina:
-     si a alguien de Cocina se le oculta esa pestaña, el rótulo desaparecía */
-  const primeraArea = (visibles.find(t => ["mio","gen","todos"].indexOf(t.a) < 0) || {}).a;
+  /* el rótulo «Turno 2» va antes de la primera área visible de ese turno */
+  const primeraArea = (visibles.find(t => AREAS_T2.indexOf(t.a) >= 0) || {}).a;
   document.getElementById("areaTabs").innerHTML = visibles.map(t => {
     const it = contablesDe(t.a);
     const ok = it.filter(x => st.done.has(x.id)).length;
