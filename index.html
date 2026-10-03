@@ -114,6 +114,26 @@
   .sem-req{flex:none;border:1px solid var(--linea);background:var(--panel);border-radius:9px;
     font-size:15px;line-height:1;padding:5px 8px;cursor:pointer;opacity:.45}
   .sem-req.on{opacity:1;border-color:#B9A6F5;background:#F4F0FF}
+  /* PI = «para informe»: las fotos de esta tarea son las que van al informe */
+  .sem-pi{flex:none;border:1px solid var(--linea);background:var(--panel);color:var(--tinta);border-radius:9px;
+    font-family:inherit;font-weight:800;font-size:11px;line-height:1;padding:8px 7px;cursor:pointer;opacity:.45}
+  .sem-pi.on{opacity:1;border-color:#EA5650;background:#FDE7E2;color:#C63F39}
+  .pi-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
+    border-radius:99px;background:#FDE7E2;color:#C63F39;margin-left:6px;white-space:nowrap}
+  /* hasta 4 fotos por tarea: miniatura con contador + tarjeta para ver/quitar/agregar */
+  .tfwrap{position:relative;flex:none;line-height:0}
+  .tfwrap .tn{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;
+    background:#EA5650;color:#fff;font-family:inherit;font-weight:700;font-size:10px;line-height:17px;text-align:center}
+  #motOvl .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+  #motOvl .fcel{position:relative;border-radius:11px;overflow:hidden;background:#EADCC8;aspect-ratio:1}
+  #motOvl .fcel img{display:block;width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+  #motOvl .fcel .fq{position:absolute;right:6px;top:6px;width:30px;height:30px;border-radius:99px;border:0;
+    background:rgba(0,0,0,.6);color:#fff;font-size:18px;line-height:1;cursor:pointer}
+  /* cámara: lente panorámico y cámara del teléfono */
+  .cam-ops{display:flex;gap:8px;margin:0 0 10px}
+  .cam-op{flex:1;padding:10px 8px;border-radius:11px;border:1.5px solid var(--linea);background:transparent;
+    color:inherit;font-family:inherit;font-weight:700;font-size:12.5px;line-height:1.2;cursor:pointer}
+  .cam-op.on{border-color:#EA5650;background:#FDE7E2;color:#C63F39}
   /* aviso: sin nombre elegido lo marcado no queda registrado (no se sincroniza) */
   #guiaAviso{display:none;margin:10px 0 2px;padding:10px 12px;border-radius:12px;
     border:1.5px dashed #B9A6F5;background:#F4F0FF;font-family:inherit;font-weight:600;font-size:12px;line-height:1.4;color:#5B3FD6}
@@ -670,8 +690,13 @@
 <div class="overlay" id="camOvl">
   <div class="hoja">
     <h2 id="camTitulo">Foto de la tarea</h2>
-    <div class="rango">Foto tomada en vivo (no se puede elegir de la galería)</div>
+    <div class="rango">Foto tomada en el momento (no se puede elegir de la galería)</div>
     <video id="camVideo" playsinline muted></video>
+    <div class="cam-ops">
+      <button class="cam-op" id="camAncho" style="display:none">↔️ Panorámica 0,5×</button>
+      <button class="cam-op" id="camNativa">📱 Cámara del teléfono</button>
+    </div>
+    <input type="file" id="camFile" accept="image/*" capture="environment" style="display:none">
     <div class="fila2">
       <button class="accion vftomar" id="camCapturar">📸 Capturar</button>
       <button class="accion cerrar" id="camCancelar">Cancelar</button>
@@ -768,6 +793,8 @@
         <li><b>Pestañas por área</b>, igual que la planilla: <b>🌅 Turno 1</b> y, tras el separador, las áreas del <b>Turno 2</b> (Cocina · Barismo/Vitrina · Caja · Salón). Cada pestaña muestra <b>sólo sus tareas</b> y su avance; se pone <b>verde ✓</b> al completarla. <b>👤 Mi puesto</b> arma la lista con el puesto que elegiste hoy.</li>
         <li>Dentro de cada área las tareas van agrupadas por momento: <b>🌅 Apertura · ☀️ Durante el turno · 🌙 Al cierre</b>.</li>
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
+        <li><b>Hasta 4 fotos por tarea</b>: toca la miniatura para verlas, quitar una o <b>agregar otra</b>. En la cámara, <b>↔️ Panorámica 0,5×</b> abre el lente ancho si tu teléfono lo permite; si no aparece, usa <b>📱 Cámara del teléfono</b> y elige el 0,5× ahí.</li>
+        <li>Las tareas con la marca <b>📷 foto para el informe</b> son las que llevan sus fotos al informe; las demás fotos las ve el supervisor en la app.</li>
         <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
         <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área.</li>
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
@@ -1517,7 +1544,7 @@ async function cargarChecklists(){
         : '<div class="sinreg">Todavía no hay ningún informe guardado.</div>';
       return;
     }
-    const paths = []; filas.forEach(r => r.estado.tareas.forEach(t => { if(t.foto) paths.push(t.foto); }));
+    const paths = []; filas.forEach(r => r.estado.tareas.forEach(t => fotosT(t).forEach(p => paths.push(p))));
     await firmarFotos(paths);
     const enc = filas.length + (filas.length === 1 ? " informe" : " informes")
       + (nombreFiltro() ? " · " + nombreFiltro() : "");
@@ -1541,10 +1568,11 @@ async function cargarChecklists(){
         /* Con foto: tarjeta tipo Trello — la foto entera arriba, a lo ancho, y
            debajo la tarea, el motivo y quién la hizo. Sólo las que tienen foto
            crecen; si no, una tarjeta de 25 tareas serían veinte pantallas. */
-        if(t.foto){
+        const fs = fotosT(t);
+        if(fs.length){
           return '<div class="ck-foto">'
-            + '<img class="ck-thumb" data-url="' + (fotoCache[t.foto] || "") + '" src="' + (fotoCache[t.foto] || PIX)
-            + '" alt="Foto de: ' + esc(t.t || "") + '" loading="lazy">'
+            + fs.map(p => '<img class="ck-thumb" data-url="' + (fotoCache[p] || "") + '" src="' + (fotoCache[p] || PIX)
+              + '" alt="Foto de: ' + esc(t.t || "") + '" loading="lazy">').join("")
             + '<div class="ck-pie"><div class="ck-t">' + chk + '<span class="ck-txt">' + txt + '</span></div>'
             + mot + q + '</div></div>';
         }
@@ -1614,6 +1642,8 @@ document.getElementById("ckFecha").addEventListener("change", e => {
    Pantalla completa, sin nada de la app alrededor. Para revisar la evidencia,
    que es una tarea distinta de leer los informes. Sólo los de mando, detrás
    del mismo candado que la Supervisión. */
+/* fotos de una tarea ya reportada: «fotos» si trae varias, si no la única «foto» */
+function fotosT(t){ return Array.isArray(t.fotos) && t.fotos.length ? t.fotos : (t.foto ? [t.foto] : []); }
 let inspFiltro = "ayer";
 let inspDia    = "";     // fecha elegida en el calendario del modo inspeccion
 /* el periodo en palabras, para el mensaje de vacio y la portada del PDF */
@@ -1661,7 +1691,8 @@ async function cargarInspeccion(){
     filas.forEach(r => {
       const dia = fechaDeReg(r);
       (r.estado.tareas || []).forEach(t => {
-        if(t.foto) fotos.push({ ...t, dia });
+        const fs = fotosT(t);                 // una tarjeta por foto
+        if(fs.length) fs.forEach(p => fotos.push({ ...t, foto:p, dia }));
         else if(!t.ok && t.motivo) pend.push({ ...t, dia });
       });
       (r.estado.extras || []).forEach(x => { if(!x.ok && x.motivo) pend.push({ ...x, dia }); });
@@ -2652,14 +2683,93 @@ function cerrarCam(){
   camVideo.srcObject = null; camOvl.classList.remove("on");
 }
 function resolverCam(blob){ const r = camResolve; camResolve = null; if(r) r(blob); }
+async function abrirStream(deviceId){
+  if(camStream) camStream.getTracks().forEach(t => t.stop());
+  const video = deviceId ? { deviceId:{ exact:deviceId } } : { facingMode:{ ideal:"environment" } };
+  camStream = await navigator.mediaDevices.getUserMedia({ video, audio:false });
+  camVideo.srcObject = camStream; await camVideo.play();
+}
+/* ---- Lente panorámico (0,5×) ----
+   Una web no siempre puede elegir el gran angular: depende del teléfono. Se
+   prueba en este orden y el botón sólo aparece si alguna forma sirve:
+     zoom  → la cámara acepta zoom menor a 1 (Android con Chrome)
+     lente → hay una cámara trasera «ultra wide» con nombre (iPhone)
+     ciclo → hay varias traseras sin nombre claro: se va pasando de una a otra
+   Si ninguna sirve queda «Cámara del teléfono», que abre la cámara propia del
+   equipo (ahí sí está el 0,5×) y la foto vuelve con el mismo sello.
+   La elección se recuerda en este teléfono («cam.ancho»). */
+let camModo = null, camAnchoOn = false, camCiclo = 0;
+function pintarAncho(){
+  const b = document.getElementById("camAncho");
+  b.style.display = camModo ? "" : "none";
+  if(!camModo) return;
+  b.classList.toggle("on", camAnchoOn);
+  b.textContent = camModo.tipo === "ciclo" ? "🔄 Cambiar de lente"
+    : (camAnchoOn ? "✓ Panorámica 0,5×" : "↔️ Panorámica 0,5×");
+}
+async function detectarAncho(){
+  camModo = null; camAnchoOn = false; pintarAncho();
+  if(!camStream) return;
+  const track = camStream.getVideoTracks()[0];
+  let caps = {}; try{ caps = track.getCapabilities ? track.getCapabilities() : {}; }catch(e){}
+  if(caps.zoom && caps.zoom.min < 1) camModo = { tipo:"zoom", min:caps.zoom.min };
+  else{
+    try{
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === "videoinput");
+      const atras = devs.filter(x => /back|rear|trasera|environment/i.test(x.label));
+      const ultra = atras.find(x => /ultra/i.test(x.label));
+      if(ultra) camModo = { tipo:"lente", id:ultra.deviceId };
+      else if(atras.length > 1){
+        camModo = { tipo:"ciclo", ids:atras.map(x => x.deviceId) };
+        camCiclo = Math.max(0, camModo.ids.indexOf((track.getSettings() || {}).deviceId));
+      }
+    }catch(e){}
+  }
+  if(!camModo || !camStream) return;
+  pintarAncho();
+  let pref = ""; try{ pref = localStorage.getItem("cam.ancho") || ""; }catch(e){}
+  if(!pref) return;
+  if(camModo.tipo === "ciclo"){
+    const i = camModo.ids.indexOf(pref);
+    if(i >= 0 && i !== camCiclo) await ponerAncho(i);
+  } else await ponerAncho(true);
+}
+/* on = true/false; en modo ciclo, el índice del lente al que se pasa */
+async function ponerAncho(on){
+  if(!camModo || !camStream) return;
+  let pref = "";
+  try{
+    if(camModo.tipo === "zoom"){
+      await camStream.getVideoTracks()[0].applyConstraints({ advanced:[{ zoom: on ? camModo.min : 1 }] });
+      camAnchoOn = !!on; pref = on ? "1" : "";
+    } else if(camModo.tipo === "lente"){
+      await abrirStream(on ? camModo.id : null);
+      camAnchoOn = !!on; pref = on ? "1" : "";
+    } else {
+      await abrirStream(camModo.ids[on]);
+      camCiclo = on; pref = camModo.ids[on];
+    }
+    try{ if(pref) localStorage.setItem("cam.ancho", pref); else localStorage.removeItem("cam.ancho"); }catch(e){}
+  }catch(e){
+    /* ese lente no abrió: se vuelve a la cámara normal y no se insiste */
+    camAnchoOn = false; try{ localStorage.removeItem("cam.ancho"); }catch(_){}
+    if(camModo.tipo !== "zoom" && camOvl.classList.contains("on")){ try{ await abrirStream(null); }catch(_){} }
+  }
+  pintarAncho();
+}
+document.getElementById("camAncho").addEventListener("click", () => {
+  if(!camModo) return;
+  ponerAncho(camModo.tipo === "ciclo" ? (camCiclo + 1) % camModo.ids.length : !camAnchoOn);
+});
 function pedirFoto(titulo){
   return new Promise(async resolve => {
     camResolve = resolve;
     document.getElementById("camTitulo").textContent = titulo || "Foto";
+    camModo = null; camAnchoOn = false; pintarAncho();
     camOvl.classList.add("on");
     try{
-      camStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
-      camVideo.srcObject = camStream; await camVideo.play();
+      await abrirStream(null);
+      detectarAncho();
     }catch(e){ cerrarCam(); alert("No se pudo abrir la cámara. Da permiso y verifica que la app esté en HTTPS."); resolverCam(null); }
   });
 }
@@ -2699,15 +2809,44 @@ function medidaTope(w, h){
   const k = Math.min(1, FOTO_MAX / Math.max(w, h || 1));
   return { w: Math.round(w * k), h: Math.round(h * k) };
 }
-document.getElementById("camCapturar").addEventListener("click", async () => {
-  if(!camStream) return;
-  const { w, h } = medidaTope(camVideo.videoWidth, camVideo.videoHeight);
+/* de la imagen (video en vivo o foto de la cámara del teléfono) al JPG final:
+   con tope de resolución y el sello de fecha, hora y nombre */
+function fotoFinal(src, sw, sh){
+  const { w, h } = medidaTope(sw, sh);
   const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
   const ctx = cv.getContext("2d");
-  ctx.drawImage(camVideo, 0, 0, w, h);
+  ctx.drawImage(src, 0, 0, w, h);
   estamparFoto(cv, ctx);
-  const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.7));
+  return new Promise(r => cv.toBlob(r, "image/jpeg", 0.7));
+}
+document.getElementById("camCapturar").addEventListener("click", async () => {
+  if(!camStream) return;
+  const blob = await fotoFinal(camVideo, camVideo.videoWidth, camVideo.videoHeight);
   cerrarCam(); resolverCam(blob);
+});
+/* Cámara del teléfono: abre la cámara propia del equipo, con todos sus lentes
+   (0,5× incluido). Se suelta la cámara en vivo antes, porque algunos teléfonos
+   no abren la suya mientras la página la tiene tomada. */
+const camFile = document.getElementById("camFile");
+document.getElementById("camNativa").addEventListener("click", () => {
+  if(camStream){ camStream.getTracks().forEach(t => t.stop()); camStream = null; camVideo.srcObject = null; }
+  camFile.value = ""; camFile.click();
+});
+camFile.addEventListener("cancel", () => {            // volvió sin foto: se retoma la cámara en vivo
+  if(camOvl.classList.contains("on") && !camStream) abrirStream(null).then(detectarAncho).catch(() => {});
+});
+camFile.addEventListener("change", async () => {
+  const f = camFile.files && camFile.files[0]; if(!f) return;
+  try{
+    let bmp;
+    try{ bmp = await createImageBitmap(f, { imageOrientation:"from-image" }); }
+    catch(e){ bmp = await createImageBitmap(f); }
+    const blob = await fotoFinal(bmp, bmp.width, bmp.height);
+    cerrarCam(); resolverCam(blob);
+  }catch(e){
+    alert("No se pudo leer la foto. Intenta de nuevo o usa «Capturar».");
+    if(camOvl.classList.contains("on") && !camStream) abrirStream(null).then(detectarAncho).catch(() => {});
+  }
 });
 document.getElementById("camCancelar").addEventListener("click", () => { cerrarCam(); resolverCam(null); });
 camOvl.addEventListener("click", e => { if(e.target === camOvl){ cerrarCam(); resolverCam(null); } });
@@ -2922,9 +3061,11 @@ async function syncGuiaRemoto(){
   const items = mios.concat(hechasFuera);
 
   const firma = x => st.por[x.id] || st.fpor[x.id] || undefined;
-  const tareas = items.map(x => ({ id:x.id, t:x.t, p:x.p || undefined, ok:st.done.has(x.id),
-                                   foto:st.fotos[x.id] || undefined, por:firma(x),
-                                   motivo:(!st.done.has(x.id) && mot[x.id]) || undefined }));
+  /* foto = la primera (lo que leen las versiones anteriores); fotos = todas */
+  const tareas = items.map(x => { const fs = fotosDe(st, x.id);
+    return { id:x.id, t:x.t, p:x.p || undefined, ok:st.done.has(x.id),
+             foto:fs[0] || undefined, fotos:fs.length > 1 ? fs : undefined, por:firma(x),
+             motivo:(!st.done.has(x.id) && mot[x.id]) || undefined }; });
 
   const exMios = extrasDe("mio");
   const exYa = new Set(exMios.map(x => x.id));
@@ -2965,9 +3106,20 @@ const MOTIVOS_FOTO = ["Se me olvidó sacarla","El teléfono sin batería o sin e
                       "La cámara no funcionó","Había clientes y no quise fotografiar",
                       "No alcancé a sacarla"];
 /* ¿esta tarea exige foto? lo marca quien mantiene la rutina, tarea por tarea */
-function exigeFoto(x){ return !!(x && x.req); }
+/* PI («para informe») también la exige: sin foto no hay nada que mandar */
+function exigeFoto(x){ return !!(x && (x.req || x.pi)); }
+/* Fotos de una tarea hoy: hasta FOTOS_MAX. Antes era una sola y se guardaba
+   como texto; se acepta ese formato para no perder lo ya sacado. */
+const FOTOS_MAX = 4;
+function fotosDe(st, id){ const v = st.fotos[id]; return Array.isArray(v) ? v : (v ? [v] : []); }
+/* ¿alguna tarea de la rutina tiene la marca PI? Mientras no haya ninguna, el
+   informe lleva todas las fotos, como siempre; con la primera marca pasa a
+   llevar sólo las de las tareas PI. */
+function rutinaConPI(){
+  return (RUTINA.base || []).concat(...Object.values(RUTINA.dias || {})).some(x => x && x.pi);
+}
 /* lo que hay que explicar: lo no marcado, y lo hecho sin la foto que exige */
-function faltaLaFoto(x, st){ return exigeFoto(x) && st.done.has(x.id) && !st.fotos[x.id]; }
+function faltaLaFoto(x, st){ return exigeFoto(x) && st.done.has(x.id) && !fotosDe(st, x.id).length; }
 function porExplicar(items, st){ return items.filter(x => !st.done.has(x.id) || faltaLaFoto(x, st)); }
 function claveMot(){ return "guia.motivos." + fechaISO(new Date()); }
 function cargarMot(){ try{ return JSON.parse(localStorage.getItem(claveMot()) || "{}"); }catch(e){ return {}; } }
@@ -3181,9 +3333,11 @@ function renderGuia(){
   document.getElementById("guiaFill").style.width = (cuenta.length ? Math.round(hechas/cuenta.length*100) : 0) + "%";
 
   function foto(x){
-    const p = st.fotos[x.id];
-    return p ? '<img class="tthumb" data-gid="' + x.id + '" data-foto="' + esc(p) + '" src="' + PIX + '" alt="foto">'
-             : '<button class="tfoto" data-gid="' + x.id + '" aria-label="Foto del día">📷</button>';
+    const fs = fotosDe(st, x.id);
+    return fs.length
+      ? '<span class="tfwrap"><img class="tthumb" data-gid="' + x.id + '" data-foto="' + esc(fs[0]) + '" src="' + PIX + '" alt="foto">'
+        + (fs.length > 1 ? '<span class="tn">' + fs.length + '</span>' : "") + '</span>'
+      : '<button class="tfoto" data-gid="' + x.id + '" aria-label="Foto del día">📷</button>';
   }
   /* no marcada = pendiente por defecto; se le puede poner el motivo */
   function fila(x, esExtra){
@@ -3197,7 +3351,8 @@ function renderGuia(){
        foto hay que explicar por qué — si no, no se puede enviar el informe */
     const exige = !esExtra && exigeFoto(x);
     const sinLaFoto = !esExtra && faltaLaFoto(x, st);
-    const req = exige ? '<span class="req-badge">📷 lleva foto</span>' : "";
+    const req = !exige ? "" : x.pi ? '<span class="pi-badge">📷 foto para el informe</span>'
+                                   : '<span class="req-badge">📷 lleva foto</span>';
     const pide = !ok || sinLaFoto;
     const btn = !pide ? "" : '<button class="pmot' + (m ? " si" : "") + '" data-mot="' + x.id + '"'
       + (sinLaFoto ? ' data-porfoto="1"' : "") + '>'
@@ -3316,10 +3471,13 @@ function enviarInforme(titulo){
      fecha, con las fotos. Sólo entra quien es de mando. */
   t += "\nVer el detalle con fotos:\n" + APP_URL + "/#dia/" + fechaISO(new Date()) + "\n";
 
-  const conFoto = marcables.filter(x => st.fotos[x.id]);
-  infActual = { texto:t, area, quien, f, hora, marcables, hechas, pend, pct, exOk, notas, conFoto, st, mot };
+  /* al informe van sólo las fotos de las tareas PI (si la rutina tiene alguna) */
+  const hayPI = rutinaConPI();
+  const conFoto = marcables.filter(x => fotosDe(st, x.id).length && (!hayPI || x.pi));
+  const nFotos = conFoto.reduce((n, x) => n + fotosDe(st, x.id).length, 0);
+  infActual = { texto:t, area, quien, f, hora, marcables, hechas, pend, pct, exOk, notas, conFoto, nFotos, st, mot };
   document.getElementById("infInfo").textContent = area + " · " + hechas.length + " de " + marcables.length
-    + " · " + conFoto.length + (conFoto.length === 1 ? " foto" : " fotos");
+    + " · " + nFotos + (nFotos === 1 ? " foto" : " fotos") + (hayPI ? " para el informe" : "");
   document.getElementById("infOvl").classList.add("on");
 }
 document.getElementById("finBar").addEventListener("click", e => {
@@ -3418,18 +3576,34 @@ document.getElementById("infPdf").addEventListener("click", async () => {
 
     if(I.conFoto.length){
       salto(20); y += 2;
-      sec("Fotos · " + I.conFoto.length); y += 8;
-      const ANCHO = 174, MAXALTO = 108;
-      let faltan = 0;
+      sec("Fotos · " + I.nFotos); y += 8;
+      const ANCHO = 174, MAXALTO = 108, CELDA = 85, SEP = 4;
+      const cabe = (im, aw) => { let w = aw, h = im.h / im.w * aw;
+        if(h > MAXALTO){ h = MAXALTO; w = im.w / im.h * MAXALTO; } return { w, h }; };
+      let faltan = 0, k = 0;
       for(let i = 0; i < I.conFoto.length; i++){
         const x = I.conFoto[i];
-        btn.textContent = "Preparando foto " + (i+1) + " de " + I.conFoto.length + "…";
-        const im = await fotoParaPdf(I.st.fotos[x.id]);
-        if(!im){ faltan++; continue; }
-        let w = ANCHO, h = im.h / im.w * ANCHO;
-        if(h > MAXALTO){ h = MAXALTO; w = im.w / im.h * MAXALTO; }
-        salto(h + 16);
-        doc.addImage(im.data, "JPEG", 18, y, w, h); y += h + 5;
+        const ims = [];
+        for(const p of fotosDe(I.st, x.id)){
+          btn.textContent = "Preparando foto " + (++k) + " de " + I.nFotos + "…";
+          const im = await fotoParaPdf(p);
+          if(im) ims.push(im); else faltan++;
+        }
+        if(!ims.length) continue;
+        if(ims.length === 1){
+          const m = cabe(ims[0], ANCHO);
+          salto(m.h + 16);
+          doc.addImage(ims[0].data, "JPEG", 18, y, m.w, m.h); y += m.h + 5;
+        } else {
+          /* varias fotos de la misma tarea: de a dos por fila, el texto al final */
+          for(let j = 0; j < ims.length; j += 2){
+            const par = ims.slice(j, j + 2), med = par.map(im => cabe(im, CELDA));
+            const alto = Math.max(...med.map(m => m.h)), ultima = j + 2 >= ims.length;
+            salto(alto + (ultima ? 16 : SEP));
+            par.forEach((im, c) => doc.addImage(im.data, "JPEG", 18 + c * (CELDA + SEP), y, med[c].w, med[c].h));
+            y += alto + (ultima ? 5 : SEP);
+          }
+        }
         doc.setFont(...F.sb); doc.setFontSize(10.5); doc.setTextColor(...C.tinta); y += W(limpio(x.t), 18, y, 174) - 0.4;
         doc.setFont(...F.reg);
         const fp = I.st.fpor[x.id];
@@ -3539,25 +3713,23 @@ document.getElementById("guiaLista").addEventListener("change", e => {
 });
 document.getElementById("guiaLista").addEventListener("click", async e => {
   const fb = e.target.closest(".tfoto, .tthumb"); if(!fb) return;
-  const id = fb.dataset.gid; const st = cargarDia();
-  if(st.fotos[id]){
-    if(confirm("Esta tarea ya tiene foto de hoy.\nAceptar = ver · Cancelar = tomar otra")){
-      const u = await urlFirmada(st.fotos[id]);
-      if(u){ window.open(u, "_blank"); return; }
-      const b = await fotoLocal(st.fotos[id]);
-      if(b){ window.open(URL.createObjectURL(b), "_blank"); return; }
-      alert("No se pudo abrir la foto."); return;
-    }
-  }
-  const blob = await pedirFoto("Foto de hoy"); if(!blob) return;
+  const id = fb.dataset.gid;
+  /* con fotos: la tarjeta para verlas, quitar o agregar. Sin fotos: la cámara */
+  if(fotosDe(cargarDia(), id).length) abrirFotos(id); else tomarFoto(id);
+});
+async function tomarFoto(id){
+  const n = fotosDe(cargarDia(), id).length;
+  if(n >= FOTOS_MAX){ alert("Esta tarea ya tiene " + FOTOS_MAX + " fotos, que es el máximo. Quita una para sacar otra."); return false; }
+  const blob = await pedirFoto(n ? "Foto " + (n + 1) + " de " + FOTOS_MAX : "Foto de hoy"); if(!blob) return false;
   /* el equipo va en la ruta: antes dos personas que fotografiaban la misma
-     tarea el mismo día compartían archivo y la segunda borraba a la primera */
-  const path = "guia/" + fechaISO(new Date()) + "/" + id + "-" + deviceId() + ".jpg";
+     tarea el mismo día compartían archivo y la segunda borraba a la primera.
+     El sufijo de hora distingue las fotos de una misma tarea. */
+  const path = "guia/" + fechaISO(new Date()) + "/" + id + "-" + deviceId() + "-" + Date.now().toString(36) + ".jpg";
   /* la foto queda en el teléfono y en la tarea AL TIRO; subirla va aparte.
      Si no hay señal, la guía no se detiene: se sube sola al volver la red. */
   await guardarLocalF(path, blob);
   const st2 = cargarDia();
-  st2.fotos[id] = path;
+  st2.fotos[id] = fotosDe(st2, id).concat(path);
   st2.fpor[id] = sello();          // quién la tomó, en qué puesto y a qué hora
   guardarDia(st2);
   renderGuia();
@@ -3570,7 +3742,53 @@ document.getElementById("guiaLista").addEventListener("click", async e => {
     setFotosPend(fotosPend().concat(path));
     avisoFotoPend();
   }
-});
+  return true;
+}
+/* Tarjeta con las fotos de la tarea: tocar una la abre grande, × la quita del
+   día (el archivo ya subido se borra solo con la limpieza de 90 días). */
+function abrirFotos(id){
+  const prev = document.getElementById("motOvl"); if(prev) prev.remove();
+  const fs = fotosDe(cargarDia(), id);
+  if(!fs.length) return;
+  const wd = new Date().getDay();
+  const x = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []).concat(cargarEx()).find(t => t.id === id);
+  const ovl = document.createElement("div"); ovl.id = "motOvl";
+  ovl.innerHTML = '<div class="cja"><h4>Fotos de hoy · ' + fs.length + ' de ' + FOTOS_MAX + '</h4>'
+    + '<p class="tq">' + esc(x ? limpio(x.t) : "") + '</p>'
+    + '<div class="fgrid">' + fs.map((p, i) => '<div class="fcel"><img data-foto="' + esc(p) + '" src="' + PIX + '" alt="Foto ' + (i + 1) + '">'
+        + '<button class="fq" data-i="' + i + '" aria-label="Quitar la foto ' + (i + 1) + '">×</button></div>').join("") + '</div>'
+    + (fs.length < FOTOS_MAX ? '<button class="op qt" data-k="mas">📷 Agregar otra foto</button>'
+                             : '<p class="tq">Es el máximo por tarea. Quita una para sacar otra.</p>')
+    + '<button class="op" data-k="listo">Listo</button></div>';
+  document.body.appendChild(ovl);
+  firmarThumbs("#motOvl");
+  ovl.addEventListener("click", async e => {
+    if(e.target === ovl) return ovl.remove();
+    const q = e.target.closest(".fq");
+    if(q){
+      if(!confirm("¿Quitar esta foto?")) return;
+      const st = cargarDia(), arr = fotosDe(st, id), p = arr[+q.dataset.i];
+      const resto = arr.filter(f => f !== p);
+      if(resto.length) st.fotos[id] = resto; else { delete st.fotos[id]; delete st.fpor[id]; }
+      guardarDia(st);
+      setFotosPend(fotosPend().filter(f => f !== p));
+      ovl.remove(); renderGuia(); syncGuiaRemoto(); avisarSiTerminada();
+      abrirFotos(id);
+      return;
+    }
+    const im = e.target.closest(".fcel img");
+    if(im){
+      const u = fotoCache[im.dataset.foto];
+      if(u){ window.open(u, "_blank"); return; }
+      const b = await fotoLocal(im.dataset.foto);
+      if(b) window.open(URL.createObjectURL(b), "_blank"); else alert("No se pudo abrir la foto.");
+      return;
+    }
+    const op = e.target.closest(".op"); if(!op) return;
+    ovl.remove();
+    if(op.dataset.k === "mas"){ await tomarFoto(id); abrirFotos(id); }
+  });
+}
 
 /* ---- Semanal: editar la rutina (solo supervisor) ---- */
 const semanalCont = document.getElementById("semanalCont");
@@ -3589,9 +3807,14 @@ function renderSemanal(){
       const req = sup
         ? '<button class="sem-req' + (x.req ? " on" : "") + '" ' + dref + ' title="Exigir foto en esta tarea">📸</button>'
         : (x.req ? '<span class="req-badge">📷 lleva foto</span>' : "");
+      /* PI = «para informe»: sus fotos son las que van al informe (y exige foto) */
+      const pi = sup
+        ? '<button class="sem-pi' + (x.pi ? " on" : "") + '" ' + dref + ' title="Las fotos de esta tarea van al informe">PI</button>'
+        : (x.pi ? '<span class="pi-badge">PI · va al informe</span>' : "");
       const del = sup ? '<button class="sem-del" ' + dref + ' aria-label="Borrar">×</button>' : "";
-      return '<div class="sem-item"><span class="t">' + esc(x.t) + badge + (sup && x.req ? ' <span class="req-badge">lleva foto</span>' : "") + '</span>'
-        + thumb + req + cam + del + '</div>';
+      return '<div class="sem-item"><span class="t">' + esc(x.t) + badge + (sup && x.req ? ' <span class="req-badge">lleva foto</span>' : "")
+        + (sup && x.pi ? ' <span class="pi-badge">va al informe</span>' : "") + '</span>'
+        + thumb + req + pi + cam + del + '</div>';
     }).join("") : '<div class="sem-vacio">Sin tareas</div>';
     const add = sup
       ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off">'
@@ -3600,7 +3823,9 @@ function renderSemanal(){
       : '';
     return '<div class="sem-grupo"><div class="sem-h">' + esc(titulo) + '</div>' + list + add + '</div>';
   }
-  let html = sup ? "" : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños, el encargado y el encargado de local (María José, Maximiliano, Ricardo y Ángel).</div>';
+  let html = sup ? '<div class="sem-vacio" style="margin-bottom:6px">📸 = la tarea exige foto · <b>PI</b> = sus fotos van al informe (y también exige foto). '
+      + (rutinaConPI() ? "" : "Mientras ninguna tarea tenga PI, el informe lleva todas las fotos.") + '</div>'
+    : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños, el encargado y el encargado de local (María José, Maximiliano, Ricardo y Ángel).</div>';
   html += grupo("Todos los días", RUTINA.base || [], "base");
   DIAS_SEM.forEach(([nom, wd]) => { html += grupo(nom, (RUTINA.dias && RUTINA.dias[wd]) || [], "dia", wd); });
   semanalCont.innerHTML = html;
@@ -3621,6 +3846,16 @@ if(semanalCont){
       const arr = listaDe(rq.dataset.tipo, rq.dataset.wd);
       const x = arr.find(t => t.id === rq.dataset.id); if(!x) return;
       if(x.req) delete x.req; else x.req = true;
+      await guardarRutina();
+      return;
+    }
+    /* marcar/desmarcar «PI»: las fotos de esta tarea van al informe */
+    const bpi = e.target.closest(".sem-pi");
+    if(bpi){
+      if(!puedeEditarRutina()) return;
+      const arr = listaDe(bpi.dataset.tipo, bpi.dataset.wd);
+      const x = arr.find(t => t.id === bpi.dataset.id); if(!x) return;
+      if(x.pi) delete x.pi; else x.pi = true;
       await guardarRutina();
       return;
     }
