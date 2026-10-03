@@ -121,11 +121,11 @@
   .pi-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
     border-radius:99px;background:#FDE7E2;color:#C63F39;margin-left:6px;white-space:nowrap}
   /* cuántas tareas van al informe (PI) en el área elegida */
-  #piBar{margin:6px 0 2px;padding:8px 12px;border-radius:12px;background:#FDE7E2;color:#9C332E;
+  #piBar,.pibar{margin:6px 0 2px;padding:8px 12px;border-radius:12px;background:#FDE7E2;color:#9C332E;
     font-family:inherit;font-weight:600;font-size:12px;line-height:1.35}
-  #piBar b{font-weight:800}
+  #piBar b,.pibar b{font-weight:800}
   #piBar:empty{display:none}
-  #piBar.cero{background:transparent;border:1.5px dashed var(--linea);color:inherit;opacity:.75}
+  #piBar.cero,.pibar.cero{background:transparent;border:1.5px dashed var(--linea);color:inherit;opacity:.75}
   /* hasta 4 fotos por tarea: miniatura con contador + tarjeta para ver/quitar/agregar */
   .tfwrap{position:relative;flex:none;line-height:0}
   .tfwrap .tn{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;
@@ -3497,7 +3497,8 @@ function enviarInforme(titulo){
   const nFotos = conFoto.reduce((n, x) => n + fotosDe(st, x.id).length, 0);
   infActual = { texto:t, area, quien, f, hora, marcables, hechas, pend, pct, exOk, notas, conFoto, nFotos, st, mot };
   document.getElementById("infInfo").textContent = area + " · " + hechas.length + " de " + marcables.length
-    + " · " + nFotos + (nFotos === 1 ? " foto" : " fotos") + (hayPI ? " para el informe" : "");
+    + " · " + nFotos + (nFotos === 1 ? " foto" : " fotos") + (hayPI ? " para el informe" : "")
+    + (hayPI ? " · PI: " + conFoto.length + " de " + marcables.filter(x => x.pi).length + " tareas con foto" : "");
   document.getElementById("infOvl").classList.add("on");
 }
 document.getElementById("finBar").addEventListener("click", e => {
@@ -3881,7 +3882,13 @@ function renderSemanal(){
       : '';
     return '<div class="sem-grupo"><div class="sem-h">' + esc(titulo) + '</div>' + list + add + '</div>';
   }
-  let html = sup ? '<div class="sem-vacio" style="margin-bottom:6px">📸 = la tarea exige foto · <b>PI</b> = sus fotos van al informe (y también exige foto). '
+  /* cuántas tareas de toda la rutina van al informe */
+  const todasR = (RUTINA.base || []).concat(...Object.values(RUTINA.dias || {}));
+  const nPI = todasR.filter(x => x && x.pi).length;
+  let html = '<div class="pibar' + (nPI ? "" : " cero") + '" style="margin-bottom:8px"><b>PI</b> · '
+    + (nPI ? "<b>" + nPI + "</b> de " + todasR.length + (nPI === 1 ? " tarea de la rutina va" : " tareas de la rutina van") + " al informe"
+           : "Ninguna tarea marcada para el informe: por ahora lleva todas las fotos.") + '</div>';
+  html += sup ? '<div class="sem-vacio" style="margin-bottom:6px">📸 = la tarea exige foto · <b>PI</b> = sus fotos van al informe (y también exige foto). '
       + (rutinaConPI() ? "" : "Mientras ninguna tarea tenga PI, el informe lleva todas las fotos.") + '</div>'
     : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños, el encargado y el encargado de local (María José, Maximiliano, Ricardo y Ángel).</div>';
   html += grupo("Todos los días", RUTINA.base || [], "base");
