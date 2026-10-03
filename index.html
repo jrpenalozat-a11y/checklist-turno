@@ -175,6 +175,12 @@
     background:linear-gradient(135deg,#25916F,#2FB985);color:#fff;font-family:inherit;font-weight:700;font-size:14px;line-height:1.2;
     box-shadow:0 4px 12px rgba(37,145,111,.28)}
   #btnInforme:active{transform:scale(.985)}
+  /* informe diario: todo el local (Turno 1 y Turno 2), sólo las tareas PI */
+  .btn-diario{width:100%;margin-top:9px;padding:13px 12px;border-radius:12px;border:0;cursor:pointer;
+    background:linear-gradient(135deg,#EA5650,#F0766F);color:#fff;font-family:inherit;font-weight:700;font-size:14px;line-height:1.2;
+    box-shadow:0 4px 12px rgba(234,86,80,.28)}
+  .btn-diario:active{transform:scale(.985)}
+  .btn-diario:disabled{opacity:.6}
   .ex-badge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;
     background:#F4F1FE;color:#5B3FD6;font-family:inherit;font-weight:600;font-size:10px;line-height:1.6;vertical-align:middle}
   /* aviso de versión nueva */
@@ -654,6 +660,7 @@
         <button class="accion" id="ckWa">📤 Informe semanal</button>
         <button class="accion" id="ckPdf">📄 PDF para la reunión</button>
       </div>
+      <button class="btn-diario" id="ckDiario" style="margin:0 0 13px">📋 Informe diario · Turno 1 y 2 (PI)</button>
       <div id="supChecklists"></div>
     </div>
     <div class="fila2">
@@ -3252,6 +3259,7 @@ async function resumenSupervisor(){
             + (sinReporte ? " · " + sinReporte + " área(s) sin reporte" : "")
           : "Todavía no llega ningún informe de hoy.")
       + '<br><small>«Sin reporte» no significa que no se haya hecho: puede que no haya nadie en esa área.</small>'
+      + '<button class="btn-diario" data-diario="1">📋 Informe diario · Turno 1 y 2 (PI)</button>'
       + '<button id="rsVerDetalle">👀 Ver el detalle con fotos</button>'
       + '<button id="rsTrabajar" style="background:none;color:var(--grafito);border:1px solid var(--linea)">Voy a trabajar un área</button>'
       + '</div>';
@@ -3262,6 +3270,8 @@ async function resumenSupervisor(){
   }
 }
 document.getElementById("resumenSup").addEventListener("click", e => {
+  const bd = e.target.closest("[data-diario]");
+  if(bd){ informeDiarioPdf(fechaISO(new Date()), bd); return; }
   if(e.target.closest("#rsVerDetalle")){
     ckFiltro = "hoy"; ckDia = "";
     abrirSupervision().then(() => {
@@ -3415,7 +3425,8 @@ function renderGuia(){
     + '<button class="eb ok" data-k="ok">✅ Tarea extra<br>realizada</button>'
     + '<button class="eb pe" data-k="pend">⏳ Queda<br>pendiente</button>'
     + '<button class="eb no" data-k="nota">📝 Nota</button></div>'
-    + '<button id="btnInforme">📤 Enviar informe de ' + esc(dnd || "el local") + '</button>';
+    + '<button id="btnInforme">📤 Enviar informe de ' + esc(dnd || "el local") + '</button>'
+    + (esMando() ? '<button class="btn-diario" id="btnDiario">📋 Informe diario · Turno 1 y 2 (PI)</button>' : "");
 
   /* resumen de pendientes del área (rutina + agregados) */
   const pend = cuenta.filter(x => !st.done.has(x.id));
@@ -3646,6 +3657,136 @@ document.getElementById("infPdf").addEventListener("click", async () => {
     alert("No se pudo armar el PDF: " + ((e && e.message) || e) + "\nPuedes enviar «Solo texto».");
   }finally{ btn.disabled = false; btn.textContent = txt0; }
 });
+/* ---- Informe diario: TODO el local en un PDF (Turno 1 y Turno 2) ----
+   Lleva sólo las tareas PI del día, con sus fotos, quién las hizo y, si
+   quedaron pendientes, el motivo. Junta lo que reportó cada persona (lo que
+   está en la base) y, si es el día de hoy, también lo marcado en este teléfono
+   aunque todavía no se haya subido. Una tarea cuenta como hecha si cualquiera
+   la reportó hecha. Si la rutina no tiene ninguna tarea PI, lleva las que
+   tienen foto. */
+async function informeDiarioPdf(fecha, btn){
+  const txt0 = btn ? btn.textContent : "";
+  const avisa = t => { if(btn) btn.textContent = t; };
+  if(btn) btn.disabled = true;
+  try{
+    avisa("Juntando lo del día…");
+    const esHoy = fecha === fechaISO(new Date());
+    const M = {};                                         // id → { ok, fotos, motivo, por }
+    const de = id => M[id] || (M[id] = { ok:false, fotos:[], motivo:"", por:null });
+    const suma = (id, ok, fotos, motivo, por) => {
+      const m = de(id);
+      fotos.forEach(p => { if(m.fotos.indexOf(p) < 0) m.fotos.push(p); });
+      if(ok){ if(!m.ok || !m.por) m.por = por || m.por; m.ok = true; }
+      else if(motivo && !m.motivo){ m.motivo = motivo; if(!m.por) m.por = por || null; }
+    };
+    let informes = 0, sinBase = false;
+    try{
+      const client = getSB(); if(!client) throw new Error("sin base");
+      await vfSesion(client);
+      const rg = rangoDe("dia", fecha);
+      const { data, error } = await client.from("checklists").select("codigo,estado,updated_at")
+        .gte("updated_at", rg[0]).lte("updated_at", rg[1]).order("updated_at", { ascending:false }).limit(300);
+      if(error) throw error;
+      const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas) && fechaDeReg(r) === fecha);
+      informes = filas.length;
+      filas.forEach(r => r.estado.tareas.forEach(t => suma(t.id, !!t.ok, fotosT(t), t.motivo || "", t.por)));
+    }catch(e){ sinBase = true; }
+    if(esHoy){
+      const st = cargarDia(), mot = cargarMot();
+      const ids = new Set([...st.done, ...Object.keys(st.fotos), ...Object.keys(mot)]);
+      ids.forEach(id => suma(id, st.done.has(id), fotosDe(st, id), mot[id] || "", st.por[id] || st.fpor[id]));
+    }
+    if(sinBase && !esHoy){ alert("No se pudo leer la base. El informe diario de otro día necesita conexión."); return; }
+
+    const wd = inicioDe(fecha).getDay();
+    const todas = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
+    const hayPI = rutinaConPI();
+    const lista = todas.filter(x => hayPI ? x.pi : (M[x.id] && M[x.id].fotos.length));
+    if(!lista.length){
+      alert(hayPI ? "Ese día no tiene tareas marcadas PI."
+                  : "No hay tareas marcadas PI ni fotos ese día.\nMarca con el botón PI las tareas que deben ir al informe.");
+      return;
+    }
+    const grupos = [{ n:"Turno 1", its:lista.filter(x => !x.p) }]
+      .concat(AREAS_TAB.slice(1).map(a => ({ n:"Turno 2 · " + a.n, its:lista.filter(x => x.p === a.a) })))
+      .filter(g => g.its.length);
+    const hechas = lista.filter(x => M[x.id] && M[x.id].ok).length;
+    const pct = Math.round(hechas / lista.length * 100);
+    const nFotos = lista.reduce((n, x) => n + (M[x.id] ? M[x.id].fotos.length : 0), 0);
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:"mm", format:"a4", compress:true });
+    const F = await fuentesPdf(doc), C = PDF_COL;
+    const L = s => F.R ? String(s) : String(s).replace(/[—–]/g, "-");
+    const T = (s, x, y) => doc.text(L(s), x, y);
+    const W = (s, x, y, ancho) => { const ls = doc.splitTextToSize(L(s), ancho); ls.forEach((l, i) => doc.text(l, x, y + i*4.8)); return ls.length * 4.8; };
+    const fl = inicioDe(fecha).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" });
+    let y = encabezadoPdf(doc, F, {
+      tipo: "Informe diario",
+      fecha: fl.charAt(0).toUpperCase() + fl.slice(1),
+      titulo: "Informe diario",
+      sub: "Turno 1 y Turno 2   ·   " + (hayPI ? "tareas para informe (PI)" : "tareas con foto")
+           + "   ·   " + nFotos + (nFotos === 1 ? " foto" : " fotos"),
+      pct, avance: hechas + " de " + lista.length + " · " + pct + "%"
+    });
+    const salto = n => { if(y + n > 280){ doc.addPage(); y = 20; } };
+    const ANCHO = 174, MAXALTO = 108, CELDA = 85, SEP = 4;
+    const cabe = (im, aw) => { let w = aw, h = im.h / im.w * aw;
+      if(h > MAXALTO){ h = MAXALTO; w = im.w / im.h * MAXALTO; } return { w, h }; };
+    let k = 0, faltan = 0;
+    for(const g of grupos){
+      const ok = g.its.filter(x => M[x.id] && M[x.id].ok).length;
+      salto(26);
+      doc.setFillColor(...C.coral); doc.rect(18, y - 3.6, 1.2, 4.6, "F");
+      doc.setFont(...F.sb); doc.setFontSize(12); doc.setTextColor(...C.tinta); T(g.n + "   ·   " + ok + " de " + g.its.length, 22, y);
+      doc.setFont(...F.reg); y += 8;
+      for(const x of g.its){
+        const m = M[x.id] || { ok:false, fotos:[], motivo:"", por:null };
+        const ims = [];
+        for(const p of m.fotos){
+          avisa("Preparando foto " + (++k) + " de " + nFotos + "…");
+          const im = await fotoParaPdf(p);
+          if(im) ims.push(im); else faltan++;
+        }
+        if(ims.length === 1){
+          const d = cabe(ims[0], ANCHO);
+          salto(d.h + 16);
+          doc.addImage(ims[0].data, "JPEG", 18, y, d.w, d.h); y += d.h + 5;
+        } else {
+          for(let j = 0; j < ims.length; j += 2){
+            const par = ims.slice(j, j + 2), med = par.map(im => cabe(im, CELDA));
+            const alto = Math.max(...med.map(d => d.h)), ultima = j + 2 >= ims.length;
+            salto(alto + (ultima ? 16 : SEP));
+            par.forEach((im, c) => doc.addImage(im.data, "JPEG", 18 + c * (CELDA + SEP), y, med[c].w, med[c].h));
+            y += alto + (ultima ? 5 : SEP);
+          }
+        }
+        salto(13);
+        doc.setFont(...F.sb); doc.setFontSize(10.5); doc.setTextColor(...C.tinta); y += W(limpio(x.t), 18, y, 174) - 0.4;
+        doc.setFont(...F.reg); doc.setFontSize(9);
+        const quien = m.por && m.por.q ? "   ·   " + m.por.q + (m.por.h ? "   ·   " + m.por.h : "") : "";
+        if(m.ok){ doc.setTextColor(...C.verde); T("Hecha" + quien + (ims.length ? "" : "   ·   sin foto"), 18, y); }
+        else if(m.motivo){ doc.setTextColor(...C.ambar); y += W("Pendiente — " + m.motivo + quien, 18, y, 174) - 4.8; }
+        else { doc.setTextColor(...C.grafito); T("Sin registro" + (ims.length ? "   ·   con foto, no marcada" : ""), 18, y); }
+        y += 9;
+      }
+      y += 3;
+    }
+    if(faltan){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T(faltan + " foto(s) no se pudieron agregar (sin señal y sin copia en este teléfono).", 18, y); y += 6; }
+    if(sinBase){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T("Sin conexión: este informe sólo lleva lo marcado en este teléfono.", 18, y); y += 6; }
+    piePdf(doc, F, "Detalle: " + APP_URL.replace(/^https?:\/\//, "") + "/#dia/" + fecha);
+    compartirPdf(doc, "informe_diario_" + fecha + ".pdf", "Informe diario — François · " + fl, WA_DESTINO && WA_DESTINO.nombre);
+  }catch(e){
+    alert("No se pudo armar el informe diario: " + ((e && e.message) || e));
+  }finally{ if(btn){ btn.disabled = false; btn.textContent = txt0; } }
+}
+document.getElementById("ckDiario").addEventListener("click", e => {
+  /* el día que se está mirando en Supervisión; con «7 días» o «Todos», hoy */
+  const f = ckFiltro === "ayer" ? fechaISO(new Date(Date.now() - 864e5))
+          : (ckFiltro === "dia" && ckDia) ? ckDia : fechaISO(new Date());
+  informeDiarioPdf(f, e.currentTarget);
+});
+
 /* ---- Área terminada → ofrecer el informe PDF al tiro ----
    «Terminada» = no queda nada sin resolver: cada tarea está hecha o tiene su
    motivo (y las que exigen foto, la tienen o explican por qué). En ese momento
@@ -3710,6 +3851,8 @@ document.getElementById("extraAdd").addEventListener("click", e => {
     return;
   }
   if(e.target.closest("#btnInforme")) enviarInforme();
+  const bd = e.target.closest("#btnDiario");
+  if(bd) informeDiarioPdf(fechaISO(new Date()), bd);
 });
 document.getElementById("extraAdd").addEventListener("keydown", e => {
   if(e.target.id === "exTxt" && e.key === "Enter"){
