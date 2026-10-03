@@ -120,6 +120,15 @@
   .sem-pi.on{opacity:1;border-color:#EA5650;background:#FDE7E2;color:#C63F39}
   .pi-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
     border-radius:99px;background:#FDE7E2;color:#C63F39;margin-left:6px;white-space:nowrap}
+  /* historial de cambios de la rutina + botón de editar en Semanal */
+  #motOvl .hist{padding:9px 0;border-top:1px solid var(--linea);font-size:12.5px;line-height:1.35}
+  #motOvl .hist .hf{float:right;font-size:11px;opacity:.6}
+  #motOvl .hist .ht{margin-top:2px;font-weight:600}
+  #motOvl .hist .ha{margin-top:2px;font-size:11.5px;opacity:.65;text-decoration:line-through}
+  .sem-edit{flex:none;border:1px solid var(--linea);background:var(--panel);border-radius:9px;
+    font-size:14px;line-height:1;padding:6px 8px;cursor:pointer}
+  #semLog{width:100%;margin:0 0 10px;padding:10px;border-radius:11px;border:1.5px solid var(--linea);background:transparent;
+    color:inherit;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
   /* tarea que ya hizo otra persona hoy */
   .por-otro{display:block;margin-top:3px;font-size:11.5px;font-weight:700;color:#2E9E6B;text-decoration:none}
   /* cuántas tareas van al informe (PI) en el área elegida */
@@ -2954,6 +2963,43 @@ async function guardarRutina(){
   renderGuia(); renderSemanal();
 }
 
+/* ---- Historial de cambios de la rutina: quién agregó, borró o editó qué ----
+   Vive en la tabla `config`, clave «rutina_log» (los últimos 300 cambios).
+   Anotar nunca bloquea el cambio: si falla, la rutina igual queda guardada. */
+async function anotarCambio(accion, texto, antes){
+  try{
+    const client = getSB(); if(!client) return;
+    await vfSesion(client);
+    let log = []; try{ log = JSON.parse((await getConfig("rutina_log")) || "[]"); }catch(e){}
+    if(!Array.isArray(log)) log = [];
+    const e = { f:new Date().toISOString(), q:quienActual() || "(sin nombre)", a:accion, t:texto || "" };
+    if(antes) e.antes = antes;
+    log.unshift(e);
+    await setConfig("rutina_log", JSON.stringify(log.slice(0, 300)));
+  }catch(e){}
+}
+async function verHistorial(){
+  const prev = document.getElementById("motOvl"); if(prev) prev.remove();
+  const ovl = document.createElement("div"); ovl.id = "motOvl";
+  ovl.innerHTML = '<div class="cja"><h4>🕓 Cambios en las tareas</h4><p class="tq">Cargando…</p></div>';
+  document.body.appendChild(ovl);
+  ovl.addEventListener("click", e => { if(e.target === ovl || e.target.closest(".op")) ovl.remove(); });
+  let log = null;
+  try{ await vfSesion(getSB()); log = JSON.parse((await getConfig("rutina_log")) || "[]"); }catch(e){}
+  const cja = ovl.querySelector(".cja");
+  const cuando = f => { const d = new Date(f);
+    return d.toLocaleDateString("es-CL", { day:"numeric", month:"short" }) + " · "
+         + d.toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false }); };
+  cja.innerHTML = '<h4>🕓 Cambios en las tareas</h4>'
+    + (log === null ? '<p class="tq">No se pudo leer el historial (sin conexión).</p>'
+       : !log.length ? '<p class="tq">Todavía no hay cambios registrados. Se anotan desde el 3 de octubre de 2026.</p>'
+       : '<p class="tq">Los últimos ' + log.length + ', del más nuevo al más antiguo.</p>'
+         + log.map(x => '<div class="hist"><b>' + esc(x.q) + '</b> ' + esc(x.a) + '<span class="hf">' + esc(cuando(x.f)) + '</span>'
+             + '<div class="ht">' + esc(x.t) + '</div>'
+             + (x.antes ? '<div class="ha">Antes: ' + esc(x.antes) + '</div>' : "") + '</div>').join(""))
+    + '<button class="op" style="margin-top:10px">Cerrar</button>';
+}
+
 /* ---- Guía diaria: checkeable, reinicia cada día (estado local por fecha) ---- */
 /* helpers de fotos compartidos (guía y semanal) */
 function deviceId(){ let v = localStorage.getItem("dev.id"); if(!v){ v = Math.random().toString(36).slice(2,8); localStorage.setItem("dev.id", v); } return v; }
@@ -3871,7 +3917,7 @@ document.getElementById("guiaAdd").addEventListener("click", e => {
   const p = document.getElementById("guiaNuevaPuesto").value;
   const nueva = { id:nuevoId(), t }; if(p) nueva.p = p;
   (RUTINA.base = RUTINA.base || []).push(nueva);
-  guardarRutina();  // guarda en Supabase + re-renderiza guía y semanal
+  guardarRutina().then(() => anotarCambio("agregó", t + (p ? " [" + p + "]" : "")));  // guarda en Supabase + re-renderiza guía y semanal
 });
 document.getElementById("guiaAdd").addEventListener("keydown", e => {
   if(e.target.id === "guiaNueva" && e.key === "Enter"){ e.preventDefault(); document.getElementById("guiaAgregar").click(); }
@@ -3958,6 +4004,7 @@ async function alternarPI(id){
     alert("No se pudo guardar. Para cambiar qué va al informe se necesita conexión.");
     return;
   }finally{ piOcupado = false; }
+  anotarCambio(poner ? "marcó PI (va al informe)" : "quitó PI", x.t);
   renderGuia(); renderSemanal(); avisarSiTerminada();
 }
 document.getElementById("guiaLista").addEventListener("click", e => {
@@ -4060,9 +4107,10 @@ function renderSemanal(){
         ? '<button class="sem-pi' + (x.pi ? " on" : "") + '" ' + dref + ' title="Las fotos de esta tarea van al informe">PI</button>'
         : (x.pi ? '<span class="pi-badge">PI · va al informe</span>' : "");
       const del = sup ? '<button class="sem-del" ' + dref + ' aria-label="Borrar">×</button>' : "";
+      const edit = sup ? '<button class="sem-edit" ' + dref + ' aria-label="Editar el texto">✏️</button>' : "";
       return '<div class="sem-item"><span class="t">' + esc(x.t) + badge + (sup && x.req ? ' <span class="req-badge">lleva foto</span>' : "")
         + (sup && x.pi ? ' <span class="pi-badge">va al informe</span>' : "") + '</span>'
-        + thumb + req + pi + cam + del + '</div>';
+        + thumb + edit + req + pi + cam + del + '</div>';
     }).join("") : '<div class="sem-vacio">Sin tareas</div>';
     const add = sup
       ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off">'
@@ -4077,7 +4125,8 @@ function renderSemanal(){
   let html = '<div class="pibar' + (nPI ? "" : " cero") + '" style="margin-bottom:8px"><b>PI</b> · '
     + (nPI ? "<b>" + nPI + "</b> de " + todasR.length + (nPI === 1 ? " tarea de la rutina va" : " tareas de la rutina van") + " al informe"
            : "Ninguna tarea marcada para el informe: por ahora lleva todas las fotos.") + '</div>';
-  html += sup ? '<div class="sem-vacio" style="margin-bottom:6px">📸 = la tarea exige foto · <b>PI</b> = sus fotos van al informe (y también exige foto). '
+  if(sup) html += '<button id="semLog">🕓 Ver quién cambió qué (historial)</button>';
+  html += sup ? '<div class="sem-vacio" style="margin-bottom:6px">✏️ = editar el texto · × = borrar · 📸 = la tarea exige foto · <b>PI</b> = sus fotos van al informe (y también exige foto). '
       + (rutinaConPI() ? "" : "Mientras ninguna tarea tenga PI, el informe lleva todas las fotos.") + '</div>'
     : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños, el encargado y el encargado de local (María José, Maximiliano, Ricardo y Ángel).</div>';
   html += grupo("Todos los días", RUTINA.base || [], "base");
@@ -4101,6 +4150,23 @@ if(semanalCont){
       const x = arr.find(t => t.id === rq.dataset.id); if(!x) return;
       if(x.req) delete x.req; else x.req = true;
       await guardarRutina();
+      anotarCambio(x.req ? "marcó que exige foto" : "quitó que exige foto", x.t);
+      return;
+    }
+    if(e.target.closest("#semLog")){ verHistorial(); return; }
+    /* editar el texto de una tarea (el id no cambia: lo marcado hoy se conserva) */
+    const ed = e.target.closest(".sem-edit");
+    if(ed){
+      if(!puedeEditarRutina()) return;
+      const arr = listaDe(ed.dataset.tipo, ed.dataset.wd);
+      const x = arr.find(t => t.id === ed.dataset.id); if(!x) return;
+      const nuevo = prompt("Editar la tarea.\nSi empieza con [APERTURA] o [CIERRE], deja esa marca: es la que la ubica en su sección.", x.t);
+      if(nuevo === null) return;
+      const t = nuevo.trim();
+      if(!t || t === x.t) return;
+      const antes = x.t; x.t = t;
+      await guardarRutina();
+      anotarCambio("editó", t, antes);
       return;
     }
     /* marcar/desmarcar «PI»: las fotos de esta tarea van al informe */
@@ -4111,6 +4177,7 @@ if(semanalCont){
       const x = arr.find(t => t.id === bpi.dataset.id); if(!x) return;
       if(x.pi) delete x.pi; else x.pi = true;
       await guardarRutina();
+      anotarCambio(x.pi ? "marcó PI (va al informe)" : "quitó PI", x.t);
       return;
     }
     // foto de referencia (ver / capturar-reemplazar)
@@ -4136,7 +4203,17 @@ if(semanalCont){
       return;
     }
     const del = e.target.closest(".sem-del");
-    if(del){ const arr = listaDe(del.dataset.tipo, del.dataset.wd); const i = arr.findIndex(x => x.id === del.dataset.id); if(i >= 0) arr.splice(i,1); guardarRutina(); return; }
+    if(del){
+      if(!puedeEditarRutina()) return;
+      const arr = listaDe(del.dataset.tipo, del.dataset.wd); const i = arr.findIndex(x => x.id === del.dataset.id);
+      if(i < 0) return;
+      const x = arr[i];
+      if(!confirm("¿Borrar esta tarea de la rutina?\n\n" + x.t + "\n\nQueda anotado en el historial quién la borró.")) return;
+      arr.splice(i, 1);
+      await guardarRutina();
+      anotarCambio("borró", x.t + (x.p ? " [" + x.p + "]" : ""));
+      return;
+    }
     const addBtn = e.target.closest(".sem-add button");
     if(addBtn){
       const inp = addBtn.parentElement.querySelector("input");
@@ -4145,7 +4222,9 @@ if(semanalCont){
       const nueva = { id:nuevoId(), t };
       if(psel && psel.value) nueva.p = psel.value;  // puesto asignado (vacío = todos)
       listaDe(addBtn.dataset.tipo, addBtn.dataset.wd).push(nueva);
-      guardarRutina();
+      await guardarRutina();
+      anotarCambio("agregó", t + (nueva.p ? " [" + nueva.p + "]" : "")
+        + (addBtn.dataset.tipo === "dia" ? " (" + nombreDia(+addBtn.dataset.wd) + ")" : ""));
     }
   });
   semanalCont.addEventListener("keydown", e => {

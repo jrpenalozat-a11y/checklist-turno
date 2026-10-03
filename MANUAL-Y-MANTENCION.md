@@ -160,6 +160,11 @@ subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno
   equipos) al abrir, al volver a la app, al cambiar de área y cada minuto; sin señal se usa lo
   último conocido (`guia.otros`). Esas tareas no suben como pendientes en el registro propio.
   Para deshacer una marca, la desmarca quien la marcó, en su teléfono.
+- **Editar tareas + historial** — en Semanal el mando puede **agregar**, **borrar** (× con
+  confirmación) y **editar el texto** (✏️; el id no cambia, lo marcado se conserva). Cada cambio
+  queda anotado con quién y cuándo (`anotarCambio`) en `config`, clave **`rutina_log`** (últimos
+  300): agregar, borrar, editar (con el texto anterior), PI y «exige foto». Se ve con el botón
+  **🕓 Ver quién cambió qué** de Semanal. Lo que se cambie directo en la base no queda anotado.
 - **Panorámica 0,5×** — depende del teléfono: una web no siempre puede elegir el lente ancho.
   `detectarAncho()` prueba zoom menor a 1 (Android), cámara trasera «ultra wide» por nombre
   (iPhone) o, si hay varias traseras sin nombre claro, un botón para ir cambiando de lente. Si
