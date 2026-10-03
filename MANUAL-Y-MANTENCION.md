@@ -129,6 +129,25 @@ próximo turno, Entrega/Recibe, Registrar y enviar, 📸 Traspaso verificado), n
 nombre**. El código y los datos siguen: para volver, `TURNO_ACTIVO = true` en `index.html` y
 subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno`.
 
+### Fotos de las tareas: 0,5×, hasta 4 y marca PI (3-oct-2026)
+
+- **Hasta 4 fotos por tarea** (`FOTOS_MAX`). En `guia.dia.<fecha>` el campo `fotos[id]` pasó de
+  texto a **lista**; leerlo siempre con `fotosDe(st, id)`, que acepta los dos formatos. Al servidor
+  viaja `foto` (la primera, para lo ya guardado) y `fotos` (todas, si hay más de una); del lado
+  de Supervisión/Inspección se lee con `fotosT(t)`. Cada foto tiene su propio archivo:
+  `guia/<fecha>/<tarea>-<equipo>-<hora>.jpg`. Quitar una foto la saca del día; el archivo ya
+  subido lo borra la limpieza de 90 días.
+- **Marca PI («para informe»)** — campo `pi` en la tarea, botón **PI** en Semanal junto al 📸.
+  El informe (PDF y conteo) lleva **solo las fotos de las tareas PI**; las demás se ven en
+  Supervisión e Inspección. **PI exige foto** (`exigeFoto = req || pi`). Mientras **ninguna**
+  tarea de la rutina tenga PI, el informe lleva todas las fotos como antes (`rutinaConPI()`).
+- **Panorámica 0,5×** — depende del teléfono: una web no siempre puede elegir el lente ancho.
+  `detectarAncho()` prueba zoom menor a 1 (Android), cámara trasera «ultra wide» por nombre
+  (iPhone) o, si hay varias traseras sin nombre claro, un botón para ir cambiando de lente. Si
+  nada sirve, el botón no aparece y queda **📱 Cámara del teléfono**, que abre la cámara propia
+  del equipo; la foto vuelve con el mismo tope de 1280 px y el mismo sello. La elección se
+  recuerda en `localStorage` (`cam.ancho`).
+
 ### Dónde vive cada cosa (importante antes de tocar nada)
 
 | Dato | Dónde | Se borra si… |
