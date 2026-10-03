@@ -89,8 +89,8 @@
   #areaTabs .atab.lista{border-color:#2E9E6B;color:#2E9E6B}
   #areaTabs .atab.on.lista{background:linear-gradient(135deg,#2E9E6B,#4FBF8B);color:#fff;border-color:transparent}
   #areaTabs .asep{flex:0 0 auto;display:flex;align-items:center;align-self:stretch;
-    padding:0 4px 0 9px;margin-left:2px;border-left:2px dashed var(--linea);
-    font-family:inherit;font-weight:700;font-size:9.5px;line-height:1;letter-spacing:.09em;text-transform:uppercase;opacity:.5;
+    padding:0 6px 0 12px;margin-left:8px;border-left:3px solid #EA5650;
+    font-family:inherit;font-weight:800;font-size:10.5px;line-height:1;letter-spacing:.09em;text-transform:uppercase;opacity:.85;
     writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
   .gmom{display:flex;align-items:center;gap:8px;margin:16px 0 7px;font-family:inherit;font-weight:700;font-size:12px;line-height:1;
     letter-spacing:.06em;text-transform:uppercase;opacity:.72}
@@ -790,7 +790,7 @@
       <h3>📅 Pestaña Guía diaria — la rutina del local</h3>
       <ul>
         <li>Es la <b>rutina fija</b>: sale sola cada día (tareas de todos los días + las del día que toca).</li>
-        <li><b>Pestañas por área</b>, igual que la planilla: primero las del <b>Turno 1</b> (🌅 Turno 1 · Cocina · Barismo/Vitrina · Caja) y, tras el separador <b>Turno 2</b>, <b>Salón</b>. Cada pestaña muestra <b>sólo sus tareas</b> y su avance; se pone <b>verde ✓</b> al completarla. <b>👤 Mi puesto</b> arma la lista con el puesto que elegiste hoy.</li>
+        <li><b>Pestañas por área</b>, igual que la planilla: primero <b>🌅 Turno 1</b> y, tras el separador <b>Turno 2</b>, tu puesto y las áreas (Cocina · Barismo/Vitrina · Caja · Salón). Cada pestaña muestra <b>sólo sus tareas</b> y su avance; se pone <b>verde ✓</b> al completarla. <b>👤 Mi puesto</b> arma la lista con el puesto que elegiste hoy.</li>
         <li>Dentro de cada área las tareas van agrupadas por momento: <b>🌅 Apertura · ☀️ Durante el turno · 🌙 Al cierre</b>.</li>
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
         <li><b>Hasta 4 fotos por tarea</b>: toca la miniatura para verlas, quitar una o <b>agregar otra</b>. En la cámara, <b>↔️ Panorámica 0,5×</b> abre el lente ancho si tu teléfono lo permite; si no aparece, usa <b>📱 Cámara del teléfono</b> y elige el 0,5× ahí.</li>
@@ -3086,12 +3086,9 @@ const AREAS_TAB = [
   { a:"Cocina", n:"Cocina" },
   { a:"Barismo/Vitrina", n:"Barismo/Vitrina" },
   { a:"Caja", n:"Caja" },
-  { a:"Terminados", n:"Terminados" },
-  { a:"Salón", n:"Salón" }
+  { a:"Salón", n:"Salón" },
+  { a:"Terminados", n:"Terminados" }
 ];
-/* áreas que trabajan en el Turno 2: van al final, tras el rótulo «Turno 2».
-   Todo lo demás (generales, Cocina, Barismo/Vitrina, Caja) es del Turno 1. */
-const AREAS_T2 = ["Salón"];
 let areaSel = "mio";                       // mio | todos | gen | <puesto>
 
 function momentoDe(t){
@@ -3308,15 +3305,16 @@ function renderGuia(){
      se oculta la repetida. Las otras áreas siguen ahí — nadie pierde acceso. */
   const repetida = mios.length === 1 ? mios[0] : null;
   if(areaSel === repetida) areaSel = "mio";          // no dejar la selección en una pestaña oculta
-  const tabs = [{ a:"mio", n: mios.length ? "👤 " + mios.join(" · ") : "👤 Mi puesto" }]
-    .concat(AREAS_TAB).concat([{ a:"todos", n:"Todo el local" }]);
+  /* «Turno 1» sale primero; todo lo demás (mi puesto y las áreas) es del Turno 2 */
+  const tabs = [AREAS_TAB[0], { a:"mio", n: mios.length ? "👤 " + mios.join(" · ") : "👤 Mi puesto" }]
+    .concat(AREAS_TAB.slice(1)).concat([{ a:"todos", n:"Todo el local" }]);
   const visibles = tabs.filter(t => {
     if(t.a === "mio" || t.a === "todos") return true;
     if(t.a === repetida) return false;
     return contablesDe(t.a).length > 0;              // área sin tareas: no se muestra
   });
-  /* el rótulo «Turno 2» va antes de la primera área visible de ese turno */
-  const primeraArea = (visibles.find(t => AREAS_T2.indexOf(t.a) >= 0) || {}).a;
+  /* el rótulo «Turno 2» separa: va justo después de la pestaña «Turno 1» */
+  const primeraArea = visibles[0].a === "gen" ? visibles[1].a : null;
   document.getElementById("areaTabs").innerHTML = visibles.map(t => {
     const it = contablesDe(t.a);
     const ok = it.filter(x => st.done.has(x.id)).length;

@@ -34,8 +34,8 @@ Las **90 tareas** de la planilla de Ángel, repartidas por área tal como estaba
 | Salón | 12 | 5 | 7 |
 
 > **3-oct-2026:** se agregaron al Turno 1 «Barrer y trapear piso», «Bajar sillas» y «Alinear y
-> nivelar mesas» (ids `pl091`–`pl093`). En las pestañas de la Guía diaria, el rótulo **Turno 2**
-> va ahora antes de **Salón** (`AREAS_T2`); Cocina, Barismo/Vitrina y Caja quedan con el Turno 1.
+> nivelar mesas» (ids `pl091`–`pl093`). En las pestañas de la Guía diaria, la pestaña
+> **🌅 Turno 1** sale primero y, tras el separador **Turno 2**, van «Mi puesto» y todas las áreas.
 
 Cada persona elige su **puesto del día** al entrar y ve su lista corta. Nadie tiene que
 leer 90 tareas para encontrar las suyas.
