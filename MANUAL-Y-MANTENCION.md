@@ -154,6 +154,12 @@ subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno
   este teléfono aunque no se haya subido. Botón coral **📋 Informe diario · Turno 1 y 2 (PI)**,
   solo para el mando: al pie de la Guía diaria, en el resumen del supervisor y en Supervisión →
   Informe del día (ahí usa el día del filtro: Hoy, Ayer o la fecha elegida).
+- **Tareas compartidas** (`OTROS`, `cargarOtros`, `listo`) — lo que otra persona ya marcó hoy
+  aparece hecho en todos los teléfonos, con «✓ nombre · hora» y la casilla bloqueada: no hay que
+  repetirlo ni explicarlo. Se lee de la tabla `checklists` (los registros del día de los demás
+  equipos) al abrir, al volver a la app, al cambiar de área y cada minuto; sin señal se usa lo
+  último conocido (`guia.otros`). Esas tareas no suben como pendientes en el registro propio.
+  Para deshacer una marca, la desmarca quien la marcó, en su teléfono.
 - **Panorámica 0,5×** — depende del teléfono: una web no siempre puede elegir el lente ancho.
   `detectarAncho()` prueba zoom menor a 1 (Android), cámara trasera «ultra wide» por nombre
   (iPhone) o, si hay varias traseras sin nombre claro, un botón para ir cambiando de lente. Si

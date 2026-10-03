@@ -120,6 +120,8 @@
   .sem-pi.on{opacity:1;border-color:#EA5650;background:#FDE7E2;color:#C63F39}
   .pi-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 8px;
     border-radius:99px;background:#FDE7E2;color:#C63F39;margin-left:6px;white-space:nowrap}
+  /* tarea que ya hizo otra persona hoy */
+  .por-otro{display:block;margin-top:3px;font-size:11.5px;font-weight:700;color:#2E9E6B;text-decoration:none}
   /* cuántas tareas van al informe (PI) en el área elegida */
   #piBar,.pibar{margin:6px 0 2px;padding:8px 12px;border-radius:12px;background:#FDE7E2;color:#9C332E;
     font-family:inherit;font-weight:600;font-size:12px;line-height:1.35}
@@ -809,6 +811,7 @@
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
         <li><b>Hasta 4 fotos por tarea</b>: toca la miniatura para verlas, quitar una o <b>agregar otra</b>. En la cámara, <b>↔️ Panorámica 0,5×</b> abre el lente ancho si tu teléfono lo permite; si no aparece, usa <b>📱 Cámara del teléfono</b> y elige el 0,5× ahí.</li>
         <li>El botón <b>PI</b> de cada tarea la agrega al informe: desde entonces sus fotos van en el informe todos los días (y la tarea pide foto). Las demás fotos las ve el supervisor en la app. Sacar una tarea del informe lo hace quien mantiene la rutina.</li>
+        <li><b>Lo que ya hizo otra persona hoy aparece marcado</b> en todos los teléfonos, con su nombre y la hora en verde: no hay que hacerlo ni marcarlo de nuevo.</li>
         <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
         <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área.</li>
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
@@ -3072,7 +3075,8 @@ async function syncGuiaRemoto(){
   const wd = new Date().getDay();
   const todasHoy = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
   const hechasFuera = todasHoy.filter(x => !yaEsta.has(x.id) && st.done.has(x.id));
-  const items = mios.concat(hechasFuera);
+  /* lo que ya hizo otra persona va en SU registro, no como pendiente mío */
+  const items = mios.concat(hechasFuera).filter(x => st.done.has(x.id) || !OTROS[x.id]);
 
   const firma = x => st.por[x.id] || st.fpor[x.id] || undefined;
   /* foto = la primera (lo que leen las versiones anteriores); fotos = todas */
@@ -3134,7 +3138,46 @@ function rutinaConPI(){
 }
 /* lo que hay que explicar: lo no marcado, y lo hecho sin la foto que exige */
 function faltaLaFoto(x, st){ return exigeFoto(x) && st.done.has(x.id) && !fotosDe(st, x.id).length; }
-function porExplicar(items, st){ return items.filter(x => !st.done.has(x.id) || faltaLaFoto(x, st)); }
+function porExplicar(items, st){ return items.filter(x => !listo(st, x.id) || faltaLaFoto(x, st)); }
+
+/* ---- Lo que YA HIZO otra persona hoy (para no duplicar tareas) ----
+   Se lee de la base lo que reportó el resto del equipo: esas tareas aparecen
+   hechas en todos los teléfonos, con el nombre de quien las hizo, y no hay que
+   marcarlas ni explicarlas de nuevo. Se refresca al abrir, al volver a la app,
+   al cambiar de área y cada minuto. Sin señal se usa lo último que se supo. */
+let OTROS = {};                              // id de tarea → { q: quién, h: hora }
+try{ const c = JSON.parse(localStorage.getItem("guia.otros") || "null");
+     if(c && c.f === fechaISO(new Date())) OTROS = c.m || {}; }catch(e){}
+function listo(st, id){ return st.done.has(id) || !!OTROS[id]; }
+let otrosT = 0;
+async function cargarOtros(forzar){
+  if(!forzar && Date.now() - otrosT < 20000) return;
+  otrosT = Date.now();
+  const client = getSB(); if(!client || !navigator.onLine) return;
+  try{
+    await vfSesion(client);
+    const hoy = fechaISO(new Date()), d0 = new Date(); d0.setHours(0,0,0,0);
+    const { data, error } = await client.from("checklists").select("codigo,estado,updated_at")
+      .gte("updated_at", d0.toISOString()).order("updated_at", { ascending:false }).limit(120);
+    if(error) return;
+    const mio = "guia-" + hoy + "-" + deviceId(), m = {};
+    (data || []).forEach(r => {
+      if(r.codigo === mio || fechaDeReg(r) !== hoy || !r.estado || !Array.isArray(r.estado.tareas)) return;
+      const nombre = (r.estado.entrega || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+      r.estado.tareas.forEach(t => {
+        if(t.ok && t.id && !m[t.id]) m[t.id] = { q:(t.por && t.por.q) || nombre || "otra persona", h:(t.por && t.por.h) || "" };
+      });
+    });
+    const s = JSON.stringify(m);
+    if(s === JSON.stringify(OTROS)) return;
+    OTROS = m;
+    try{ localStorage.setItem("guia.otros", JSON.stringify({ f:hoy, m })); }catch(e){}
+    renderGuia();
+  }catch(e){}
+}
+setTimeout(() => cargarOtros(true), 3500);
+setInterval(() => { if(!document.hidden) cargarOtros(); }, 60000);
+document.addEventListener("visibilitychange", () => { if(!document.hidden) cargarOtros(); });
 function claveMot(){ return "guia.motivos." + fechaISO(new Date()); }
 function cargarMot(){ try{ return JSON.parse(localStorage.getItem(claveMot()) || "{}"); }catch(e){ return {}; } }
 function guardarMot(m){ try{ localStorage.setItem(claveMot(), JSON.stringify(m)); }catch(e){} }
@@ -3334,7 +3377,7 @@ function renderGuia(){
   const primeraArea = visibles[0].a === "gen" ? visibles[1].a : null;
   document.getElementById("areaTabs").innerHTML = visibles.map(t => {
     const it = contablesDe(t.a);
-    const ok = it.filter(x => st.done.has(x.id)).length;
+    const ok = it.filter(x => listo(st, x.id)).length;
     const full = it.length && ok === it.length;
     const sep = (t.a === primeraArea) ? '<span class="asep">Turno 2</span>' : "";
     return sep + '<button class="atab' + (areaSel === t.a ? " on" : "") + (full ? " lista" : "") + '" data-a="' + esc(t.a) + '">'
@@ -3345,7 +3388,7 @@ function renderGuia(){
   /* contador + barra de avance del área elegida */
   const items = itemsDe(areaSel);
   const cuenta = contablesDe(areaSel);
-  const hechas = cuenta.filter(x => st.done.has(x.id)).length;
+  const hechas = cuenta.filter(x => listo(st, x.id)).length;
   document.getElementById("guiaCuenta").innerHTML = "<b>" + hechas + "</b> de " + cuenta.length;
   document.getElementById("guiaFill").style.width = (cuenta.length ? Math.round(hechas/cuenta.length*100) : 0) + "%";
 
@@ -3369,7 +3412,10 @@ function renderGuia(){
   }
   /* no marcada = pendiente por defecto; se le puede poner el motivo */
   function fila(x, esExtra){
-    const ok = st.done.has(x.id);
+    /* hecha por otra persona hoy: sale marcada, con su nombre, y no se vuelve a marcar */
+    const otro = !st.done.has(x.id) ? OTROS[x.id] : null;
+    const ok = st.done.has(x.id) || !!otro;
+    const deOtro = otro ? '<span class="por-otro">✓ ' + esc(otro.q) + (otro.h ? " · " + esc(otro.h) : "") + '</span>' : "";
     const zona = esExtra ? x.a : x.p;
     const bad = ((areaSel === "todos" || areaSel === "mio") && zona)
       ? '<span class="sem-badge">' + esc(zona) + '</span>' : "";
@@ -3386,9 +3432,9 @@ function renderGuia(){
       + (sinLaFoto ? ' data-porfoto="1"' : "") + '>'
       + (m ? (sinLaFoto ? "📷 " : "⏳ ") + esc(m) : (sinLaFoto ? "📷 ¿Por qué sin foto?" : "⏳ ¿Por qué?")) + '</button>';
     return '<li class="' + (ok ? "hecha" : "pend") + (sinLaFoto ? " sinfoto" : "") + (pide && m ? " conmot" : "") + '">'
-      + '<label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "")
+      + '<label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "") + (otro ? " disabled" : "")
       + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
-      + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + req + '</span>'
+      + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + req + deOtro + '</span>'
       + (esExtra ? "" : '<button class="sem-pi' + (x.pi ? " on" : "") + '" data-pi="' + x.id
           + '" aria-label="' + (x.pi ? "Sus fotos van al informe" : "Agregar sus fotos al informe") + '">PI</button>')
       + foto(x) + btn + '</li>';
@@ -3398,7 +3444,7 @@ function renderGuia(){
   MOM.forEach(m => {
     const g = items.filter(x => momentoDe(x.t) === m[0]);
     if(!g.length) return;
-    const listos = g.filter(x => st.done.has(x.id)).length;
+    const listos = g.filter(x => listo(st, x.id)).length;
     html += '<li class="gsec-li"><span class="gmom ' + m[0] + '">' + m[1] + " · " + listos + "/" + g.length + '</span></li>'
       + g.map(x => fila(x, false)).join("");
   });
@@ -3429,7 +3475,7 @@ function renderGuia(){
     + (esMando() ? '<button class="btn-diario" id="btnDiario">📋 Informe diario · Turno 1 y 2 (PI)</button>' : "");
 
   /* resumen de pendientes del área (rutina + agregados) */
-  const pend = cuenta.filter(x => !st.done.has(x.id));
+  const pend = cuenta.filter(x => !listo(st, x.id));
   const faltanFoto = cuenta.filter(x => faltaLaFoto(x, st));
   const sinMot = porExplicar(cuenta, st).filter(x => !mot[x.id]).length;
   const barraP = document.getElementById("pendBar");
@@ -3461,7 +3507,7 @@ function enviarInforme(titulo){
   const area = areaActiva() || "el local";
   const ex = extrasDe(areaSel);
   const marcables = contablesDe(areaSel);
-  const pend = marcables.filter(x => !st.done.has(x.id));
+  const pend = marcables.filter(x => !listo(st, x.id));
 
   /* hay que explicar lo no hecho Y lo hecho sin la foto que la tarea exige */
   const sin = porExplicar(marcables, st).filter(x => !mot[x.id]);
@@ -3479,7 +3525,7 @@ function enviarInforme(titulo){
   }
   if(!marcables.length){ alert("No hay nada que informar en esta área."); return; }
 
-  const hechas = marcables.filter(x => st.done.has(x.id));
+  const hechas = marcables.filter(x => listo(st, x.id));
   const pct = marcables.length ? Math.round(hechas.length/marcables.length*100) : 0;
   const quien = quienActual();
   const f = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long"});
@@ -3833,7 +3879,7 @@ document.getElementById("guiaAdd").addEventListener("keydown", e => {
 /* cambiar de área (pestañas) */
 document.getElementById("areaTabs").addEventListener("click", e => {
   const b = e.target.closest(".atab"); if(!b) return;
-  areaSel = b.dataset.a; renderGuia();
+  areaSel = b.dataset.a; renderGuia(); cargarOtros();
   b.scrollIntoView({ inline:"center", block:"nearest", behavior:"smooth" });
 });
 /* agregar del día: tarea extra realizada / pendiente / nota */
