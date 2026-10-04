@@ -2676,6 +2676,11 @@ document.getElementById("puestoListo").addEventListener("click", () => {
   if(!sel.length){ alert("Elige al menos un puesto (puedes marcar varios)."); return; }
   setPuestosHoy(sel);
   quienOvl.classList.remove("on");
+  /* la guía se vuelve a dibujar con el puesto recién elegido: antes el aviso
+     «Falta elegir tu puesto de hoy» seguía en pantalla y la lista no cambiaba
+     hasta marcar algo o tocar otra pestaña, como si no se hubiera elegido */
+  areaSel = "mio";
+  if(typeof renderGuia === "function") renderGuia();
 });
 document.getElementById("quienSkip").addEventListener("click", () => quienOvl.classList.remove("on"));
 /* volver al paso 1: si elegiste mal el nombre quedabas atrapado en el paso 2,
