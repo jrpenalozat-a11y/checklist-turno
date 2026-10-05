@@ -198,6 +198,10 @@
   .av-sec{font-weight:700;font-size:14px;margin:18px 0 9px;padding-left:9px;border-left:3px solid var(--coral)}
   .av-svg{display:block;width:100%;height:auto}
   .av-eje{font-size:11px;fill:var(--grafito);font-family:inherit}
+  .av-hoy{background:var(--crema);border:1px solid var(--linea);border-radius:14px;padding:14px 16px}
+  .av-hoy b{display:block;font-size:38px;font-weight:700;line-height:1.1;color:var(--coral)}
+  .av-hoy span{display:block;font-size:12.5px;color:var(--grafito)}
+  .av-hoy .av-bar{margin-top:10px;height:10px}
   .av-nota{font-size:11.5px;line-height:1.4;color:var(--grafito);margin:5px 0 0}
   .av-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}
   .av-k{background:var(--crema);border:1px solid var(--linea);border-radius:12px;padding:10px 12px}
@@ -4655,8 +4659,8 @@ function avFechas(n, hasta){
 }
 async function cargarAvance(reusar){
   const cont = document.getElementById("supAvance");
-  const chips = '<div class="av-chips">' + [7, 30, 90].map(n =>
-    '<span class="chip' + (n === avPeriodo ? " on" : "") + '" data-n="' + n + '">' + n + ' días</span>').join("") + '</div>';
+  const chips = '<div class="av-chips">' + [1, 7, 30, 90].map(n =>
+    '<span class="chip' + (n === avPeriodo ? " on" : "") + '" data-n="' + n + '">' + (n === 1 ? "Hoy" : n + " días") + '</span>').join("") + '</div>';
   const yaEsta = reusar && avUlt && avUlt.N === avPeriodo;
   if(!yaEsta) cont.innerHTML = chips + '<div class="sinreg">Cargando…</div>';
   try{
@@ -4669,7 +4673,7 @@ async function cargarAvance(reusar){
                 ant: comparar ? avResumen(filas, avFechas(N, new Date(hoy.getTime() - N * 864e5))) : null };
     }
     const act = avUlt.act, ant = avUlt.ant;
-    if(!act.con){ cont.innerHTML = chips + '<div class="sinreg">No hay registros en los últimos ' + N + ' días.</div>'; return; }
+    if(!act.con){ cont.innerHTML = chips + '<div class="sinreg">' + (N === 1 ? "Hoy todavía nadie ha marcado nada." : "No hay registros en los últimos " + N + " días.") + '</div>'; return; }
 
     /* gráfico: un punto por día; los días sin reporte van abajo, huecos */
     const W = 520, H = 190, x0 = 40, x1 = 510, y0 = 20, y1 = 155, d = act.dias;
@@ -4698,11 +4702,14 @@ async function cargarAvance(reusar){
       return '<div class="av-d ' + (bueno ? "up" : "dn") + '">' + (df > 0 ? "+" : "−") + Math.abs(df) + (suf || "") + '</div>';
     };
     const kpi = '<div class="av-kpis">'
-      + '<div class="av-k"><b>' + act.prom + '%</b><span>avance promedio</span>' + delta(act.prom, ant && ant.prom, " puntos") + '</div>'
-      + '<div class="av-k"><b>' + act.con + ' de ' + N + '</b><span>días con reporte</span>' + delta(act.con, ant && ant.con, " días") + '</div>'
+      + '<div class="av-k"><b>' + act.prom + '%</b><span>' + (N === 1 ? "avance de hoy" : "avance promedio") + '</span>' + delta(act.prom, ant && ant.prom, " puntos") + '</div>'
+      + (N === 1
+          ? '<div class="av-k"><b>' + act.personas.length + '</b><span>personas con actividad</span>' + delta(act.personas.length, ant && ant.personas.length) + '</div>'
+          : '<div class="av-k"><b>' + act.con + ' de ' + N + '</b><span>días con reporte</span>' + delta(act.con, ant && ant.con, " días") + '</div>')
       + '<div class="av-k"><b>' + act.fotos + '</b><span>fotos</span>' + delta(act.fotos, ant && ant.fotos) + '</div>'
       + '<div class="av-k"><b>' + act.pend + '</b><span>pendientes con motivo</span>' + delta(act.pend, ant && ant.pend, "", true) + '</div></div>'
-      + '<div class="av-nota">' + (ant ? "Comparado con los " + N + " días anteriores." : "Con 90 días no hay periodo anterior guardado para comparar.") + '</div>';
+      + '<div class="av-nota">' + (N === 1 ? "Comparado con el día completo de ayer: a media tarde es normal ir por debajo."
+        : ant ? "Comparado con los " + N + " días anteriores." : "Con 90 días no hay periodo anterior guardado para comparar.") + '</div>';
 
     const conDatos = d.filter(q => q.n);
     const areas = AREAS_TAB.map(a => {
@@ -4710,6 +4717,10 @@ async function cargarAvance(reusar){
       if(!vals.length) return "";
       const prom = Math.round(vals.reduce((s, v) => s + v, 0) / vals.length), t = avTendencia(vals);
       const sp = vals.map((v, i) => (vals.length === 1 ? 100 : 200 * i / (vals.length - 1)).toFixed(1) + "," + (24 - 22 * v / 100).toFixed(1)).join(" ");
+      /* un solo día no tiene tendencia: barra con lo que va hecho */
+      if(N === 1) return '<div class="av-row"><span class="av-a">' + esc(a.n) + '</span>'
+        + '<span class="av-bar"><i style="width:' + prom + '%"></i></span>'
+        + '<span class="av-v' + (prom >= 100 ? " up" : "") + '">' + prom + '%' + (prom ? "" : " · sin marcar") + '</span></div>';
       return '<div class="av-row"><span class="av-a">' + esc(a.n) + '</span>'
         + '<svg viewBox="0 0 200 26" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="var(--coral)" stroke-width="2" vector-effect="non-scaling-stroke" points="' + sp + '"/></svg>'
         + '<span class="av-v ' + t[1] + '">' + prom + '%' + (t[0] ? " · " + t[0] : "") + '</span></div>';
@@ -4731,10 +4742,15 @@ async function cargarAvance(reusar){
       + 'Las que hizo otra persona del mismo puesto no se le cuentan en contra, y lo que marcó fuera de su puesto va aparte. Sólo lo ve el mando.</div>';
 
     cont.innerHTML = chips
-      + '<div class="av-sec">Tareas hechas por día</div>' + svg
-      + '<div class="av-nota">Cada punto lleno es un día con reporte; los huecos de abajo, días sin ninguno.</div>'
+      + (N === 1
+          ? '<div class="av-sec">Hoy · ' + esc(inicioDe(d[0].f).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" })) + '</div>'
+            + '<div class="av-hoy"><b>' + act.prom + '%</b><span>de las tareas del día ya están hechas</span>'
+            + '<span class="av-bar"><i style="width:' + act.prom + '%"></i></span></div>'
+            + '<div class="av-nota">Leído ahora de la base. Toca «Hoy» de nuevo para actualizar.</div>'
+          : '<div class="av-sec">Tareas hechas por día</div>' + svg
+            + '<div class="av-nota">Cada punto lleno es un día con reporte; los huecos de abajo, días sin ninguno.</div>')
       + kpi
-      + '<div class="av-sec">Tendencia por área</div>' + areas
+      + '<div class="av-sec">' + (N === 1 ? "Avance por área" : "Tendencia por área") + '</div>' + areas
       + '<div class="fila2" style="margin-top:14px"><button class="accion wsp" id="avPdf">📄 Enviar PDF</button>'
       + '<button class="accion" id="avVerPers">' + (avPersonas ? "Ocultar personas" : "👥 Ver por persona") + '</button></div>'
       + (avPersonas ? pers : "");
@@ -4754,9 +4770,10 @@ async function avancePdf(btn){
     const T = (s, x, y, o) => doc.text(L(s), x, y, o);
     const largo = f => inicioDe(f).toLocaleDateString("es-CL", { day:"numeric", month:"long" });
     let y = encabezadoPdf(doc, F, {
-      tipo: "Avance", fecha: "Últimos " + N + " días",
-      titulo: "Avance · " + N + " días",
-      sub: largo(d[0].f) + " al " + largo(d[d.length - 1].f),
+      tipo: "Avance", fecha: N === 1 ? "Hoy" : "Últimos " + N + " días",
+      titulo: N === 1 ? "Avance de hoy" : "Avance · " + N + " días",
+      sub: N === 1 ? largo(d[0].f) + "   ·   " + new Date().toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false }) + " h"
+                   : largo(d[0].f) + " al " + largo(d[d.length - 1].f),
       pct: act.prom, avance: "Promedio " + act.prom + "%"
     });
     const salto = n => { if(y + n > 280){ doc.addPage(); y = 20; } };
@@ -4764,6 +4781,7 @@ async function avancePdf(btn){
       doc.setFont(...F.sb); doc.setFontSize(12); doc.setTextColor(...C.tinta); T(t, 22, y); doc.setFont(...F.reg); y += 7; };
 
     /* gráfico */
+    if(N > 1){
     sec("Tareas hechas por día");
     const gx0 = 30, gx1 = 190, gy0 = y, gy1 = y + 48;
     const X = i => d.length === 1 ? (gx0 + gx1) / 2 : gx0 + (gx1 - gx0) * i / (d.length - 1);
@@ -4780,21 +4798,23 @@ async function avancePdf(btn){
     T(largo(d[0].f), gx0, gy1 + 5); T(largo(d[d.length - 1].f), gx1, gy1 + 5, { align:"right" });
     y = gy1 + 10;
     doc.setFontSize(8); T("Cada punto lleno es un día con reporte; los huecos de abajo, días sin ninguno.", 22, y); y += 9;
+    }
 
     /* cifras */
     sec("El periodo en cifras");
     const dl = (a, b, suf) => (!ant || a == null || b == null) ? "" : (a === b ? "   (igual)" : "   (" + (a > b ? "+" : "-") + Math.abs(a - b) + (suf || "") + ")");
     doc.setFontSize(10.5); doc.setTextColor(...C.tinta);
-    [["Avance promedio", act.prom + "%" + dl(act.prom, ant && ant.prom, " puntos")],
-     ["Días con reporte", act.con + " de " + N + dl(act.con, ant && ant.con, " días")],
+    [[N === 1 ? "Avance de hoy" : "Avance promedio", act.prom + "%" + dl(act.prom, ant && ant.prom, " puntos")],
+     N === 1 ? ["Personas con actividad", act.personas.length + dl(act.personas.length, ant && ant.personas.length)]
+             : ["Días con reporte", act.con + " de " + N + dl(act.con, ant && ant.con, " días")],
      ["Fotos", act.fotos + dl(act.fotos, ant && ant.fotos)],
      ["Pendientes con motivo", act.pend + dl(act.pend, ant && ant.pend)]].forEach(r => {
       doc.setTextColor(...C.grafito); T(r[0], 22, y); doc.setTextColor(...C.tinta); T(r[1], 82, y); y += 5.6; });
     doc.setFontSize(8); doc.setTextColor(...C.grafito);
-    T(ant ? "Entre paréntesis: diferencia con los " + N + " días anteriores." : "Con 90 días no hay periodo anterior guardado para comparar.", 22, y + 1); y += 9;
+    T(N === 1 ? "Entre paréntesis: diferencia con el cierre de ayer." : ant ? "Entre paréntesis: diferencia con los " + N + " días anteriores." : "Con 90 días no hay periodo anterior guardado para comparar.", 22, y + 1); y += 9;
 
     /* áreas */
-    sec("Tendencia por área");
+    sec(N === 1 ? "Avance por área" : "Tendencia por área");
     const conDatos = d.filter(q => q.n);
     AREAS_TAB.forEach(a => {
       const vals = conDatos.map(q => q.areas[a.a]).filter(v => v != null); if(!vals.length) return;
@@ -4826,7 +4846,8 @@ async function avancePdf(btn){
     T("El % es, de las tareas del puesto elegido cada día, cuántas dejó hechas o explicadas con motivo.", 22, y + 2);
     T("Lo hecho por otra persona del mismo puesto no cuenta en contra. La vara es la rutina actual.", 22, y + 6);
     piePdf(doc, F);
-    compartirPdf(doc, "avance_" + N + "dias_al_" + d[d.length - 1].f + ".pdf", "Avance " + N + " días — François");
+    compartirPdf(doc, N === 1 ? "avance_" + d[0].f + ".pdf" : "avance_" + N + "dias_al_" + d[d.length - 1].f + ".pdf",
+                 N === 1 ? "Avance de hoy — François" : "Avance " + N + " días — François");
   }catch(e){
     alert("No se pudo armar el PDF: " + ((e && e.message) || e));
   }finally{ btn.disabled = false; btn.textContent = txt0; }
