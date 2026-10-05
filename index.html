@@ -718,7 +718,7 @@
         <button class="accion" id="ckWa">📤 Informe semanal</button>
         <button class="accion" id="ckPdf">📄 PDF para la reunión</button>
       </div>
-      <button class="btn-diario" id="ckDiario" style="margin:0 0 13px">📋 Informe diario · Turno 1 y 2 (PI)</button>
+      <button class="btn-diario" id="ckDiario" style="margin:0 0 13px">📋 Informe diario · todo el local (PI)</button>
       <div id="supChecklists"></div>
     </div>
     <div class="fila2">
@@ -3409,7 +3409,7 @@ async function resumenSupervisor(){
             + (sinReporte ? " · " + sinReporte + " área(s) sin reporte" : "")
           : "Todavía no llega ningún informe de hoy.")
       + '<br><small>«Sin reporte» no significa que no se haya hecho: puede que no haya nadie en esa área.</small>'
-      + '<button class="btn-diario" data-diario="1">📋 Informe diario · Turno 1 y 2 (PI)</button>'
+      + '<button class="btn-diario" data-diario="1">📋 Informe diario · todo el local (PI)</button>'
       + '<button id="rsVerDetalle">👀 Ver el detalle con fotos</button>'
       + '<button id="rsTrabajar" style="background:none;color:var(--grafito);border:1px solid var(--linea)">Voy a trabajar un área</button>'
       + '</div>';
@@ -3421,7 +3421,7 @@ async function resumenSupervisor(){
 }
 document.getElementById("resumenSup").addEventListener("click", e => {
   const bd = e.target.closest("[data-diario]");
-  if(bd){ informeDiarioPdf(fechaISO(new Date()), bd); return; }
+  if(bd){ pedirInformeDiario(fechaISO(new Date()), bd); return; }
   if(e.target.closest("#rsVerDetalle")){
     ckFiltro = "hoy"; ckDia = "";
     abrirSupervision().then(() => {
@@ -3583,7 +3583,7 @@ function renderGuia(){
     + '<button class="eb pe" data-k="pend">⏳ Queda<br>pendiente</button>'
     + '<button class="eb no" data-k="nota">📝 Nota</button></div>'
     + '<button id="btnInforme">📤 Enviar informe de ' + esc(dnd || "el local") + '</button>'
-    + (puedeInformeDiario() ? '<button class="btn-diario" id="btnDiario">📋 Informe diario · Turno 1 y 2 (PI)</button>' : "");
+    + (puedeInformeDiario() ? '<button class="btn-diario" id="btnDiario">📋 Informe diario · todo el local (PI)</button>' : "");
 
   /* resumen de pendientes del área (rutina + agregados) */
   const pend = cuenta.filter(x => !listo(st, x.id));
@@ -3826,7 +3826,29 @@ document.getElementById("infPdf").addEventListener("click", async () => {
    nombre va tal como aparece en 👥 Usuarios. */
 const INFORME_DIARIO_EXTRA = ["Vanessa", "María"];
 function puedeInformeDiario(){ return esMando() || INFORME_DIARIO_EXTRA.indexOf(quienActual()) >= 0; }
-async function informeDiarioPdf(fecha, btn){
+/* Antes de armarlo se elige qué lleva: todo el día, sólo el Turno 1 (las
+   tareas generales, sin área) o sólo el Turno 2 (todas las áreas). Es la misma
+   división de las pestañas de la Guía diaria; siempre es de todo el local. */
+const TURNOS_INF = { todo:["Turno 1 y Turno 2", ""], t1:["Turno 1", "_turno1"], t2:["Turno 2", "_turno2"] };
+function pedirInformeDiario(fecha, btn){
+  const ovl = document.createElement("div"); ovl.id = "motOvl";
+  ovl.innerHTML = '<div class="cja"><h4>📋 Informe diario · todo el local</h4>'
+    + '<p class="tq">¿Qué turno va en el PDF?</p>'
+    + '<button class="op" data-c="todo">Todo el día — Turno 1 y Turno 2</button>'
+    + '<button class="op" data-c="t1">🌅 Solo Turno 1</button>'
+    + '<button class="op" data-c="t2">Solo Turno 2 — todas las áreas</button>'
+    + '<button class="op qt" data-c="">Cancelar</button></div>';
+  document.body.appendChild(ovl);
+  ovl.addEventListener("click", e => {
+    if(e.target === ovl) return ovl.remove();
+    const b = e.target.closest(".op"); if(!b) return;
+    ovl.remove();
+    if(b.dataset.c) informeDiarioPdf(fecha, btn, b.dataset.c);
+  });
+}
+async function informeDiarioPdf(fecha, btn, cual){
+  cual = TURNOS_INF[cual] ? cual : "todo";
+  const turnoTxt = TURNOS_INF[cual][0];
   const txt0 = btn ? btn.textContent : "";
   const avisa = t => { if(btn) btn.textContent = t; };
   if(btn) btn.disabled = true;
@@ -3863,9 +3885,11 @@ async function informeDiarioPdf(fecha, btn){
     const wd = inicioDe(fecha).getDay();
     const todas = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
     const hayPI = rutinaConPI();
-    const lista = todas.filter(x => hayPI ? x.pi : (M[x.id] && M[x.id].fotos.length));
+    const lista = todas.filter(x => hayPI ? x.pi : (M[x.id] && M[x.id].fotos.length))
+                       .filter(x => cual === "t1" ? !x.p : cual === "t2" ? !!x.p : true);
     if(!lista.length){
-      alert(hayPI ? "Ese día no tiene tareas marcadas PI."
+      alert(cual !== "todo" ? "El " + turnoTxt + " no tiene tareas para el informe ese día."
+          : hayPI ? "Ese día no tiene tareas marcadas PI."
                   : "No hay tareas marcadas PI ni fotos ese día.\nMarca con el botón PI las tareas que deben ir al informe.");
       return;
     }
@@ -3887,7 +3911,7 @@ async function informeDiarioPdf(fecha, btn){
       tipo: "Informe diario",
       fecha: fl.charAt(0).toUpperCase() + fl.slice(1),
       titulo: "Informe diario",
-      sub: "Turno 1 y Turno 2   ·   " + (hayPI ? "tareas para informe (PI)" : "tareas con foto")
+      sub: turnoTxt + "   ·   " + (hayPI ? "tareas para informe (PI)" : "tareas con foto")
            + "   ·   " + nFotos + (nFotos === 1 ? " foto" : " fotos"),
       pct, avance: hechas + " de " + lista.length + " · " + pct + "%"
     });
@@ -3937,7 +3961,8 @@ async function informeDiarioPdf(fecha, btn){
     if(faltan){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T(faltan + " foto(s) no se pudieron agregar (sin señal y sin copia en este teléfono).", 18, y); y += 6; }
     if(sinBase){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T("Sin conexión: este informe sólo lleva lo marcado en este teléfono.", 18, y); y += 6; }
     piePdf(doc, F, "Detalle: " + APP_URL.replace(/^https?:\/\//, "") + "/#dia/" + fecha);
-    compartirPdf(doc, "informe_diario_" + fecha + ".pdf", "Informe diario — François · " + fl, WA_DESTINO && WA_DESTINO.nombre);
+    compartirPdf(doc, "informe_diario_" + fecha + TURNOS_INF[cual][1] + ".pdf",
+                 "Informe diario — François · " + (cual === "todo" ? "" : turnoTxt + " · ") + fl, WA_DESTINO && WA_DESTINO.nombre);
   }catch(e){
     alert("No se pudo armar el informe diario: " + ((e && e.message) || e));
   }finally{ if(btn){ btn.disabled = false; btn.textContent = txt0; } }
@@ -3946,7 +3971,7 @@ document.getElementById("ckDiario").addEventListener("click", e => {
   /* el día que se está mirando en Supervisión; con «7 días» o «Todos», hoy */
   const f = ckFiltro === "ayer" ? fechaISO(new Date(Date.now() - 864e5))
           : (ckFiltro === "dia" && ckDia) ? ckDia : fechaISO(new Date());
-  informeDiarioPdf(f, e.currentTarget);
+  pedirInformeDiario(f, e.currentTarget);
 });
 
 /* ---- Área terminada → ofrecer el informe PDF al tiro ----
@@ -4014,7 +4039,7 @@ document.getElementById("extraAdd").addEventListener("click", e => {
   }
   if(e.target.closest("#btnInforme")) enviarInforme();
   const bd = e.target.closest("#btnDiario");
-  if(bd) informeDiarioPdf(fechaISO(new Date()), bd);
+  if(bd) pedirInformeDiario(fechaISO(new Date()), bd);
 });
 document.getElementById("extraAdd").addEventListener("keydown", e => {
   if(e.target.id === "exTxt" && e.key === "Enter"){
