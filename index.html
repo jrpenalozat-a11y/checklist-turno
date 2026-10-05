@@ -190,6 +190,12 @@
   .msg-enviar:disabled{opacity:.6}
   .msg-cancel{background:#EDE8DF;color:var(--grafito)}
   .msg-zona{margin-top:8px}
+  #guiaLista li.conmsg{flex-wrap:wrap}
+  .g-msg{flex:0 0 100%;box-sizing:border-box;margin:-2px 0 10px;padding:8px 11px;border-radius:10px;cursor:pointer;
+    font-size:13px;line-height:1.4;background:#FFF4DC;color:#6E4C0B;overflow-wrap:anywhere}
+  .g-msg.felicitacion{background:#E6F4EA;color:#1E6B3A}
+  .g-msg.nuevo{box-shadow:inset 0 0 0 1.5px currentColor}
+  .g-msg-n{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-left:4px}
   .msg-btn{border:1.5px solid var(--linea);background:var(--panel);color:var(--grafito);border-radius:10px;
     padding:8px 12px;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
   .msg-l{font-size:12.5px;line-height:1.4;padding:7px 10px;border-radius:9px;margin:0 0 6px;background:#FFF4DC;color:#6E4C0B}
@@ -867,7 +873,7 @@
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
         <li><b>Sin señal</b> sigue marcando y sacando fotos: quedan guardadas en el teléfono y se suben solas cuando vuelve la conexión.</li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
-        <li><b>💬 Mensajes</b>: si alguien de mando comenta una de tus fotos (👏 felicitación u 👁 observación), al abrir la app con tu nombre verás <b>«🔔 Tienes mensajes nuevos»</b>. Tócalo, lee y marca <b>Entendido</b>. Son <b>privados</b>: solo los ves tú y el mando. Los anteriores quedan en el botón <b>💬 Mensajes</b>.</li>
+        <li><b>💬 Mensajes</b>: si alguien de mando comenta una de tus fotos (👏 felicitación u 👁 observación), al abrir la app con tu nombre verás <b>«🔔 Tienes mensajes nuevos»</b>. Tócalo, lee y marca <b>Entendido</b>. El comentario también queda <b>bajo la tarea</b> en tu guía de ese día. Son <b>privados</b>: solo los ves tú y el mando. Los anteriores quedan en el botón <b>💬 Mensajes</b>.</li>
       </ul>
       <h3>🗓️ Pestaña Semanal — solo lectura</h3>
       <p>Ves la rutina completa de la semana y las <b>fotos de referencia</b> (cómo debe quedar cada cosa). La editan los dueños, el encargado y el encargado de local.</p>
@@ -3532,13 +3538,17 @@ function renderGuia(){
     const btn = !pide ? "" : '<button class="pmot' + (m ? " si" : "") + '" data-mot="' + x.id + '"'
       + (sinLaFoto ? ' data-porfoto="1"' : "") + '>'
       + (m ? (sinLaFoto ? "📷 " : "⏳ ") + esc(m) : (sinLaFoto ? "📷 ¿Por qué sin foto?" : "⏳ ¿Por qué?")) + '</button>';
-    return '<li class="' + (ok ? "hecha" : "pend") + (sinLaFoto ? " sinfoto" : "") + (pide && m ? " conmot" : "") + '">'
+    /* comentarios del mando sobre las fotos de HOY de esta tarea: quien la
+       sacó los ve aquí mismo, además del aviso de arriba */
+    let com = "";
+    try{ com = msgDeTarea(x.id, fotosDe(st, x.id)); }catch(e){}
+    return '<li class="' + (ok ? "hecha" : "pend") + (sinLaFoto ? " sinfoto" : "") + (pide && m ? " conmot" : "") + (com ? " conmsg" : "") + '">'
       + '<label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "") + (otro ? " disabled" : "")
       + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
       + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + req + deOtro + '</span>'
       + (esExtra ? "" : '<button class="sem-pi' + (x.pi ? " on" : "") + '" data-pi="' + x.id
           + '" aria-label="' + (x.pi ? "Sus fotos van al informe" : "Agregar sus fotos al informe") + '">PI</button>')
-      + foto(x) + btn + '</li>';
+      + foto(x) + btn + com + '</li>';
   }
   const MOM = [["ap","🌅 Apertura"], ["du","☀️ Durante el turno"], ["ci","🌙 Al cierre"]];
   let html = "";
@@ -4443,6 +4453,18 @@ document.getElementById("supMensaje").addEventListener("click", () => abrirMensa
 
 /* ---- lado de quien recibe ---- */
 let MIS_MSG = [];
+/* mensajes para mí sobre una tarea de hoy (por la foto comentada o, si el
+   mensaje no trae foto, por la tarea y el día). Los de días anteriores no
+   salen en la guía —parte en blanco cada mañana—: quedan en 💬 Mensajes. */
+function msgDeTarea(id, paths){
+  const hoy = fechaISO(new Date());
+  const ms = MIS_MSG.filter(m => (m.foto && paths.indexOf(m.foto) >= 0) || (!m.foto && m.tarea_id === id && m.dia === hoy));
+  return ms.slice().reverse().map(m => {
+    const t = MSG_TIPOS[m.tipo] || MSG_TIPOS.observacion;
+    return '<div class="g-msg ' + esc(m.tipo) + (m.leido_at ? "" : " nuevo") + '"><b>' + t[0] + " " + esc(m.de) + ':</b> ' + esc(m.texto)
+      + (m.leido_at ? "" : ' <span class="g-msg-n">nuevo</span>') + '</div>';
+  }).join("");
+}
 function pintarAvisoMsg(){
   const av = document.getElementById("msgAviso"), bt = document.getElementById("btnMensajes");
   const nuevos = MIS_MSG.filter(m => !m.leido_at).length;
@@ -4451,6 +4473,8 @@ function pintarAvisoMsg(){
     + (nuevos === 1 ? " mensaje nuevo" : " mensajes nuevos") + '</b><small>Toca para ' + (nuevos === 1 ? "verlo" : "verlos") + '</small></span>' : "";
   bt.style.display = MIS_MSG.length ? "" : "none";
   bt.textContent = "💬 Mensajes" + (nuevos ? " (" + nuevos + ")" : "");
+  /* la guía muestra los comentarios bajo cada foto: se redibuja al llegar o leer uno */
+  try{ if(document.querySelector('.tab-panel.on[data-tab="guia"]')) renderGuia(); }catch(e){}
 }
 let _msgPara = "";
 async function revisarMensajes(){
@@ -4511,6 +4535,11 @@ function verMensajes(soloNuevos){
   pinta();
 }
 document.getElementById("msgAviso").addEventListener("click", () => verMensajes(true));
+document.getElementById("guiaLista").addEventListener("click", e => {
+  const g = e.target.closest(".g-msg"); if(!g) return;
+  e.preventDefault(); e.stopPropagation();
+  verMensajes(MIS_MSG.some(m => !m.leido_at));
+});
 document.getElementById("btnMensajes").addEventListener("click", () => verMensajes(MIS_MSG.some(m => !m.leido_at)));
 document.addEventListener("visibilitychange", () => { if(!document.hidden) revisarMensajes(); });
 
