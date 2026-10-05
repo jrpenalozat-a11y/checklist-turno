@@ -1701,7 +1701,8 @@ async function cargarChecklists(){
             + msgBloque({ foto:fs[0], para:(t.por && t.por.q) || e.entrega, tarea:t.t, tid:t.id, dia:fechaDeReg(r) })
             + '</div></div>';
         }
-        return '<div class="ck-t">' + chk + '<span class="ck-txt">' + txt + mot + q
+        const mf = t.ok && t.mfoto ? '<div class="ck-mot">📷 Sin foto: ' + esc(t.mfoto) + '</div>' : "";
+        return '<div class="ck-t">' + chk + '<span class="ck-txt">' + txt + mot + mf + q
           + '</span><span class="ck-nofoto">sin foto</span></div>';
       };
       let cuerpo = "";
@@ -3242,7 +3243,11 @@ async function syncGuiaRemoto(){
   const tareas = items.map(x => { const fs = fotosDe(st, x.id);
     return { id:x.id, t:x.t, p:x.p || undefined, ok:st.done.has(x.id),
              foto:fs[0] || undefined, fotos:fs.length > 1 ? fs : undefined, por:firma(x),
-             motivo:(!st.done.has(x.id) && mot[x.id]) || undefined }; });
+             motivo:(!st.done.has(x.id) && mot[x.id]) || undefined,
+             /* hecha, pero sin la foto que la tarea exige: el porqué también sube.
+                Antes se pedía y se quedaba en el teléfono: Supervisión veía
+                «sin foto» sin saber si fue la cámara, la batería o el tiempo. */
+             mfoto:(st.done.has(x.id) && !fs.length && exigeFoto(x) && mot[x.id]) || undefined }; });
 
   const exMios = extrasDe("mio");
   const exYa = new Set(exMios.map(x => x.id));
@@ -3920,9 +3925,10 @@ async function informeDiarioPdf(fecha, btn, cual){
     avisa("Juntando lo del día…");
     const esHoy = fecha === fechaISO(new Date());
     const M = {};                                         // id → { ok, fotos, motivo, por }
-    const de = id => M[id] || (M[id] = { ok:false, fotos:[], motivo:"", por:null });
-    const suma = (id, ok, fotos, motivo, por) => {
+    const de = id => M[id] || (M[id] = { ok:false, fotos:[], motivo:"", mfoto:"", por:null });
+    const suma = (id, ok, fotos, motivo, por, mfoto) => {
       const m = de(id);
+      if(mfoto && !m.mfoto) m.mfoto = mfoto;
       fotos.forEach(p => { if(m.fotos.indexOf(p) < 0) m.fotos.push(p); });
       if(ok){ if(!m.ok || !m.por) m.por = por || m.por; m.ok = true; }
       else if(motivo && !m.motivo){ m.motivo = motivo; if(!m.por) m.por = por || null; }
@@ -3937,12 +3943,16 @@ async function informeDiarioPdf(fecha, btn, cual){
       if(error) throw error;
       const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas) && fechaDeReg(r) === fecha);
       informes = filas.length;
-      filas.forEach(r => r.estado.tareas.forEach(t => suma(t.id, !!t.ok, fotosT(t), t.motivo || "", t.por)));
+      filas.forEach(r => r.estado.tareas.forEach(t => suma(t.id, !!t.ok, fotosT(t), t.motivo || "", t.por, t.mfoto || "")));
     }catch(e){ sinBase = true; }
     if(esHoy){
       const st = cargarDia(), mot = cargarMot();
       const ids = new Set([...st.done, ...Object.keys(st.fotos), ...Object.keys(mot)]);
-      ids.forEach(id => suma(id, st.done.has(id), fotosDe(st, id), mot[id] || "", st.por[id] || st.fpor[id]));
+      /* el motivo guardado sólo es «por qué sin foto» si la tarea exige foto:
+         si no, puede ser el de cuando estaba pendiente, antes de marcarla */
+      const pide = new Set((RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[new Date().getDay()]) || []).filter(exigeFoto).map(x => x.id));
+      ids.forEach(id => suma(id, st.done.has(id), fotosDe(st, id), mot[id] || "", st.por[id] || st.fpor[id],
+                             (st.done.has(id) && !fotosDe(st, id).length && pide.has(id) && mot[id]) || ""));
     }
     if(sinBase && !esHoy){ alert("No se pudo leer la base. El informe diario de otro día necesita conexión."); return; }
 
@@ -4015,7 +4025,8 @@ async function informeDiarioPdf(fecha, btn, cual){
         doc.setFont(...F.sb); doc.setFontSize(10.5); doc.setTextColor(...C.tinta); y += W(limpio(x.t), 18, y, 174) - 0.4;
         doc.setFont(...F.reg); doc.setFontSize(9);
         const quien = m.por && m.por.q ? "   ·   " + m.por.q + (m.por.h ? "   ·   " + m.por.h : "") : "";
-        if(m.ok){ doc.setTextColor(...C.verde); T("Hecha" + quien + (ims.length ? "" : "   ·   sin foto"), 18, y); }
+        if(m.ok){ doc.setTextColor(...C.verde); T("Hecha" + quien + (ims.length ? "" : "   ·   sin foto"), 18, y);
+          if(!ims.length && m.mfoto){ y += 4.8; doc.setTextColor(...C.ambar); y += W("Sin foto: " + m.mfoto, 18, y, 174) - 4.8; } }
         else if(m.motivo){ doc.setTextColor(...C.ambar); y += W("Pendiente — " + m.motivo + quien, 18, y, 174) - 4.8; }
         else { doc.setTextColor(...C.grafito); T("Sin registro" + (ims.length ? "   ·   con foto, no marcada" : ""), 18, y); }
         y += 9;
