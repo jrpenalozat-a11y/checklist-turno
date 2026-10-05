@@ -152,7 +152,7 @@ subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno
   Turno 2 (por área), solo con las **tareas PI** del día: fotos, quién la hizo y, si quedó
   pendiente, el motivo. Junta lo que hay en la base de todas las personas y, si es hoy, lo de
   este teléfono aunque no se haya subido. Botón coral **📋 Informe diario · Turno 1 y 2 (PI)**,
-  para el mando y para quien esté en `INFORME_DIARIO_EXTRA` (hoy: Vanessa), al pie de la Guía
+  para el mando y para quien esté en `INFORME_DIARIO_EXTRA` (hoy: Vanessa y María), al pie de la Guía
   diaria; el mando lo tiene además en el resumen del supervisor y en Supervisión →
   Informe del día (ahí usa el día del filtro: Hoy, Ayer o la fecha elegida).
 - **Tareas compartidas** (`OTROS`, `cargarOtros`, `listo`) — lo que otra persona ya marcó hoy

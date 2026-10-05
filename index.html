@@ -3824,7 +3824,7 @@ document.getElementById("infPdf").addEventListener("click", async () => {
 /* Quién ve el botón del informe diario: el mando y, además, las personas de
    esta lista (colaboradores a quienes el dueño les encargó enviarlo). El
    nombre va tal como aparece en 👥 Usuarios. */
-const INFORME_DIARIO_EXTRA = ["Vanessa"];
+const INFORME_DIARIO_EXTRA = ["Vanessa", "María"];
 function puedeInformeDiario(){ return esMando() || INFORME_DIARIO_EXTRA.indexOf(quienActual()) >= 0; }
 async function informeDiarioPdf(fecha, btn){
   const txt0 = btn ? btn.textContent : "";
