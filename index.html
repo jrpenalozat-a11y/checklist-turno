@@ -191,6 +191,14 @@
   .msg-enviar:disabled{opacity:.6}
   .msg-cancel{background:#EDE8DF;color:var(--grafito)}
   .msg-zona{margin-top:8px}
+  .env-item{border:1px solid var(--linea);border-left:4px solid #2E9E6B;border-radius:4px 12px 12px 4px;padding:10px 12px;margin:0 0 9px;background:var(--crema)}
+  .env-item.sin{border-left-color:#E0A030}
+  .env-cab{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .env-cab .msg-chip{margin-bottom:0}
+  .env-est{font-size:12px;font-weight:700;color:#2E9E6B;text-align:right}
+  .env-item.sin .env-est{color:#9A6B12}
+  .env-para{font-size:12px;color:var(--grafito);margin:7px 0 5px}
+  .env-txt{font-size:13.5px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
   #guiaLista li.conmsg{flex-wrap:wrap}
   .g-msg{flex:0 0 100%;box-sizing:border-box;margin:-2px 0 10px;padding:8px 11px;border-radius:10px;cursor:pointer;
     font-size:13px;line-height:1.4;background:#FFF4DC;color:#6E4C0B;overflow-wrap:anywhere}
@@ -701,6 +709,10 @@
     <div class="sup-sub" id="supSub">
       <span class="ssub on" data-sub="checklists">📋 Informe del día</span>
       <span class="ssub solo-turno" data-sub="traspasos">📸 Traspasos</span>
+      <span class="ssub" data-sub="mensajes">💬 Mensajes</span>
+    </div>
+    <div id="supPanelMensajes" style="display:none">
+      <div id="supMensajes"></div>
     </div>
     <div id="supPanelTraspasos" style="display:none">
       <div class="sup-filtros" id="supFiltros">
@@ -922,6 +934,7 @@
         <li class="solo-turno"><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, <b>puesto</b>, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
         <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
         <li><b>💬 Comentar</b> (bajo cada foto, en Informe del día e Inspección): elige <b>👏 Felicitación</b> u <b>👁 Observación</b>, escribe y envía. Le llega a quien sacó la foto cuando abre la app; bajo la foto verás si ya lo leyó (<b>✓ visto</b>). <b>💬 Mensaje</b> (arriba) manda uno sin foto a una persona. Un mensaje enviado no se puede editar ni borrar.</li>
+        <li><b>💬 Mensajes</b> (sub-pestaña): la lista de todo lo enviado, con <b>✓ visto</b> y la hora en que lo abrieron, o <b>sin leer</b>.</li>
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
       <h3>👥 Usuarios</h3>
@@ -2167,7 +2180,9 @@ document.getElementById("supSub").addEventListener("click", e => {
   document.querySelectorAll("#supSub .ssub").forEach(x => x.classList.toggle("on", x === b));
   document.getElementById("supPanelTraspasos").style.display = sub === "traspasos" ? "" : "none";
   document.getElementById("supPanelChecklists").style.display = sub === "checklists" ? "" : "none";
+  document.getElementById("supPanelMensajes").style.display = sub === "mensajes" ? "" : "none";
   if(sub === "checklists") cargarChecklists();
+  if(sub === "mensajes") cargarEnviados();
 });
 
 /* ---- Instalar app (PWA) + Compartir app ---- */
@@ -4479,6 +4494,7 @@ function abrirMensaje(o){
       cerrar();
       pintarMensajes(document.getElementById("supChecklists"));
       pintarMensajes(document.getElementById("inspCont"));
+      if(document.getElementById("supPanelMensajes").style.display !== "none") cargarEnviados();
       if(!o.foto) alert("Mensaje enviado a " + para + ". Lo verá al abrir la app con su nombre.");
     }catch(err){
       env.disabled = false; env.textContent = "Enviar";
@@ -4493,6 +4509,37 @@ document.addEventListener("click", e => {
   abrirMensaje({ foto:b.dataset.mfoto, para:b.dataset.para, tarea:b.dataset.tarea, tid:b.dataset.tid, dia:b.dataset.dia });
 });
 document.getElementById("supMensaje").addEventListener("click", () => abrirMensaje({}));
+
+/* ---- Supervisión · sub-pestaña «Mensajes»: lo enviado y si ya se leyó ----
+   Todos los mensajes (con o sin foto), del más nuevo al más viejo, con
+   «✓ visto» y la hora en que lo abrieron, o «sin leer». */
+async function cargarEnviados(){
+  const cont = document.getElementById("supMensajes");
+  cont.innerHTML = '<div class="sinreg">Cargando…</div>';
+  const client = getSB(); if(!client){ cont.innerHTML = '<div class="sinreg">Sin conexión con la base.</div>'; return; }
+  try{
+    await vfSesion(client);
+    const { data, error } = await client.from("mensajes").select("*").order("created_at", { ascending:false }).limit(150);
+    if(error) throw error;
+    const ms = (data || []).filter(m => m.de !== "(prueba)" && m.para !== "(prueba)");
+    if(!ms.length){ cont.innerHTML = '<div class="sinreg">Todavía no se ha enviado ningún mensaje.<br><small>Se envían con 💬 Comentar bajo una foto, o con 💬 Mensaje arriba.</small></div>'; return; }
+    const sin = ms.filter(m => !m.leido_at).length;
+    cont.innerHTML = '<div class="ck-tot">' + ms.length + (ms.length === 1 ? " mensaje" : " mensajes")
+      + " · <b>" + sin + "</b> sin leer</div>"
+      + ms.map(m => {
+          const t = MSG_TIPOS[m.tipo] || MSG_TIPOS.observacion;
+          return '<div class="env-item' + (m.leido_at ? "" : " sin") + '">'
+            + '<div class="env-cab"><span class="msg-chip ' + esc(m.tipo) + '">' + t[0] + " " + t[1] + '</span>'
+            + '<span class="env-est">' + (m.leido_at ? "✓ visto · " + esc(msgFecha(m.leido_at)) : "sin leer") + '</span></div>'
+            + '<div class="env-para">Para <b>' + esc(m.para) + '</b>' + (m.de ? " · de " + esc(m.de) : " · sin firma")
+            + " · " + esc(msgFecha(m.created_at)) + '</div>'
+            + (m.tarea ? '<div class="msg-tarea">' + (m.foto ? "📷 " : "") + esc(m.tarea) + '</div>' : "")
+            + '<div class="env-txt">' + esc(m.texto) + '</div></div>';
+        }).join("");
+  }catch(e){
+    cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((e && e.message) || e) + '</div>';
+  }
+}
 
 /* ---- lado de quien recibe ---- */
 let MIS_MSG = [];
