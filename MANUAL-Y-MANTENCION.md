@@ -173,6 +173,15 @@ subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno
   del equipo; la foto vuelve con el mismo tope de 1280 px y el mismo sello. La elección se
   recuerda en `localStorage` (`cam.ancho`).
 
+### Supervisión · Avance (5-oct-2026)
+
+Sub-pestaña **📊 Avance**: gráfico con el % de tareas hechas por día (7, 30 o 90 días), cifras
+comparadas con el periodo anterior, tendencia por área, participación por persona y PDF. No
+guarda nada: se calcula al abrirla leyendo `checklists`. Reglas: una tarea cuenta como hecha
+si cualquiera la reportó; el total del día es la **rutina actual** de ese día de la semana; un
+día cuenta «con reporte» solo si algún registro `guia-…` trae algo (tarea hecha, motivo o foto).
+El historial llega a **90 días** por la limpieza de los lunes. Solo para el mando.
+
 ### Dónde vive cada cosa (importante antes de tocar nada)
 
 | Dato | Dónde | Se borra si… |
