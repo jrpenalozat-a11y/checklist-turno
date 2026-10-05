@@ -168,6 +168,44 @@
   #motOvl .op.qt{border-color:#E8C98A;background:#FFF8EC;color:#9A6B12}
   #motOvl input{width:100%;padding:12px 13px;border-radius:11px;border:1.5px solid var(--linea);
     background:transparent;color:inherit;font-family:inherit;font-weight:500;font-size:13.5px;margin:4px 0 8px}
+  /* mensajes del mando: escribir, ver bajo la foto y leer del otro lado */
+  #msgOvl{position:fixed;inset:0;z-index:100000;background:rgba(18,14,30,.55);display:flex;
+    align-items:flex-end;justify-content:center}
+  #msgOvl .cja{width:100%;max-width:520px;background:var(--panel);color:var(--tinta);
+    border-radius:18px 18px 0 0;padding:16px 16px 22px;max-height:88vh;overflow:auto}
+  #msgOvl h4{margin:0 0 8px;font-weight:700;font-size:15px;line-height:1.25}
+  #msgOvl .tq{margin:0 0 10px;font-weight:500;font-size:12.5px;line-height:1.35;opacity:.7}
+  .msg-lab{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--grafito);margin-bottom:4px}
+  #msgOvl select,#msgOvl textarea{width:100%;padding:11px 12px;border-radius:11px;border:1.5px solid var(--linea);
+    background:transparent;color:inherit;font-family:inherit;font-weight:500;font-size:14px;margin:0 0 10px;box-sizing:border-box}
+  #msgOvl textarea{resize:vertical;min-height:84px;line-height:1.4}
+  .msg-tipos{display:flex;gap:8px;margin:0 0 10px}
+  .msg-tipo{flex:1;padding:11px 8px;border-radius:11px;border:1.5px solid var(--linea);background:transparent;
+    color:var(--grafito);font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+  .msg-tipo.felicitacion.on{background:#E6F4EA;border-color:#8FCDA6;color:#1E6B3A}
+  .msg-tipo.observacion.on{background:#FFF4DC;border-color:#E8C98A;color:#8A5F0E}
+  .msg-acc{display:flex;gap:8px;margin-top:6px}
+  .msg-enviar,.msg-cancel{flex:1;border:0;border-radius:13px;padding:14px 8px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer}
+  .msg-enviar{background:var(--coral);color:var(--crema)}
+  .msg-enviar:disabled{opacity:.6}
+  .msg-cancel{background:#EDE8DF;color:var(--grafito)}
+  .msg-zona{margin-top:8px}
+  .msg-btn{border:1.5px solid var(--linea);background:var(--panel);color:var(--grafito);border-radius:10px;
+    padding:8px 12px;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+  .msg-l{font-size:12.5px;line-height:1.4;padding:7px 10px;border-radius:9px;margin:0 0 6px;background:#FFF4DC;color:#6E4C0B}
+  .msg-l.felicitacion{background:#E6F4EA;color:#1E6B3A}
+  .msg-l small{opacity:.75;font-weight:600;white-space:nowrap}
+  #msgAviso{display:flex;align-items:center;gap:10px;margin:10px 0 0;padding:12px 14px;border-radius:14px;cursor:pointer;
+    background:#F4F0FF;border:1.5px solid #B9A6F5;color:#3D2A8C;font-size:14px;line-height:1.3}
+  #msgAviso small{display:block;font-weight:500;font-size:12px;opacity:.8}
+  #msgAviso .msg-camp{font-size:22px;line-height:1}
+  .msg-card{border:1px solid var(--linea);border-radius:13px;padding:12px;margin:0 0 10px;background:var(--crema)}
+  .msg-chip{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;margin-bottom:9px;background:#FFF4DC;color:#8A5F0E}
+  .msg-chip.felicitacion{background:#E6F4EA;color:#1E6B3A}
+  .msg-img{display:block;width:100%;max-height:46vh;object-fit:contain;border-radius:10px;background:#EADCC8;margin-bottom:9px}
+  .msg-tarea{font-size:12px;font-weight:600;color:var(--grafito);margin-bottom:6px}
+  .msg-texto{font-size:15px;line-height:1.45;font-weight:500;white-space:pre-wrap;overflow-wrap:anywhere}
+  .msg-de{font-size:11.5px;font-weight:600;color:var(--grafito);margin-top:8px}
   /* agregar del día: tarea extra / pendiente / nota + informe */
   #extraAdd{margin:16px 0 4px;padding:12px;border:1.5px dashed var(--linea);border-radius:13px}
   #extraAdd .eh{font-family:inherit;font-weight:700;font-size:12px;line-height:1;letter-spacing:.05em;text-transform:uppercase;opacity:.6;margin-bottom:9px}
@@ -501,7 +539,9 @@
   <div class="topbar">
     <button class="mini" id="btnQuien">👤 ¿Quién eres?</button>
     <button class="mini" id="btnAyuda">📖 Ayuda</button>
+    <button class="mini" id="btnMensajes" style="display:none">💬 Mensajes</button>
   </div>
+  <div id="msgAviso" style="display:none" role="button"></div>
   <div class="topbar solo-sup-row">
     <button class="mini" id="btnSupervision">👀 Supervisión</button>
     <button class="mini solo-admin" id="btnUsuarios">👥 Usuarios</button>
@@ -645,6 +685,7 @@
     <div class="rango">Foto verificada · quién · turno · hora del servidor · ubicación</div>
     <div class="fila2" style="margin:0 0 12px">
       <button class="accion" id="supUsuarios">👥 Usuarios</button>
+      <button class="accion" id="supMensaje">💬 Mensaje</button>
       <button class="accion" id="supLock">🔒 Bloquear</button>
     </div>
     <div class="sup-sub" id="supSub">
@@ -826,6 +867,7 @@
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
         <li><b>Sin señal</b> sigue marcando y sacando fotos: quedan guardadas en el teléfono y se suben solas cuando vuelve la conexión.</li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
+        <li><b>💬 Mensajes</b>: si alguien de mando comenta una de tus fotos (👏 felicitación u 👁 observación), al abrir la app con tu nombre verás <b>«🔔 Tienes mensajes nuevos»</b>. Tócalo, lee y marca <b>Entendido</b>. Son <b>privados</b>: solo los ves tú y el mando. Los anteriores quedan en el botón <b>💬 Mensajes</b>.</li>
       </ul>
       <h3>🗓️ Pestaña Semanal — solo lectura</h3>
       <p>Ves la rutina completa de la semana y las <b>fotos de referencia</b> (cómo debe quedar cada cosa). La editan los dueños, el encargado y el encargado de local.</p>
@@ -869,6 +911,7 @@
       <ul>
         <li class="solo-turno"><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, <b>puesto</b>, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
         <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
+        <li><b>💬 Comentar</b> (bajo cada foto, en Informe del día e Inspección): elige <b>👏 Felicitación</b> u <b>👁 Observación</b>, escribe y envía. Le llega a quien sacó la foto cuando abre la app; bajo la foto verás si ya lo leyó (<b>✓ visto</b>). <b>💬 Mensaje</b> (arriba) manda uno sin foto a una persona. Un mensaje enviado no se puede editar ni borrar.</li>
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
       <h3>👥 Usuarios</h3>
@@ -1600,7 +1643,9 @@ async function cargarChecklists(){
             + fs.map(p => '<img class="ck-thumb" data-url="' + (fotoCache[p] || "") + '" src="' + (fotoCache[p] || PIX)
               + '" alt="Foto de: ' + esc(t.t || "") + '" loading="lazy">').join("")
             + '<div class="ck-pie"><div class="ck-t">' + chk + '<span class="ck-txt">' + txt + '</span></div>'
-            + mot + q + '</div></div>';
+            + mot + q
+            + msgBloque({ foto:fs[0], para:(t.por && t.por.q) || e.entrega, tarea:t.t, tid:t.id, dia:fechaDeReg(r) })
+            + '</div></div>';
         }
         return '<div class="ck-t">' + chk + '<span class="ck-txt">' + txt + mot + q
           + '</span><span class="ck-nofoto">sin foto</span></div>';
@@ -1647,6 +1692,7 @@ async function cargarChecklists(){
         + (zonas.length > 1 ? ' · trabajó en <b>' + esc(zonas.join(" y ")) + '</b>' : "")
         + '</small></div>' + cuerpo + '</div>';
     }).join("");
+    pintarMensajes(cont);
   }catch(err){
     cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((err && err.message) || String(err)) + '</div>';
   }
@@ -1718,7 +1764,7 @@ async function cargarInspeccion(){
       const dia = fechaDeReg(r);
       (r.estado.tareas || []).forEach(t => {
         const fs = fotosT(t);                 // una tarjeta por foto
-        if(fs.length) fs.forEach(p => fotos.push({ ...t, foto:p, dia }));
+        if(fs.length) fs.forEach(p => fotos.push({ ...t, foto:p, dia, _q:r.estado.entrega }));
         else if(!t.ok && t.motivo) pend.push({ ...t, dia });
       });
       (r.estado.extras || []).forEach(x => { if(!x.ok && x.motivo) pend.push({ ...x, dia }); });
@@ -1742,7 +1788,9 @@ async function cargarInspeccion(){
       + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "") + '</div>'
       + '<div class="insp-meta">' + esc(dl(t.dia))
       + (t.por && t.por.q ? " · " + esc(t.por.q) : "")
-      + (t.por && t.por.h ? " · " + esc(t.por.h) : "") + '</div></div></div>').join("");
+      + (t.por && t.por.h ? " · " + esc(t.por.h) : "") + '</div>'
+      + msgBloque({ foto:t.foto, para:(t.por && t.por.q) || t._q, tarea:t.t, tid:t.id, dia:t.dia })
+      + '</div></div>').join("");
     if(pend.length){
       html += '<div class="insp-sec">⏳ No se pudo hacer · ' + pend.length + '</div>'
         + pend.map(t => '<div class="insp-pend"><div class="t">' + esc(soloTarea(t.t))
@@ -1751,6 +1799,7 @@ async function cargarInspeccion(){
             + '<div class="q">' + esc(dl(t.dia)) + (t.por && t.por.q ? " · " + esc(t.por.q) : "") + '</div></div>').join("");
     }
     cont.innerHTML = html;
+    pintarMensajes(cont);
   }catch(e){
     cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((e && e.message) || e) + '</div>';
   }
@@ -2681,6 +2730,7 @@ document.getElementById("puestoListo").addEventListener("click", () => {
      hasta marcar algo o tocar otra pestaña, como si no se hubiera elegido */
   areaSel = "mio";
   if(typeof renderGuia === "function") renderGuia();
+  if(typeof revisarMensajes === "function") revisarMensajes();   // entró otra persona: sus mensajes
 });
 document.getElementById("quienSkip").addEventListener("click", () => quienOvl.classList.remove("on"));
 /* volver al paso 1: si elegiste mal el nombre quedabas atrapado en el paso 2,
@@ -4292,6 +4342,178 @@ function limpiarDiasViejos(){
     }
   }catch(e){}
 }
+/* ---- Mensajes del mando a quien sacó una foto ----
+   Quien es de mando comenta una foto desde Supervisión o Inspección
+   (👏 felicitación / 👁 observación). La persona lo ve al abrir la app con su
+   nombre: aviso arriba de la guía + tarjeta con la foto, y toca «Entendido».
+   Tabla `mensajes` (SQL-mensajes.sql). Desde la app sólo se puede leer, crear
+   y marcar leído: un mensaje enviado no se edita ni se borra.
+   Privados: cada uno ve los suyos; el mando los ve bajo cada foto. */
+const MSG_TIPOS = { felicitacion:["👏", "Felicitación"], observacion:["👁", "Observación"] };
+function msgNombre(s){ return String(s || "").replace(/\s*\(.*\)\s*$/, "").trim(); }   // «Alison (Salón)» → «Alison»
+function msgBloque(o){
+  if(!esMando()) return "";
+  return '<div class="msg-zona" data-msgfoto="' + esc(o.foto || "") + '"><div class="msg-lista"></div>'
+    + '<button class="msg-btn" data-mfoto="' + esc(o.foto || "") + '" data-para="' + esc(msgNombre(o.para)) + '"'
+    + ' data-tarea="' + esc(o.tarea || "") + '" data-tid="' + esc(o.tid || "") + '" data-dia="' + esc(o.dia || "") + '">💬 Comentar</button></div>';
+}
+function msgLinea(m){
+  const t = MSG_TIPOS[m.tipo] || MSG_TIPOS.observacion;
+  return '<div class="msg-l ' + esc(m.tipo) + '"><b>' + t[0] + " " + esc(m.de) + " → " + esc(m.para) + ':</b> ' + esc(m.texto)
+    + ' <small>' + (m.leido_at ? "✓ visto" : "sin leer") + '</small></div>';
+}
+/* trae los mensajes ya escritos sobre las fotos que hay en pantalla */
+async function pintarMensajes(root){
+  if(!root || !esMando()) return;
+  const zonas = [...root.querySelectorAll(".msg-zona")];
+  const paths = [...new Set(zonas.map(z => z.dataset.msgfoto).filter(Boolean))];
+  if(!paths.length) return;
+  const client = getSB(); if(!client) return;
+  try{
+    await vfSesion(client);
+    let filas = [];
+    for(let i = 0; i < paths.length; i += 60){
+      const { data } = await client.from("mensajes").select("id,de,para,tipo,texto,foto,created_at,leido_at")
+        .in("foto", paths.slice(i, i + 60)).order("created_at");
+      filas = filas.concat(data || []);
+    }
+    zonas.forEach(z => {
+      z.querySelector(".msg-lista").innerHTML = filas.filter(f => f.foto === z.dataset.msgfoto).map(msgLinea).join("");
+    });
+  }catch(e){}
+}
+/* tarjeta para escribir: con foto (o = datos de la foto) o suelta a una persona */
+function abrirMensaje(o){
+  if(!esMando()){ alert("Solo quien es de mando puede enviar mensajes."); return; }
+  if(!quienActual()){ alert("Elige tu nombre primero: el mensaje va firmado."); return; }
+  o = o || {};
+  const gente = USUARIOS.filter(u => u.activo !== false && u.nombre !== quienActual()).map(u => u.nombre);
+  const fijo = o.para && gente.indexOf(o.para) >= 0;
+  const ovl = document.createElement("div"); ovl.id = "msgOvl";
+  ovl.innerHTML = '<div class="cja"><h4>' + (o.foto ? "💬 Comentar la foto" : "💬 Mensaje a una persona") + '</h4>'
+    + (o.tarea ? '<p class="tq">' + esc(limpio(o.tarea)) + '</p>' : "")
+    + '<label class="msg-lab">Para</label>'
+    + '<select id="msgPara">' + (fijo ? "" : '<option value="">— elegir persona —</option>')
+    + gente.map(n => '<option' + (n === o.para ? " selected" : "") + '>' + esc(n) + '</option>').join("") + '</select>'
+    + '<div class="msg-tipos"><button class="msg-tipo felicitacion on" data-t="felicitacion">👏 Felicitación</button>'
+    + '<button class="msg-tipo observacion" data-t="observacion">👁 Observación</button></div>'
+    + '<textarea id="msgTexto" maxlength="500" rows="3" placeholder="Escribe el mensaje…"></textarea>'
+    + '<div class="msg-acc"><button class="msg-enviar" id="msgEnviar">Enviar</button>'
+    + '<button class="msg-cancel" id="msgCancel">Cancelar</button></div></div>';
+  document.body.appendChild(ovl);
+  const txt = ovl.querySelector("#msgTexto"), sel = ovl.querySelector("#msgPara");
+  const cerrar = () => ovl.remove();
+  let tipo = "felicitacion";
+  ovl.addEventListener("click", async e => {
+    if(e.target === ovl || e.target.closest("#msgCancel")) return cerrar();
+    const tb = e.target.closest(".msg-tipo");
+    if(tb){ tipo = tb.dataset.t; ovl.querySelectorAll(".msg-tipo").forEach(b => b.classList.toggle("on", b === tb)); return; }
+    const env = e.target.closest("#msgEnviar"); if(!env) return;
+    const para = sel.value, texto = txt.value.trim();
+    if(!para){ alert("Elige a quién va el mensaje."); return; }
+    if(!texto){ txt.focus(); return; }
+    const client = getSB(); if(!client){ alert("Sin conexión con la base."); return; }
+    env.disabled = true; env.textContent = "Enviando…";
+    try{
+      await vfSesion(client);
+      const fila = { de: quienActual(), para, tipo, texto };
+      if(o.foto) fila.foto = o.foto;
+      if(o.tarea) fila.tarea = limpio(o.tarea);
+      if(o.tid) fila.tarea_id = o.tid;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(o.dia || "")) fila.dia = o.dia;
+      const { error } = await client.from("mensajes").insert(fila);
+      if(error) throw error;
+      cerrar();
+      pintarMensajes(document.getElementById("supChecklists"));
+      pintarMensajes(document.getElementById("inspCont"));
+      if(!o.foto) alert("Mensaje enviado a " + para + ". Lo verá al abrir la app con su nombre.");
+    }catch(err){
+      env.disabled = false; env.textContent = "Enviar";
+      alert("No se pudo enviar: " + ((err && err.message) || err));
+    }
+  });
+  setTimeout(() => txt.focus({ preventScroll:true }), 80);
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest(".msg-btn"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  abrirMensaje({ foto:b.dataset.mfoto, para:b.dataset.para, tarea:b.dataset.tarea, tid:b.dataset.tid, dia:b.dataset.dia });
+});
+document.getElementById("supMensaje").addEventListener("click", () => abrirMensaje({}));
+
+/* ---- lado de quien recibe ---- */
+let MIS_MSG = [];
+function pintarAvisoMsg(){
+  const av = document.getElementById("msgAviso"), bt = document.getElementById("btnMensajes");
+  const nuevos = MIS_MSG.filter(m => !m.leido_at).length;
+  av.style.display = nuevos ? "" : "none";
+  av.innerHTML = nuevos ? '<span class="msg-camp">🔔</span><span><b>Tienes ' + nuevos
+    + (nuevos === 1 ? " mensaje nuevo" : " mensajes nuevos") + '</b><small>Toca para ' + (nuevos === 1 ? "verlo" : "verlos") + '</small></span>' : "";
+  bt.style.display = MIS_MSG.length ? "" : "none";
+  bt.textContent = "💬 Mensajes" + (nuevos ? " (" + nuevos + ")" : "");
+}
+let _msgPara = "";
+async function revisarMensajes(){
+  const n = quienActual();
+  if(n !== _msgPara){ MIS_MSG = []; _msgPara = n; pintarAvisoMsg(); }   // cambió la persona: no mostrar los de otro
+  if(!n) return;
+  const client = getSB(); if(!client) return;
+  try{
+    await vfSesion(client);
+    const { data, error } = await client.from("mensajes").select("*").eq("para", n)
+      .order("created_at", { ascending:false }).limit(40);
+    if(error || quienActual() !== n) return;
+    MIS_MSG = data || [];
+    pintarAvisoMsg();
+  }catch(e){}
+}
+function msgFecha(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString("es-CL", { weekday:"short", day:"numeric", month:"short" }) + " · "
+       + d.toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false });
+}
+function msgTarjeta(m){
+  const t = MSG_TIPOS[m.tipo] || MSG_TIPOS.observacion;
+  return '<div class="msg-card">'
+    + '<span class="msg-chip ' + esc(m.tipo) + '">' + t[0] + " " + t[1] + '</span>'
+    + (m.foto ? '<img class="msg-img" data-foto="' + esc(m.foto) + '" src="' + PIX + '" alt="Foto comentada">' : "")
+    + (m.tarea ? '<div class="msg-tarea">' + esc(m.tarea) + '</div>' : "")
+    + '<div class="msg-texto">' + esc(m.texto) + '</div>'
+    + '<div class="msg-de">' + esc(m.de) + " · " + esc(msgFecha(m.created_at)) + '</div></div>';
+}
+/* soloNuevos = de a uno, con «Entendido» (marca leído y pasa al siguiente);
+   si no, la lista completa para releer */
+function verMensajes(soloNuevos){
+  const lista = soloNuevos ? MIS_MSG.filter(m => !m.leido_at).reverse() : MIS_MSG.slice();
+  if(!lista.length) return;
+  const ovl = document.createElement("div"); ovl.id = "msgOvl";
+  document.body.appendChild(ovl);
+  const cerrar = () => { ovl.remove(); pintarAvisoMsg(); };
+  let i = 0;
+  const pinta = () => {
+    ovl.innerHTML = soloNuevos
+      ? '<div class="cja"><h4>💬 Mensaje ' + (i + 1) + " de " + lista.length + '</h4>' + msgTarjeta(lista[i])
+        + '<div class="msg-acc"><button class="msg-enviar" id="msgOk">Entendido</button></div></div>'
+      : '<div class="cja"><h4>💬 Mis mensajes</h4>' + lista.map(msgTarjeta).join("")
+        + '<div class="msg-acc"><button class="msg-cancel" id="msgCancel">Cerrar</button></div></div>';
+    firmarThumbs("#msgOvl");
+  };
+  ovl.addEventListener("click", async e => {
+    if(e.target === ovl || e.target.closest("#msgCancel")) return cerrar();
+    if(!e.target.closest("#msgOk")) return;
+    const m = lista[i];
+    m.leido_at = new Date().toISOString();           // se marca al tiro en pantalla; la base va aparte
+    const client = getSB();
+    if(client) vfSesion(client).then(() => client.from("mensajes").update({ leido_at:m.leido_at }).eq("id", m.id)).catch(() => {});
+    i++;
+    if(i >= lista.length) cerrar(); else pinta();
+  });
+  pinta();
+}
+document.getElementById("msgAviso").addEventListener("click", () => verMensajes(true));
+document.getElementById("btnMensajes").addEventListener("click", () => verMensajes(MIS_MSG.some(m => !m.leido_at)));
+document.addEventListener("visibilitychange", () => { if(!document.hidden) revisarMensajes(); });
+
 (async function init(){
   aplicarModoSup(localStorage.getItem("sup_ok") === "pin:" + quienActual());  // aplica modo supervisor (tras cargar todo)
   actualizarQuienUI();
@@ -4320,7 +4542,7 @@ function limpiarDiasViejos(){
     arranqueLocal(hash.length > 0);
   }
   // supabase-js carga con defer: cuando esté, refresca usuarios y rutina desde la base
-  esperarSB(4000).then(ok => { if(ok){ cargarUsuarios(); cargarRutina(); } });
+  esperarSB(4000).then(ok => { if(ok){ cargarUsuarios(); cargarRutina(); revisarMensajes(); } });
 })();
 </script>
 </body>
