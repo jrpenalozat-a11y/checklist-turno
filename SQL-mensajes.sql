@@ -45,3 +45,10 @@ grant update (leido_at) on public.mensajes to anon, authenticated;
 
 -- Comprobación: debe devolver una fila con 0
 select count(*) as mensajes from public.mensajes;
+
+-- ---------------------------------------------------------------------
+--  6-oct-2026: tercer tipo de mensaje, «aviso» (novedades generales)
+-- ---------------------------------------------------------------------
+alter table public.mensajes drop constraint if exists mensajes_tipo_check;
+alter table public.mensajes add constraint mensajes_tipo_check
+  check (tipo in ('felicitacion', 'observacion', 'aviso'));
