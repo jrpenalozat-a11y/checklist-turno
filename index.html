@@ -3523,7 +3523,7 @@ function renderGuia(){
     + '<button class="eb pe" data-k="pend">⏳ Queda<br>pendiente</button>'
     + '<button class="eb no" data-k="nota">📝 Nota</button></div>'
     + '<button id="btnInforme">📤 Enviar informe de ' + esc(dnd || "el local") + '</button>'
-    + (esMando() ? '<button class="btn-diario" id="btnDiario">📋 Informe diario · Turno 1 y 2 (PI)</button>' : "");
+    + (puedeInformeDiario() ? '<button class="btn-diario" id="btnDiario">📋 Informe diario · Turno 1 y 2 (PI)</button>' : "");
 
   /* resumen de pendientes del área (rutina + agregados) */
   const pend = cuenta.filter(x => !listo(st, x.id));
@@ -3761,6 +3761,11 @@ document.getElementById("infPdf").addEventListener("click", async () => {
    aunque todavía no se haya subido. Una tarea cuenta como hecha si cualquiera
    la reportó hecha. Si la rutina no tiene ninguna tarea PI, lleva las que
    tienen foto. */
+/* Quién ve el botón del informe diario: el mando y, además, las personas de
+   esta lista (colaboradores a quienes el dueño les encargó enviarlo). El
+   nombre va tal como aparece en 👥 Usuarios. */
+const INFORME_DIARIO_EXTRA = ["Vanessa"];
+function puedeInformeDiario(){ return esMando() || INFORME_DIARIO_EXTRA.indexOf(quienActual()) >= 0; }
 async function informeDiarioPdf(fecha, btn){
   const txt0 = btn ? btn.textContent : "";
   const avisa = t => { if(btn) btn.textContent = t; };
