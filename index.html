@@ -3830,9 +3830,19 @@ function puedeInformeDiario(){ return esMando() || INFORME_DIARIO_EXTRA.indexOf(
    tareas generales, sin área) o sólo el Turno 2 (todas las áreas). Es la misma
    división de las pestañas de la Guía diaria; siempre es de todo el local. */
 const TURNOS_INF = { todo:["Turno 1 y Turno 2", ""], t1:["Turno 1", "_turno1"], t2:["Turno 2", "_turno2"] };
-function pedirInformeDiario(fecha, btn){
+/* diaFijo = la fecha ya viene elegida (Supervisión). Si no, se ofrece Hoy o
+   Ayer: a las 00:00 la guía pasa al día nuevo y quien cierra tarde (Vanessa,
+   María) se quedaba sin poder enviar el informe del día que acababa de
+   trabajar. De madrugada viene marcado «Ayer». */
+function pedirInformeDiario(fecha, btn, diaFijo){
+  const hoy = fechaISO(new Date()), ayer = fechaISO(new Date(Date.now() - 864e5));
+  const corto = f => inicioDe(f).toLocaleDateString("es-CL", { weekday:"short", day:"numeric" });
+  if(!diaFijo) fecha = new Date().getHours() < 6 ? ayer : hoy;
   const ovl = document.createElement("div"); ovl.id = "motOvl";
   ovl.innerHTML = '<div class="cja"><h4>📋 Informe diario · todo el local</h4>'
+    + (diaFijo ? "" : '<p class="tq">¿De qué día?</p><div class="msg-tipos">'
+        + '<button class="msg-tipo felicitacion' + (fecha === hoy ? " on" : "") + '" data-f="' + hoy + '">Hoy · ' + esc(corto(hoy)) + '</button>'
+        + '<button class="msg-tipo felicitacion' + (fecha === ayer ? " on" : "") + '" data-f="' + ayer + '">Ayer · ' + esc(corto(ayer)) + '</button></div>')
     + '<p class="tq">¿Qué turno va en el PDF?</p>'
     + '<button class="op" data-c="todo">Todo el día — Turno 1 y Turno 2</button>'
     + '<button class="op" data-c="t1">🌅 Solo Turno 1</button>'
@@ -3841,6 +3851,8 @@ function pedirInformeDiario(fecha, btn){
   document.body.appendChild(ovl);
   ovl.addEventListener("click", e => {
     if(e.target === ovl) return ovl.remove();
+    const d = e.target.closest(".msg-tipo");
+    if(d){ fecha = d.dataset.f; ovl.querySelectorAll(".msg-tipo").forEach(x => x.classList.toggle("on", x === d)); return; }
     const b = e.target.closest(".op"); if(!b) return;
     ovl.remove();
     if(b.dataset.c) informeDiarioPdf(fecha, btn, b.dataset.c);
@@ -3971,7 +3983,7 @@ document.getElementById("ckDiario").addEventListener("click", e => {
   /* el día que se está mirando en Supervisión; con «7 días» o «Todos», hoy */
   const f = ckFiltro === "ayer" ? fechaISO(new Date(Date.now() - 864e5))
           : (ckFiltro === "dia" && ckDia) ? ckDia : fechaISO(new Date());
-  pedirInformeDiario(f, e.currentTarget);
+  pedirInformeDiario(f, e.currentTarget, true);
 });
 
 /* ---- Área terminada → ofrecer el informe PDF al tiro ----
