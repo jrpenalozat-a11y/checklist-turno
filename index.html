@@ -13,6 +13,50 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+/* ===== SEDE =====
+   Una sola app y una sola base para varias sedes. Cada teléfono recuerda en
+   cuál está (clave «sede»). La Florida («lf») es la original y NO lleva
+   prefijo en ninguna parte: sus datos quedan exactamente como estaban.
+   Las demás sedes se separan con un prefijo en cada lugar donde se guarda algo:
+     · este teléfono (localStorage) ........ «s2::clave»
+     · tabla config ........................ «s2:rutina», «s2:rutina_log»…
+     · usuarios, PIN, mensajes (nombres) ... «s2:Nombre»
+     · registros del día (checklists) ...... «s2~guia-AAAA-MM-DD-equipo»
+     · fotos en el bucket .................. «s2/guia/…», «s2/rutina/…»
+   Para sumar una sede: una línea más en SEDES. Para cambiar un nombre: sólo
+   el «n» (el «id» no se toca nunca: es el prefijo de sus datos). */
+(function(){
+  var SEDES = [ { id:"lf", n:"La Florida" }, { id:"s2", n:"Puerto Varas" } ];
+  var LS = null, P = Storage.prototype, g = P.getItem, st = P.setItem, rm = P.removeItem;
+  try{ LS = window.localStorage; }catch(e){}
+  var crudo = function(k){ try{ return g.call(LS, k); }catch(e){ return null; } };
+  var id = crudo("sede"), elegida = !!id;
+  if(!SEDES.some(function(x){ return x.id === id; })){ id = "lf"; elegida = false; }
+  /* un teléfono que ya usaba la app es de La Florida: no se le pregunta nada */
+  if(!elegida && (crudo("quien.actual") || crudo("dev.id") || crudo("rutina.cache"))){
+    try{ st.call(LS, "sede", "lf"); }catch(e){}
+    elegida = true;
+  }
+  var sede = SEDES.filter(function(x){ return x.id === id; })[0];
+  window.SEDES = SEDES;
+  window.SEDE_ID = id;
+  window.SEDE_NOMBRE = sede.n;
+  window.SEDE_ELEGIDA = elegida;
+  window.SEDE_LS = id === "lf" ? "" : id + "::";      // prefijo en este teléfono
+  window.sedeElegir = function(nueva){
+    try{ st.call(LS, "sede", nueva); }catch(e){}
+    if(nueva !== id) location.reload();
+  };
+  if(id !== "lf" && LS){
+    var pre = id + "::";
+    var k = function(o, key){ return (o === LS && key !== "sede") ? pre + key : key; };
+    P.getItem    = function(key){ return g.call(this, k(this, key)); };
+    P.setItem    = function(key, v){ return st.call(this, k(this, key), v); };
+    P.removeItem = function(key){ return rm.call(this, k(this, key)); };
+  }
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -40,6 +84,18 @@
     box-shadow:0 8px 22px rgba(234,86,80,.28)}
   .brand-logo{height:50px;width:auto;max-width:82%;display:block;margin:0 auto}
   .brand-sub{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--crema);margin-top:9px;opacity:.92}
+  #sedeBtn{cursor:pointer;padding:5px 12px;border:1px solid rgba(254,236,214,.45);border-radius:99px;display:inline-block}
+  /* selector de sede: pantalla completa coral, sobre todo lo demás */
+  #sedeOvl{position:fixed;inset:0;z-index:100002;background:#EA5650;display:flex;align-items:center;justify-content:center;padding:22px}
+  #sedeOvl .cja{width:100%;max-width:380px;text-align:center;color:#FEECD6}
+  #sedeOvl img{width:190px;max-width:70%;height:auto;margin-bottom:26px}
+  #sedeOvl h4{margin:0 0 8px;font-family:inherit;font-weight:800;font-size:21px;line-height:1.2}
+  #sedeOvl p{margin:0 0 20px;font-size:13px;line-height:1.45;opacity:.9}
+  #sedeOvl .sede-op{display:block;width:100%;margin:0 0 11px;padding:17px 14px;border-radius:15px;border:0;cursor:pointer;
+    background:#FEECD6;color:#C63F39;font-family:inherit;font-weight:800;font-size:17px;line-height:1.2}
+  #sedeOvl .sede-op.on{background:transparent;color:#FEECD6;border:2px solid #FEECD6}
+  #sedeOvl .sede-no{margin-top:6px;padding:11px 18px;border:0;background:none;color:#FEECD6;font-family:inherit;font-weight:700;font-size:13.5px;
+    text-decoration:underline;cursor:pointer}
 
   .topbar{display:flex;gap:8px;margin-top:12px}
   .mini{flex:1;border:1px solid var(--linea);background:var(--panel);border-radius:10px;font-family:inherit;
@@ -572,7 +628,7 @@
 <main class="app">
   <header class="brand">
     <img class="brand-logo" src="logo-francois.png" alt="françois · pastelería clásica">
-    <div class="brand-sub">La Florida</div>
+    <div class="brand-sub" id="sedeBtn" role="button" title="Cambiar de sede">La Florida</div>
   </header>
 
   <div class="topbar">
@@ -1189,7 +1245,7 @@ document.getElementById("pdf").addEventListener("click", () => {
   let y = 22;
   doc.setFont("courier","normal");
   doc.setFontSize(9); doc.setTextColor(110);
-  doc.text("FRANÇOIS · LA FLORIDA", 20, y); y += 9;
+  doc.text("FRANÇOIS · " + SEDE_NOMBRE.toUpperCase(), 20, y); y += 9;
   doc.setFontSize(17); doc.setTextColor(20);
   doc.text(d.titulo, 20, y); y += 8;
   doc.setFontSize(10); doc.setTextColor(110);
@@ -1291,7 +1347,7 @@ document.getElementById("regPdf").addEventListener("click", () => {
   const dm = t => new Date(t).toLocaleDateString("es-CL",{day:"numeric",month:"long"});
   let y = 22;
   doc.setFont("courier","normal");
-  doc.setFontSize(9); doc.setTextColor(34,64,47); doc.text("FRANÇOIS · LA FLORIDA", 20, y); y += 9;
+  doc.setFontSize(9); doc.setTextColor(34,64,47); doc.text("FRANÇOIS · " + SEDE_NOMBRE.toUpperCase(), 20, y); y += 9;
   doc.setFontSize(16); doc.setTextColor(20); doc.text("Registro semanal de traspasos", 20, y); y += 7;
   doc.setFontSize(10); doc.setTextColor(110);
   doc.text("Semana " + dm(ini.getTime()) + " al " + dm(fin.getTime()-864e5), 20, y); y += 6;
@@ -1321,6 +1377,24 @@ document.getElementById("regPdf").addEventListener("click", () => {
 const SUPABASE_URL      = "https://zmpiqkbvmjvfvxyvcdhi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_wk2KPYx1W--YcsrbRrEPxw_ORy1fati";
 const SB_BUCKET = "traspasos";        // bucket de Storage
+/* ---- prefijos de la sede (vacíos en La Florida; ver «SEDE» al inicio) ---- */
+const SEDE_PRE = SEDE_ID === "lf" ? "" : SEDE_ID + ":";    // nombres y claves de config
+const CK_PRE   = SEDE_ID === "lf" ? "" : SEDE_ID + "~";    // código de los registros del día
+const FOTO_PRE = SEDE_ID === "lf" ? "" : SEDE_ID + "/";    // carpeta de las fotos
+const RX_OTRA_SEDE = /^[a-z0-9]{2,6}:/;
+const cfgK = clave => SEDE_PRE + clave;
+/* nombre tal como va en la base / tal como se muestra */
+function nDB(n){ return n && SEDE_PRE ? SEDE_PRE + n : n; }
+function nUI(n){ return SEDE_PRE && n && String(n).indexOf(SEDE_PRE) === 0 ? String(n).slice(SEDE_PRE.length) : n; }
+function deMiSede(n){ n = String(n || ""); return SEDE_PRE ? n.indexOf(SEDE_PRE) === 0 : !RX_OTRA_SEDE.test(n); }
+/* la tabla usuarios es una sola: se deja la gente de esta sede, con su nombre limpio */
+function usrSede(data){ return (data || []).filter(u => deMiSede(u.nombre)).map(u => ({ ...u, nombre: nUI(u.nombre) })); }
+function msgUI(m){ return { ...m, de: nUI(m.de), para: nUI(m.para) }; }
+/* registros del día de ESTA sede */
+function ckSel(client){
+  const q = client.from("checklists").select("codigo,estado,updated_at");
+  return CK_PRE ? q.like("codigo", CK_PRE + "guia-%") : q.not("codigo", "like", "%~guia-%");
+}
 const SB_TABLA  = "traspasos_turno";  // tabla
 /* OPCIONAL — geocerca del local (descomenta para exigir estar dentro del radio):
 const LOCAL_LAT = -33.5223, LOCAL_LNG = -70.5985, RADIO_M = 150;
@@ -1574,7 +1648,7 @@ let ckDia    = "";       // fecha ISO cuando ckFiltro === "dia"
 /* La fecha va en el propio nombre del registro: guia-AAAA-MM-DD-dispositivo.
    Ésa es la del día trabajado; updated_at puede caer en la madrugada siguiente. */
 function fechaDeReg(r){
-  const m = /^guia-(\d{4}-\d{2}-\d{2})-/.exec(r.codigo || "");
+  const m = /^(?:[a-z0-9]{2,6}~)?guia-(\d{4}-\d{2}-\d{2})-/.exec(r.codigo || "");
   return m ? m[1] : fechaISO(new Date(r.updated_at));
 }
 function inicioDe(f){ return new Date(f + "T00:00:00"); }
@@ -1651,7 +1725,7 @@ async function cargarChecklists(){
   if(!client){ cont.innerHTML = '<div class="sinreg">Falta configurar Supabase.</div>'; return; }
   try{
     await vfSesion(client);
-    let q = client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false });
+    let q = ckSel(client).order("updated_at", { ascending:false });
     const rg = rangoCk();
     q = rg ? q.gte("updated_at", rg[0]).lte("updated_at", rg[1]).limit(300) : q.limit(60);
     const { data, error } = await q;
@@ -1805,7 +1879,7 @@ async function cargarInspeccion(){
   if(!client){ cont.innerHTML = '<div class="sinreg">Sin conexión con la base.</div>'; return; }
   try{
     await vfSesion(client);
-    let q = client.from("checklists").select("codigo,estado,updated_at").order("updated_at", { ascending:false });
+    let q = ckSel(client).order("updated_at", { ascending:false });
     const rg = rangoDe(inspFiltro, inspDia);
     q = rg ? q.gte("updated_at", rg[0]).lte("updated_at", rg[1]).limit(300) : q.limit(60);
     const { data, error } = await q;
@@ -1969,7 +2043,7 @@ function encabezadoPdf(doc, F, o){
   doc.setFont(...F.sb); doc.setFontSize(8.5);
   derecha((o.tipo || "").toUpperCase(), 15, 0.9);
   doc.setFont(...F.reg); doc.setFontSize(8.5);
-  derecha("LA FLORIDA", 21, 1.4);
+  derecha(SEDE_NOMBRE.toUpperCase(), 21, 1.4);
   if(o.fecha){ doc.setFontSize(8.5); doc.text(o.fecha, 192, 27, { align:"right" }); }
 
   let y = 49;
@@ -2034,7 +2108,7 @@ async function inspeccionPdf(){
     const per = nombreInsp();
     let y = 20;
     doc.setFont("helvetica","normal");
-    doc.setFontSize(9);  doc.setTextColor(234,86,80); T("FRANÇOIS · LA FLORIDA", 18, y); y += 8;
+    doc.setFontSize(9);  doc.setTextColor(234,86,80); T("FRANÇOIS · " + SEDE_NOMBRE.toUpperCase(), 18, y); y += 8;
     doc.setFontSize(15); doc.setTextColor(20);        T("Fotos de las tareas", 18, y); y += 6;
     doc.setFontSize(10); doc.setTextColor(110);       T("Periodo: " + per + "     " + fotos.length + " fotos", 18, y); y += 5;
     doc.setDrawColor(200); doc.line(18, y, 192, y); y += 8;
@@ -2094,7 +2168,7 @@ async function datosSemana(){
   await vfSesion(client);
   const hoy0 = new Date(); hoy0.setHours(0,0,0,0);
   const desde = new Date(hoy0.getTime() - 6*864e5);
-  const { data, error } = await client.from("checklists").select("codigo,estado,updated_at")
+  const { data, error } = await ckSel(client)
     .gte("updated_at", desde.toISOString())
     .lte("updated_at", new Date(hoy0.getTime() + 32*36e5).toISOString())
     .order("updated_at", { ascending:false }).limit(300);
@@ -2336,11 +2410,12 @@ async function cargarUsuarios(){
     try{
       await vfSesion(client);
       const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
-      if(!error && data && data.length){
-        USUARIOS = data;
+      const gente = error ? [] : usrSede(data);
+      if(!error && gente.length){
+        USUARIOS = gente;
         /* copia local de la lista: si mañana se corta la red, cada uno sigue
            encontrando su nombre y puede marcar */
-        try{ localStorage.setItem("usuarios_cache", JSON.stringify(data.map(u => ({ nombre:u.nombre, rol:u.rol, activo:u.activo, puesto:u.puesto })))); }catch(e){}
+        try{ localStorage.setItem("usuarios_cache", JSON.stringify(gente.map(u => ({ nombre:u.nombre, rol:u.rol, activo:u.activo, puesto:u.puesto })))); }catch(e){}
         llenarSelectColab(); aplicarModoAdmin(); return;
       }
     }catch(e){}
@@ -2349,7 +2424,7 @@ async function cargarUsuarios(){
      se bajó, la lista fija de los 14 */
   let cache = null;
   try{ cache = JSON.parse(localStorage.getItem("usuarios_cache") || "null"); }catch(e){}
-  USUARIOS = (cache && cache.length) ? cache : USUARIOS_DEFAULT.map(u => ({ ...u, activo:true }));
+  USUARIOS = (cache && cache.length) ? cache : (SEDE_ID === "lf" ? USUARIOS_DEFAULT : []).map(u => ({ ...u, activo:true }));
   llenarSelectColab();
   aplicarModoAdmin();
 }
@@ -2360,12 +2435,12 @@ async function sha256(s){
 }
 async function getConfig(clave){
   const client = getSB(); if(!client) return null;
-  const { data } = await client.from("config").select("valor").eq("clave", clave).maybeSingle();
+  const { data } = await client.from("config").select("valor").eq("clave", cfgK(clave)).maybeSingle();
   return data ? data.valor : null;
 }
 async function setConfig(clave, valor){
   const client = getSB(); if(!client) throw new Error("Falta configurar Supabase");
-  const { error } = await client.from("config").upsert({ clave, valor, updated_at:new Date().toISOString() });
+  const { error } = await client.from("config").upsert({ clave:cfgK(clave), valor, updated_at:new Date().toISOString() });
   if(error) throw error;
 }
 /* rol de una persona SIN pasar por el candado (esAdmin/puedeEditarRutina exigen
@@ -2387,7 +2462,7 @@ async function pedirPin(n){
   if(!client) return yaAqui;                   // sin conexión: sólo pasa quien ya se verificó aquí
   try{ await vfSesion(client); }catch(e){}
 
-  const t = await client.rpc("tiene_pin", { p_nombre: n });
+  const t = await client.rpc("tiene_pin", { p_nombre: nDB(n) });
   if(t.error) return true;                     // la base aún no tiene el sistema: no bloquear a nadie
   /* se consulta siempre, aunque el equipo lo recuerde: así un PIN reiniciado
      por un dueño obliga a crear uno nuevo en vez de seguir entrando */
@@ -2399,13 +2474,13 @@ async function pedirPin(n){
     const p2 = prompt("Repítelo para confirmar:");
     if(p2 == null) return false;
     if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
-    const c = await client.rpc("crear_pin", { p_nombre: n, p_hash: await sha256(p1.trim()) });
+    const c = await client.rpc("crear_pin", { p_nombre: nDB(n), p_hash: await sha256(p1.trim()) });
     if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
     alert("PIN creado. Es tuyo: no lo compartas.\nSi lo olvidas, un dueño te lo reinicia desde 👥 Usuarios.");
   } else if(!yaAqui){
     const pin = prompt("PIN de " + n + ":");
     if(pin == null) return false;
-    const v = await client.rpc("verificar_pin", { p_nombre: n, p_hash: await sha256((pin || "").trim()) });
+    const v = await client.rpc("verificar_pin", { p_nombre: nDB(n), p_hash: await sha256((pin || "").trim()) });
     if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
     if(!v.data){ alert("PIN incorrecto."); return false; }
   }
@@ -2413,7 +2488,7 @@ async function pedirPin(n){
   /* Queda anotado quién escribió su PIN y cuándo. Al mover el PIN al momento de
      elegir el nombre esto se quedó sin registrar, y el registro se vació: el
      desbloqueo ya no pasaba por el camino que lo anotaba. */
-  try{ client.from("accesos_supervision").insert({ nombre: n }); }catch(e){}
+  try{ client.from("accesos_supervision").insert({ nombre: nDB(n) }); }catch(e){}
   /* quien manda queda además con la Supervisión desbloqueada: el PIN ya probó
      quién es, y el rol decide a qué puede entrar */
   if(ROLES_SUPERVISOR.indexOf(rolDe(n) || "") >= 0){ try{ localStorage.setItem("sup_ok", "pin:" + n); }catch(e){} }
@@ -2457,7 +2532,7 @@ async function gateSupervisor(){
      Si el SQL todavía no está corrido, se cae al método viejo sin romper nada. */
   let tienePin = null;
   try{
-    const r = await client.rpc("tiene_pin", { p_nombre: yo });
+    const r = await client.rpc("tiene_pin", { p_nombre: nDB(yo) });
     if(!r.error) tienePin = !!r.data;
   }catch(e){}
 
@@ -2469,23 +2544,23 @@ async function gateSupervisor(){
       const p2 = prompt("Repítelo para confirmar:");
       if(p2 == null) return false;
       if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
-      const c = await client.rpc("crear_pin", { p_nombre: yo, p_hash: await sha256(p1.trim()) });
+      const c = await client.rpc("crear_pin", { p_nombre: nDB(yo), p_hash: await sha256(p1.trim()) });
       if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
       alert("PIN creado. Es tuyo y solo tuyo: no lo compartas.\nSi lo olvidas, un dueño lo borra desde Supabase y creas otro.");
     } else {
       const pin = prompt("PIN de " + yo + ":");
       if(pin == null) return false;
-      const v = await client.rpc("verificar_pin", { p_nombre: yo, p_hash: await sha256(pin.trim()) });
+      const v = await client.rpc("verificar_pin", { p_nombre: nDB(yo), p_hash: await sha256(pin.trim()) });
       if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
       if(!v.data){ alert("PIN incorrecto."); return false; }
     }
     localStorage.setItem("sup_ok", "pin:" + yo);   // el desbloqueo es de esta persona, no del equipo
-    try{ client.from("accesos_supervision").insert({ nombre: yo }); }catch(e){}   // queda registrado quién entró
+    try{ client.from("accesos_supervision").insert({ nombre: nDB(yo) }); }catch(e){}   // queda registrado quién entró
     return true;
   }
 
   /* ---- respaldo: clave compartida (mientras no esté corrido el SQL) ---- */
-  const { data, error } = await client.from("config").select("valor").eq("clave", "sup_pin").maybeSingle();
+  const { data, error } = await client.from("config").select("valor").eq("clave", cfgK("sup_pin")).maybeSingle();
   if(error){
     // solo se salta el candado si la tabla config aún no existe (falta correr el SQL)
     if(/42P01|does not exist|schema cache/i.test((error.message||"") + (error.code||""))) return true;
@@ -2495,7 +2570,7 @@ async function gateSupervisor(){
   if(!hash){
     const nuevo = prompt("Primera vez: crea la CLAVE de supervisor (mín. 4 caracteres).\nLa comparten dueños, encargado y encargado de local:");
     if(!nuevo || nuevo.trim().length < 4) return false;
-    const { error:e2 } = await client.from("config").upsert({ clave:"sup_pin", valor: await sha256(nuevo.trim()), updated_at:new Date().toISOString() });
+    const { error:e2 } = await client.from("config").upsert({ clave:cfgK("sup_pin"), valor: await sha256(nuevo.trim()), updated_at:new Date().toISOString() });
     if(e2){ alert("No se pudo guardar la clave: " + e2.message); return false; }
     localStorage.setItem("sup_ok", "pin:" + yo); return true;
   }
@@ -2514,7 +2589,7 @@ async function abrirUsuarios(){
     await vfSesion(client);
     const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
     if(error) throw error;
-    USUARIOS = data || []; llenarSelectColab();
+    USUARIOS = usrSede(data); llenarSelectColab();
     const admin = esAdmin();
     const addBox = usrOvl.querySelector(".usr-add"); if(addBox) addBox.style.display = admin ? "flex" : "none";
     const claveBtn = document.getElementById("usrClave"); if(claveBtn) claveBtn.style.display = admin ? "" : "none";
@@ -2531,7 +2606,7 @@ async function abrirUsuarios(){
           + '<button class="usr-del" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" aria-label="Eliminar" title="Eliminar">🗑</button></div>'
         : "";
       return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>' + info + '</div>' + acc + '</div>';
-    }).join("")) : '<div class="sinreg">Sin usuarios. Corre el SQL de usuarios.</div>';
+    }).join("")) : '<div class="sinreg">Todavía no hay usuarios en esta sede. Agrégalos abajo.</div>';
   }catch(e){
     usrLista.innerHTML = '<div class="sinreg">No se pudo cargar (¿corriste el SQL de usuarios?):<br>' + esc((e && e.message) || String(e)) + '</div>';
   }
@@ -2549,7 +2624,7 @@ usrLista.addEventListener("click", async e => {
     rp.disabled = true;
     try{
       await vfSesion(client);
-      const r = await client.rpc("reiniciar_pin", { p_nombre: quien, p_admin: quienActual(), p_hash_admin: await sha256((mio || "").trim()) });
+      const r = await client.rpc("reiniciar_pin", { p_nombre: nDB(quien), p_admin: nDB(quienActual()), p_hash_admin: await sha256((mio || "").trim()) });
       if(r.error) throw r.error;
       if(!r.data){ alert("No se pudo reiniciar. Revisa que tu PIN sea correcto y que seas dueño o encargado."); return; }
       pinOlvidar(quien);
@@ -2604,7 +2679,7 @@ document.getElementById("usrAgregar").addEventListener("click", async () => {
   const puesto = document.getElementById("usrPuesto").value || null;
   try{
     await vfSesion(client);
-    const { error } = await client.from("usuarios").insert(puesto ? { nombre, rol, puesto } : { nombre, rol });
+    const { error } = await client.from("usuarios").insert(puesto ? { nombre:nDB(nombre), rol, puesto } : { nombre:nDB(nombre), rol });
     if(error) throw error;
     document.getElementById("usrNombre").value = ""; await abrirUsuarios();
   }
@@ -3131,7 +3206,7 @@ async function limpiarFotosLocales(){
   await idbOp("readwrite", o => {
     const r = o.openCursor();
     r.onsuccess = () => { const c = r.result; if(!c) return;
-      const m = /^guia\/(\d{4}-\d{2}-\d{2})\//.exec(c.key);
+      const m = /^(?:[a-z0-9]{2,6}\/)?guia\/(\d{4}-\d{2}-\d{2})\//.exec(c.key);
       if(m && m[1] < lim && !pend.has(c.key)) c.delete();
       c.continue(); };
     return null;
@@ -3220,7 +3295,7 @@ async function syncGuiaRemoto(){
   const extras = exMios.concat(exFuera).map(x => ({ id:x.id, t:x.t, p:x.a || undefined, k:x.k,
                                         ok:st.done.has(x.id), por:firma(x),
                                         motivo:(x.k !== "nota" && !st.done.has(x.id) && mot[x.id]) || undefined }));
-  const cod = "guia-" + fechaISO(new Date()) + "-" + deviceId();
+  const cod = CK_PRE + "guia-" + fechaISO(new Date()) + "-" + deviceId();
   const quien = quienActual() + (ps ? " (" + ps.join(", ") + ")" : "");
   const estado = { titulo:"Guía diaria — " + new Date().toLocaleDateString("es-CL",{day:"numeric",month:"short"}),
                    entrega:quien, recibe:"", tareas, extras };
@@ -3286,10 +3361,10 @@ async function cargarOtros(forzar){
   try{
     await vfSesion(client);
     const hoy = fechaISO(new Date()), d0 = new Date(); d0.setHours(0,0,0,0);
-    const { data, error } = await client.from("checklists").select("codigo,estado,updated_at")
+    const { data, error } = await ckSel(client)
       .gte("updated_at", d0.toISOString()).order("updated_at", { ascending:false }).limit(120);
     if(error) return;
-    const mio = "guia-" + hoy + "-" + deviceId(), m = {};
+    const mio = CK_PRE + "guia-" + hoy + "-" + deviceId(), m = {};
     (data || []).forEach(r => {
       if(r.codigo === mio || fechaDeReg(r) !== hoy || !r.estado || !Array.isArray(r.estado.tareas)) return;
       const nombre = (r.estado.entrega || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
@@ -3381,7 +3456,7 @@ async function resumenSupervisor(){
     await vfSesion(client);
     const hoy = fechaISO(new Date());
     const d0 = new Date(); d0.setHours(0,0,0,0);
-    const { data, error } = await client.from("checklists").select("codigo,estado,updated_at")
+    const { data, error } = await ckSel(client)
       .gte("updated_at", d0.toISOString()).order("updated_at", { ascending:false }).limit(120);
     if(error) throw error;
     const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas))
@@ -3847,7 +3922,7 @@ document.getElementById("infPdf").addEventListener("click", async () => {
 /* Quién ve el botón del informe diario: el mando y, además, las personas de
    esta lista (colaboradores a quienes el dueño les encargó enviarlo). El
    nombre va tal como aparece en 👥 Usuarios. */
-const INFORME_DIARIO_EXTRA = ["Vanessa", "María"];
+const INFORME_DIARIO_EXTRA = SEDE_ID === "lf" ? ["Vanessa", "María"] : [];
 function puedeInformeDiario(){ return esMando() || INFORME_DIARIO_EXTRA.indexOf(quienActual()) >= 0; }
 /* Antes de armarlo se elige qué lleva: todo el día, sólo el Turno 1 (las
    tareas generales, sin área) o sólo el Turno 2 (todas las áreas). Es la misma
@@ -3904,7 +3979,7 @@ async function informeDiarioPdf(fecha, btn, cual){
       const client = getSB(); if(!client) throw new Error("sin base");
       await vfSesion(client);
       const rg = rangoDe("dia", fecha);
-      const { data, error } = await client.from("checklists").select("codigo,estado,updated_at")
+      const { data, error } = await ckSel(client)
         .gte("updated_at", rg[0]).lte("updated_at", rg[1]).order("updated_at", { ascending:false }).limit(300);
       if(error) throw error;
       const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas) && fechaDeReg(r) === fecha);
@@ -4155,7 +4230,7 @@ async function tomarFoto(id){
   /* el equipo va en la ruta: antes dos personas que fotografiaban la misma
      tarea el mismo día compartían archivo y la segunda borraba a la primera.
      El sufijo de hora distingue las fotos de una misma tarea. */
-  const path = "guia/" + fechaISO(new Date()) + "/" + id + "-" + deviceId() + "-" + Date.now().toString(36) + ".jpg";
+  const path = FOTO_PRE + "guia/" + fechaISO(new Date()) + "/" + id + "-" + deviceId() + "-" + Date.now().toString(36) + ".jpg";
   /* la foto queda en el teléfono y en la tarea AL TIRO; subirla va aparte.
      Si no hay señal, la guía no se detiene: se sube sola al volver la red. */
   await guardarLocalF(path, blob);
@@ -4332,7 +4407,7 @@ if(semanalCont){
       const client = getSB(); if(!client){ alert("Falta configurar Supabase."); return; }
       const blob = await pedirFoto("Foto de referencia: " + (x.t || "tarea")); if(!blob) return;
       try{
-        const path = "rutina/" + x.id + ".jpg";
+        const path = FOTO_PRE + "rutina/" + x.id + ".jpg";
         await subirFoto(path, blob);          // primero sube; solo si funciona, referencia
         x.foto = path; await guardarRutina();
       }catch(err){ alert("No se pudo subir: " + ((err && err.message) || err)); }
@@ -4414,7 +4489,9 @@ function limpiarDiasViejos(){
     const corte = fechaISO(new Date(Date.now() - 14*864e5));
     for(let i = localStorage.length - 1; i >= 0; i--){
       const k = localStorage.key(i);
-      if(k && k.indexOf("guia.dia.") === 0 && k.slice(9) < corte) localStorage.removeItem(k);
+      /* las claves llegan con el prefijo de la sede; removeItem lo vuelve a poner */
+      const pk = SEDE_LS + "guia.dia.";
+      if(k && k.indexOf(pk) === 0 && k.slice(pk.length) < corte) localStorage.removeItem(k.slice(SEDE_LS.length));
     }
   }catch(e){}
 }
@@ -4452,7 +4529,7 @@ async function pintarMensajes(root){
     for(let i = 0; i < paths.length; i += 60){
       const { data } = await client.from("mensajes").select("id,de,para,tipo,texto,foto,created_at,leido_at")
         .in("foto", paths.slice(i, i + 60)).order("created_at");
-      filas = filas.concat(data || []);
+      filas = filas.concat((data || []).map(msgUI));
     }
     zonas.forEach(z => {
       z.querySelector(".msg-lista").innerHTML = filas.filter(f => f.foto === z.dataset.msgfoto).map(msgLinea).join("");
@@ -4494,7 +4571,7 @@ function abrirMensaje(o){
     env.disabled = true; env.textContent = "Enviando…";
     try{
       await vfSesion(client);
-      const fila = { de: quienActual(), para, tipo, texto };
+      const fila = { de: nDB(quienActual()), para: nDB(para), tipo, texto };
       if(o.foto) fila.foto = o.foto;
       if(o.tarea) fila.tarea = limpio(o.tarea);
       if(o.tid) fila.tarea_id = o.tid;
@@ -4536,7 +4613,7 @@ async function avTraer(desde){
   await vfSesion(client);
   let filas = [], i = 0;
   for(;;){
-    const { data, error } = await client.from("checklists").select("codigo,estado,updated_at")
+    const { data, error } = await ckSel(client)
       .gte("updated_at", desde.toISOString()).order("updated_at").range(i, i + 299);
     if(error) throw error;
     filas = filas.concat(data || []);
@@ -4547,7 +4624,7 @@ async function avTraer(desde){
   }
   /* sólo los registros de la Guía diaria: los de la antigua pestaña Turno
      traen tareas que no son de la rutina y salían como días al 0% */
-  return filas.filter(r => /^guia-/.test(r.codigo || "") && r.estado && Array.isArray(r.estado.tareas));
+  return filas.filter(r => /^(?:[a-z0-9]{2,6}~)?guia-/.test(r.codigo || "") && r.estado && Array.isArray(r.estado.tareas));
 }
 function avResumen(filas, fechas){
   const nombre = r => msgNombre(r.estado.entrega);
@@ -4892,7 +4969,7 @@ async function cargarEnviados(){
     await vfSesion(client);
     const { data, error } = await client.from("mensajes").select("*").order("created_at", { ascending:false }).limit(150);
     if(error) throw error;
-    const ms = (data || []).filter(m => m.de !== "(prueba)" && m.para !== "(prueba)");
+    const ms = (data || []).filter(m => deMiSede(m.para)).map(msgUI).filter(m => m.de !== "(prueba)" && m.para !== "(prueba)");
     if(!ms.length){ cont.innerHTML = '<div class="sinreg">Todavía no se ha enviado ningún mensaje.<br><small>Se envían con 💬 Comentar bajo una foto, o con 💬 Mensaje arriba.</small></div>'; return; }
     const sin = ms.filter(m => !m.leido_at).length;
     cont.innerHTML = '<div class="ck-tot">' + ms.length + (ms.length === 1 ? " mensaje" : " mensajes")
@@ -4945,10 +5022,10 @@ async function revisarMensajes(){
   const client = getSB(); if(!client) return;
   try{
     await vfSesion(client);
-    const { data, error } = await client.from("mensajes").select("*").eq("para", n)
+    const { data, error } = await client.from("mensajes").select("*").eq("para", nDB(n))
       .order("created_at", { ascending:false }).limit(40);
     if(error || quienActual() !== n) return;
-    MIS_MSG = data || [];
+    MIS_MSG = (data || []).map(msgUI);
     pintarAvisoMsg();
   }catch(e){}
 }
@@ -5034,6 +5111,32 @@ document.addEventListener("visibilitychange", () => { if(!document.hidden) revis
   // supabase-js carga con defer: cuando esté, refresca usuarios y rutina desde la base
   esperarSB(4000).then(ok => { if(ok){ cargarUsuarios(); cargarRutina(); revisarMensajes(); } });
 })();
+
+/* ---- Sede: rótulo del encabezado y selector ----
+   Un teléfono nuevo pregunta la sede una sola vez; después se cambia tocando
+   el nombre de la sede bajo el logo. Cambiar recarga la app: cada sede tiene
+   su rutina, su gente, sus fotos y sus registros (ver «SEDE» al inicio). */
+function abrirSedes(primera){
+  const prev = document.getElementById("sedeOvl"); if(prev) prev.remove();
+  const ovl = document.createElement("div"); ovl.id = "sedeOvl";
+  ovl.innerHTML = '<div class="cja"><img src="logo-francois.png" alt="françois · pastelería clásica">'
+    + '<h4>¿En qué sede estás?</h4>'
+    + '<p>' + (primera ? "Se pregunta una sola vez en este teléfono. Después se cambia tocando el nombre de la sede, bajo el logo."
+                       : "Cada sede tiene sus propias tareas, personas, fotos e informes.") + '</p>'
+    + SEDES.map(x => '<button class="sede-op' + (!primera && x.id === SEDE_ID ? " on" : "") + '" data-s="' + x.id + '">'
+        + esc(x.n) + (!primera && x.id === SEDE_ID ? " · estás aquí" : "") + '</button>').join("")
+    + (primera ? "" : '<button class="sede-no">Cancelar</button>') + '</div>';
+  document.body.appendChild(ovl);
+  ovl.addEventListener("click", e => {
+    if(e.target.closest(".sede-no")) return ovl.remove();
+    const b = e.target.closest(".sede-op"); if(!b) return;
+    ovl.remove();
+    sedeElegir(b.dataset.s);            // si es otra sede, recarga
+  });
+}
+document.getElementById("sedeBtn").textContent = SEDE_NOMBRE + " ▾";
+document.getElementById("sedeBtn").addEventListener("click", () => abrirSedes(false));
+if(!SEDE_ELEGIDA) abrirSedes(true);
 </script>
 </body>
 </html>

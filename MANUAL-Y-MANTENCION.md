@@ -182,6 +182,36 @@ si cualquiera la reportó; el total del día es la **rutina actual** de ese día
 día cuenta «con reporte» solo si algún registro `guia-…` trae algo (tarea hecha, motivo o foto).
 El historial llega a **90 días** por la limpieza de los lunes. Solo para el mando.
 
+### Varias sedes en una sola app y una sola base (6-oct-2026)
+
+La app pregunta la sede la primera vez en cada teléfono y la recuerda (clave `sede`); se cambia
+tocando el nombre de la sede bajo el logo. La lista está al inicio de `index.html`, en `SEDES`:
+`lf` = La Florida (la original) y `s2` = Puerto Varas. **El `id` no se cambia nunca** (es el
+prefijo de los datos); el nombre que se muestra (`n`) sí se puede cambiar.
+
+**La Florida no lleva prefijo en ninguna parte**: sus datos quedaron tal como estaban. Las demás
+sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
+
+| Qué | La Florida | Otra sede (`s2`) | Dónde está en el código |
+|---|---|---|---|
+| Este teléfono (`localStorage`) | `guia.dia.…` | `s2::guia.dia.…` | bloque «SEDE» del `<head>` |
+| Tabla `config` | `rutina`, `rutina_log`, `wa_informe` | `s2:rutina`… | `cfgK()` en `getConfig`/`setConfig` |
+| `usuarios`, PIN, `mensajes`, accesos | `Ricardo` | `s2:Ricardo` | `nDB()` al escribir, `nUI()`/`usrSede()`/`msgUI()` al leer |
+| Registros del día (`checklists`) | `guia-AAAA-MM-DD-equipo` | `s2~guia-…` | `CK_PRE` y `ckSel()` (toda consulta pasa por ahí) |
+| Fotos (bucket) | `guia/…`, `rutina/…` | `s2/guia/…`, `s2/rutina/…` | `FOTO_PRE` |
+
+- **Una sede nueva parte vacía**: sin tareas, sin registros y sin gente. Para que alguien pueda
+  entrar hay que crear a mano a la primera persona de mando (fila en `usuarios` con nombre
+  `<id>:<Nombre>`); esa persona crea su PIN al entrar y agrega al resto en 👥 Usuarios.
+  En `s2` se creó `s2:Ricardo` (encargado).
+- **Toda consulta nueva a `checklists` debe usar `ckSel(client)`**, y todo nombre que vaya a la
+  base, `nDB()`. Si no, una sede vería los datos de la otra.
+- La separación la hace la app, no la base: no es un muro de seguridad entre sedes.
+- **Pendiente:** revisar que la limpieza semanal de 90 días (Edge Function `limpiar-antiguos`)
+  alcance también las fotos de `s2/guia/<fecha>/`; hoy recorre las carpetas de La Florida.
+- Solo de La Florida (no se copian a otras sedes): la lista de respaldo `USUARIOS_DEFAULT`, el
+  permiso `INFORME_DIARIO_EXTRA` y los nombres que aparecen en los textos de Ayuda.
+
 ### Dónde vive cada cosa (importante antes de tocar nada)
 
 | Dato | Dónde | Se borra si… |
