@@ -4679,7 +4679,7 @@ async function cargarAvance(reusar){
       return '<div class="av-d ' + (bueno ? "up" : "dn") + '">' + (df > 0 ? "+" : "−") + Math.abs(df) + (suf || "") + '</div>';
     };
     const kpi = '<div class="av-kpis">'
-      + '<div class="av-k"><b>' + act.prom + '%</b><span>' + (N === 1 ? "avance de hoy" : "avance promedio") + '</span>' + delta(act.prom, ant && ant.prom, " puntos") + '</div>'
+      + '<div class="av-k"><b>' + act.prom + '%</b><span>' + (N === 1 ? "pulso de hoy" : "avance promedio") + '</span>' + delta(act.prom, ant && ant.prom, " puntos") + '</div>'
       + (N === 1
           ? '<div class="av-k"><b>' + act.personas.length + '</b><span>personas con actividad</span>' + delta(act.personas.length, ant && ant.personas.length) + '</div>'
           : '<div class="av-k"><b>' + act.con + ' de ' + N + '</b><span>días con reporte</span>' + delta(act.con, ant && ant.con, " días") + '</div>')
@@ -4720,7 +4720,7 @@ async function cargarAvance(reusar){
 
     cont.innerHTML = chips
       + (N === 1
-          ? '<div class="av-sec">Hoy · ' + esc(inicioDe(d[0].f).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" })) + '</div>'
+          ? '<div class="av-sec">Pulso de hoy · ' + esc(inicioDe(d[0].f).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" })) + '</div>'
             + '<div class="av-hoy"><b>' + act.prom + '%</b><span>de las tareas del día ya están hechas</span>'
             + '<span class="av-bar"><i style="width:' + act.prom + '%"></i></span></div>'
             + '<div class="av-nota">Leído ahora de la base. Toca «Hoy» de nuevo para actualizar.</div>'
@@ -4748,8 +4748,8 @@ async function avancePdf(btn, datos, sem){
     const T = (s, x, y, o) => doc.text(L(s), x, y, o);
     const largo = f => inicioDe(f).toLocaleDateString("es-CL", { day:"numeric", month:"long" });
     let y = encabezadoPdf(doc, F, {
-      tipo: sem ? "Pulso semanal" : "Avance", fecha: N === 1 ? "Hoy" : "Últimos " + N + " días",
-      titulo: sem ? "Pulso semanal" : N === 1 ? "Avance de hoy" : "Avance · " + N + " días",
+      tipo: sem ? "Pulso semanal" : N === 1 ? "Pulso de hoy" : "Avance", fecha: N === 1 ? "Hoy" : "Últimos " + N + " días",
+      titulo: sem ? "Pulso semanal" : N === 1 ? "Pulso de hoy" : "Avance · " + N + " días",
       sub: N === 1 ? largo(d[0].f) + "   ·   " + new Date().toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false }) + " h"
                    : largo(d[0].f) + " al " + largo(d[d.length - 1].f),
       pct: act.prom == null ? 0 : act.prom, avance: act.prom == null ? "Sin reportes" : "Promedio " + act.prom + "%"
@@ -4782,7 +4782,7 @@ async function avancePdf(btn, datos, sem){
     sec("El periodo en cifras");
     const dl = (a, b, suf) => (!ant || a == null || b == null) ? "" : (a === b ? "   (igual)" : "   (" + (a > b ? "+" : "-") + Math.abs(a - b) + (suf || "") + ")");
     doc.setFontSize(10.5); doc.setTextColor(...C.tinta);
-    [[N === 1 ? "Avance de hoy" : "Avance promedio", (act.prom == null ? "sin reportes" : act.prom + "%") + dl(act.prom, ant && ant.prom, " puntos")],
+    [[N === 1 ? "Pulso de hoy" : "Avance promedio", (act.prom == null ? "sin reportes" : act.prom + "%") + dl(act.prom, ant && ant.prom, " puntos")],
      N === 1 ? ["Personas con actividad", act.personas.length + dl(act.personas.length, ant && ant.personas.length)]
              : ["Días con reporte", act.con + " de " + N + dl(act.con, ant && ant.con, " días")],
      ["Fotos", act.fotos + dl(act.fotos, ant && ant.fotos)],
@@ -4868,8 +4868,8 @@ async function avancePdf(btn, datos, sem){
     }
     piePdf(doc, F);
     if(sem){ compartirPdf(doc, "pulso_semanal_" + d[d.length - 1].f + ".pdf", "Pulso semanal — François"); return; }
-    compartirPdf(doc, N === 1 ? "avance_" + d[0].f + ".pdf" : "avance_" + N + "dias_al_" + d[d.length - 1].f + ".pdf",
-                 N === 1 ? "Avance de hoy — François" : "Avance " + N + " días — François");
+    compartirPdf(doc, N === 1 ? "pulso_de_hoy_" + d[0].f + ".pdf" : "avance_" + N + "dias_al_" + d[d.length - 1].f + ".pdf",
+                 N === 1 ? "Pulso de hoy — François" : "Avance " + N + " días — François");
   }catch(e){
     alert("No se pudo armar el PDF: " + ((e && e.message) || e));
   }finally{ btn.disabled = false; btn.textContent = txt0; }
