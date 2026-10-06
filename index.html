@@ -764,7 +764,7 @@
         <button class="accion" id="ckWa">📤 Pulso semanal · WhatsApp</button>
         <button class="accion" id="ckPdf">📄 Pulso semanal · PDF</button>
       </div>
-      <button class="btn-diario" id="ckDiario" style="margin:0 0 13px">📋 Informe diario · todo el local (PI)</button>
+      <button class="btn-diario" id="ckDiario" style="margin:0 0 13px">📋 Pulso diario · todo el local (PI)</button>
       <div id="supChecklists"></div>
     </div>
     <div class="fila2">
@@ -3431,7 +3431,7 @@ async function resumenSupervisor(){
             + (sinReporte ? " · " + sinReporte + " área(s) sin reporte" : "")
           : "Todavía no llega ningún informe de hoy.")
       + '<br><small>«Sin reporte» no significa que no se haya hecho: puede que no haya nadie en esa área.</small>'
-      + '<button class="btn-diario" data-diario="1">📋 Informe diario · todo el local (PI)</button>'
+      + '<button class="btn-diario" data-diario="1">📋 Pulso diario · todo el local (PI)</button>'
       + '<button id="rsVerDetalle">👀 Ver el detalle con fotos</button>'
       + '<button id="rsTrabajar" style="background:none;color:var(--grafito);border:1px solid var(--linea)">Voy a trabajar un área</button>'
       + '</div>';
@@ -3605,7 +3605,7 @@ function renderGuia(){
     + '<button class="eb pe" data-k="pend">⏳ Queda<br>pendiente</button>'
     + '<button class="eb no" data-k="nota">📝 Nota</button></div>'
     + '<button id="btnInforme">📤 Enviar informe de ' + esc(dnd || "el local") + '</button>'
-    + (puedeInformeDiario() ? '<button class="btn-diario" id="btnDiario">📋 Informe diario · todo el local (PI)</button>' : "");
+    + (puedeInformeDiario() ? '<button class="btn-diario" id="btnDiario">📋 Pulso diario · todo el local (PI)</button>' : "");
 
   /* resumen de pendientes del área (rutina + agregados) */
   const pend = cuenta.filter(x => !listo(st, x.id));
@@ -3836,7 +3836,8 @@ document.getElementById("infPdf").addEventListener("click", async () => {
     alert("No se pudo armar el PDF: " + ((e && e.message) || e) + "\nPuedes enviar «Solo texto».");
   }finally{ btn.disabled = false; btn.textContent = txt0; }
 });
-/* ---- Informe diario: TODO el local en un PDF (Turno 1 y Turno 2) ----
+/* ---- Pulso diario (así se llama el informe diario): TODO el local en un PDF
+   (Turno 1 y Turno 2) ----
    Lleva sólo las tareas PI del día, con sus fotos, quién las hizo y, si
    quedaron pendientes, el motivo. Junta lo que reportó cada persona (lo que
    está en la base) y, si es el día de hoy, también lo marcado en este teléfono
@@ -3861,7 +3862,7 @@ function pedirInformeDiario(fecha, btn, diaFijo){
   const corto = f => inicioDe(f).toLocaleDateString("es-CL", { weekday:"short", day:"numeric" });
   if(!diaFijo) fecha = new Date().getHours() < 6 ? ayer : hoy;
   const ovl = document.createElement("div"); ovl.id = "motOvl";
-  ovl.innerHTML = '<div class="cja"><h4>📋 Informe diario · todo el local</h4>'
+  ovl.innerHTML = '<div class="cja"><h4>📋 Pulso diario · todo el local</h4>'
     + (diaFijo ? "" : '<p class="tq">¿De qué día?</p><div class="msg-tipos">'
         + '<button class="msg-tipo felicitacion' + (fecha === hoy ? " on" : "") + '" data-f="' + hoy + '">Hoy · ' + esc(corto(hoy)) + '</button>'
         + '<button class="msg-tipo felicitacion' + (fecha === ayer ? " on" : "") + '" data-f="' + ayer + '">Ayer · ' + esc(corto(ayer)) + '</button></div>')
@@ -3919,7 +3920,7 @@ async function informeDiarioPdf(fecha, btn, cual){
       ids.forEach(id => suma(id, st.done.has(id), fotosDe(st, id), mot[id] || "", st.por[id] || st.fpor[id],
                              (st.done.has(id) && !fotosDe(st, id).length && pide.has(id) && mot[id]) || ""));
     }
-    if(sinBase && !esHoy){ alert("No se pudo leer la base. El informe diario de otro día necesita conexión."); return; }
+    if(sinBase && !esHoy){ alert("No se pudo leer la base. El Pulso diario de otro día necesita conexión."); return; }
 
     const wd = inicioDe(fecha).getDay();
     const todas = (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []);
@@ -3947,9 +3948,9 @@ async function informeDiarioPdf(fecha, btn, cual){
     const W = (s, x, y, ancho) => { const ls = doc.splitTextToSize(L(s), ancho); ls.forEach((l, i) => doc.text(l, x, y + i*4.8)); return ls.length * 4.8; };
     const fl = inicioDe(fecha).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" });
     let y = encabezadoPdf(doc, F, {
-      tipo: "Informe diario",
+      tipo: "Pulso diario",
       fecha: fl.charAt(0).toUpperCase() + fl.slice(1),
-      titulo: "Informe diario",
+      titulo: "Pulso diario",
       sub: turnoTxt + "   ·   " + (hayPI ? "tareas para informe (PI)" : "tareas con foto")
            + "   ·   " + nFotos + (nFotos === 1 ? " foto" : " fotos"),
       pct, avance: hechas + " de " + lista.length + " · " + pct + "%"
@@ -4001,10 +4002,10 @@ async function informeDiarioPdf(fecha, btn, cual){
     if(faltan){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T(faltan + " foto(s) no se pudieron agregar (sin señal y sin copia en este teléfono).", 18, y); y += 6; }
     if(sinBase){ salto(8); doc.setFontSize(9); doc.setTextColor(150,105,20); T("Sin conexión: este informe sólo lleva lo marcado en este teléfono.", 18, y); y += 6; }
     piePdf(doc, F, "Detalle: " + APP_URL.replace(/^https?:\/\//, "") + "/#dia/" + fecha);
-    compartirPdf(doc, "informe_diario_" + fecha + TURNOS_INF[cual][1] + ".pdf",
-                 "Informe diario — François · " + (cual === "todo" ? "" : turnoTxt + " · ") + fl, WA_DESTINO && WA_DESTINO.nombre);
+    compartirPdf(doc, "pulso_diario_" + fecha + TURNOS_INF[cual][1] + ".pdf",
+                 "Pulso diario — François · " + (cual === "todo" ? "" : turnoTxt + " · ") + fl, WA_DESTINO && WA_DESTINO.nombre);
   }catch(e){
-    alert("No se pudo armar el informe diario: " + ((e && e.message) || e));
+    alert("No se pudo armar el Pulso diario: " + ((e && e.message) || e));
   }finally{ if(btn){ btn.disabled = false; btn.textContent = txt0; } }
 }
 document.getElementById("ckDiario").addEventListener("click", e => {
