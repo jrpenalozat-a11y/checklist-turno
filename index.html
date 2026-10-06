@@ -761,8 +761,8 @@
         <input type="date" class="ck-fecha" id="ckFecha" aria-label="Ver un día puntual">
       </div>
       <div class="fila2" style="margin:0 0 13px">
-        <button class="accion" id="ckWa">📤 Informe semanal</button>
-        <button class="accion" id="ckPdf">📄 PDF para la reunión</button>
+        <button class="accion" id="ckWa">📤 Pulso semanal · WhatsApp</button>
+        <button class="accion" id="ckPdf">📄 Pulso semanal · PDF</button>
       </div>
       <button class="btn-diario" id="ckDiario" style="margin:0 0 13px">📋 Informe diario · todo el local (PI)</button>
       <div id="supChecklists"></div>
@@ -2084,7 +2084,8 @@ async function inspeccionPdf(){
 }
 document.getElementById("inspPdf").addEventListener("click", inspeccionPdf);
 
-/* ---- Informe semanal: WhatsApp (corto) y PDF (documento de la reunión) ---- */
+/* ---- Pulso semanal (así se llama el informe de la semana): WhatsApp (corto)
+   y PDF (documento de la reunión) ---- */
 const DIA_LARGO = { weekday:"long", day:"numeric", month:"long" };
 const DIA_CORTO = { weekday:"short", day:"numeric" };
 
@@ -2130,7 +2131,7 @@ async function informeSemanalWa(){
   const dl = f => inicioDe(f).toLocaleDateString("es-CL", DIA_LARGO);
   const ini = s.desde.toLocaleDateString("es-CL", { day:"numeric", month:"long" });
   const fin = s.hoy0.toLocaleDateString("es-CL", { day:"numeric", month:"long" });
-  let t = "📊 *INFORME SEMANAL — François*\n" + ini + " al " + fin + "\n\n";
+  let t = "📊 *PULSO SEMANAL — François*\n" + ini + " al " + fin + "\n\n";
   t += "*RESUMEN*\n" + (7 - s.vacios.length) + " de 7 días con reporte · " + s.filas.length
      + (s.filas.length === 1 ? " informe" : " informes") + "\n\n";
   if(s.vacios.length){
@@ -4746,8 +4747,8 @@ async function avancePdf(btn, datos, sem){
     const T = (s, x, y, o) => doc.text(L(s), x, y, o);
     const largo = f => inicioDe(f).toLocaleDateString("es-CL", { day:"numeric", month:"long" });
     let y = encabezadoPdf(doc, F, {
-      tipo: sem ? "Informe semanal" : "Avance", fecha: N === 1 ? "Hoy" : "Últimos " + N + " días",
-      titulo: sem ? "Informe semanal" : N === 1 ? "Avance de hoy" : "Avance · " + N + " días",
+      tipo: sem ? "Pulso semanal" : "Avance", fecha: N === 1 ? "Hoy" : "Últimos " + N + " días",
+      titulo: sem ? "Pulso semanal" : N === 1 ? "Avance de hoy" : "Avance · " + N + " días",
       sub: N === 1 ? largo(d[0].f) + "   ·   " + new Date().toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false }) + " h"
                    : largo(d[0].f) + " al " + largo(d[d.length - 1].f),
       pct: act.prom == null ? 0 : act.prom, avance: act.prom == null ? "Sin reportes" : "Promedio " + act.prom + "%"
@@ -4865,7 +4866,7 @@ async function avancePdf(btn, datos, sem){
       T("esa área. En motivos y pendientes sólo se cuenta lo que alguien explicó.", 22, y + 5);
     }
     piePdf(doc, F);
-    if(sem){ compartirPdf(doc, "informe_semanal_" + d[d.length - 1].f + ".pdf", "Informe semanal — François"); return; }
+    if(sem){ compartirPdf(doc, "pulso_semanal_" + d[d.length - 1].f + ".pdf", "Pulso semanal — François"); return; }
     compartirPdf(doc, N === 1 ? "avance_" + d[0].f + ".pdf" : "avance_" + N + "dias_al_" + d[d.length - 1].f + ".pdf",
                  N === 1 ? "Avance de hoy — François" : "Avance " + N + " días — François");
   }catch(e){
