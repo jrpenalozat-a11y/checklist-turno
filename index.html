@@ -2148,61 +2148,25 @@ async function informeSemanalWa(){
   const w = window.open(wa, "_blank"); if(!w) location.href = wa;
 }
 
-async function informeSemanalPdf(){
-  let s; try{ s = await datosSemana(); }catch(e){ alert("No se pudo armar el PDF: " + e.message); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:"mm", format:"a4" });
-  const dl = f => inicioDe(f).toLocaleDateString("es-CL", DIA_LARGO);
-  const dc = f => inicioDe(f).toLocaleDateString("es-CL", DIA_CORTO);
-  let y = 22;
-  /* la raya larga no existe en las fuentes base del PDF: sale como hueco */
-  const T = (txt, x, yy) => doc.text(String(txt).replace(/[—–]/g, "-"), x, yy);
-  const salto = alto => { if(y > 278 - (alto || 0)){ doc.addPage(); y = 22; } };
-  const titulo = txt => { salto(12); doc.setFontSize(11); doc.setTextColor(20); T(txt, 20, y); y += 6;
-                          doc.setDrawColor(215); doc.line(20, y-3, 190, y-3); };
-
-  doc.setFont("courier","normal");
-  doc.setFontSize(9); doc.setTextColor(234,86,80); T("FRANÇOIS · LA FLORIDA", 20, y); y += 9;
-  doc.setFontSize(16); doc.setTextColor(20); T("Informe semanal de la guía diaria", 20, y); y += 7;
-  doc.setFontSize(10); doc.setTextColor(110);
-  T(s.desde.toLocaleDateString("es-CL",{day:"numeric",month:"long"}) + " al "
-         + s.hoy0.toLocaleDateString("es-CL",{day:"numeric",month:"long"}), 20, y); y += 6;
-  T((7 - s.vacios.length) + " de 7 días con reporte     " + s.filas.length + " informes", 20, y); y += 6;
-  doc.setDrawColor(200); doc.line(20, y, 190, y); y += 10;
-
-  titulo("Días sin ningún reporte"); doc.setFontSize(10); doc.setTextColor(60);
-  if(!s.vacios.length){ T("Ninguno: los 7 días tuvieron reporte.", 22, y); y += 7; }
-  else s.vacios.forEach(d => { salto(); T("- " + dl(d.f), 22, y); y += 5.5; });
-  y += 5;
-
-  titulo("Día por día"); doc.setFontSize(9); doc.setTextColor(60);
-  s.dias.forEach(d => {
-    salto(14);
-    doc.setTextColor(20); T(dc(d.f) + "   " + (d.n ? d.n + " informe(s)" : "SIN REPORTE"), 22, y); y += 5;
-    doc.setTextColor(110);
-    if(d.n){
-      T("   quien: " + (d.quien.join(", ") || "—").slice(0,78), 22, y); y += 4.5;
-      if(d.areas.length){ T("   reporto: " + d.areas.join(", "), 22, y); y += 4.5; }
-      if(d.sin.length){ T("   sin reporte: " + d.sin.join(", "), 22, y); y += 4.5; }
-    }
-    y += 2;
-  });
-  y += 4;
-
-  titulo("Motivos más repetidos"); doc.setFontSize(10); doc.setTextColor(60);
-  if(!s.motivos.length){ T("Sin pendientes con motivo en la semana.", 22, y); y += 7; }
-  else s.motivos.forEach((m,i) => { salto(); T((i+1) + ". " + m.k + " — " + m.n + " vez/veces", 22, y); y += 5.5; });
-  y += 5;
-
-  titulo("Tareas que más quedaron pendientes"); doc.setFontSize(9); doc.setTextColor(60);
-  if(!s.pendientes.length){ T("Ninguna.", 22, y); y += 6; }
-  else s.pendientes.slice(0,12).forEach((p,i) => { salto(); T((i+1) + ". " + p.k.slice(0,74) + " — " + p.n, 22, y); y += 5; });
-
-  y += 8; salto(16); doc.setFontSize(8); doc.setTextColor(130);
-  T("«Sin reporte» no significa que el trabajo no se hiciera: puede que ese dia no", 20, y); y += 4;
-  T("hubiera nadie en esa area. Solo se cuentan los pendientes que llevan motivo.", 20, y);
-
-  compartirPdf(doc, "informe_semanal_" + fechaISO(s.hoy0) + ".pdf", "Informe semanal — François");
+/* PDF semanal para la reunión: los gráficos de Avance (línea de los 7 días,
+   áreas, aporte por persona) + lo propio de la semana (motivos, tareas que más
+   quedan pendientes y el día por día). Lo dibuja avancePdf con el diseño de
+   François; acá sólo se juntan los datos. Se piden 14 días para comparar con
+   la semana anterior. */
+async function informeSemanalPdf(e){
+  const btn = (e && e.currentTarget) || document.getElementById("ckPdf");
+  const txt0 = btn.textContent; btn.disabled = true; btn.textContent = "Juntando la semana…";
+  let datos, sem;
+  try{
+    sem = await datosSemana();
+    const hoy = new Date();
+    const desde = new Date(hoy.getTime() - 14 * 864e5); desde.setHours(0, 0, 0, 0);
+    const filas = await avTraer(desde);
+    datos = { N:7, act: avResumen(filas, avFechas(7, hoy)), ant: avResumen(filas, avFechas(7, new Date(hoy.getTime() - 7 * 864e5))) };
+  }catch(err){
+    alert("No se pudo armar el PDF: " + ((err && err.message) || err)); return;
+  }finally{ btn.disabled = false; btn.textContent = txt0; }
+  await avancePdf(btn, datos, sem);
 }
 document.getElementById("ckWa").addEventListener("click", informeSemanalWa);
 document.getElementById("ckPdf").addEventListener("click", informeSemanalPdf);
@@ -4742,7 +4706,7 @@ async function cargarAvance(reusar){
     const pers = '<div class="av-sec">Aporte por persona, según su puesto</div>'
       + act.personas.map(p => '<div class="av-row"><span class="av-a">' + esc(p.n) + '</span>'
           + '<span class="av-bar"><i style="width:' + (p.pct || 0) + '%"></i></span>'
-          + '<span class="av-v">' + (p.pct == null ? "sin puesto" : p.pct + "%") + '</span>'
+          + '<span class="av-v">' + (p.pct == null ? (p.puestos.length ? "sin tareas" : "sin puesto") : p.pct + "%") + '</span>'
           + '<span class="av-det">' + p.dias + (p.dias === 1 ? " día" : " días")
           + (p.puestos.length ? " en " + esc(p.puestos.join(", ")) : " como Supervisor")
           + (p.toca ? " · resolvió " + (p.hechas + p.expl) + " de " + p.toca + " de su puesto" + (p.expl ? " (" + p.expl + " con motivo)" : "") : "")
@@ -4769,11 +4733,12 @@ async function cargarAvance(reusar){
     cont.innerHTML = chips + '<div class="sinreg">No se pudo cargar: ' + esc((e && e.message) || e) + '</div>';
   }
 }
-async function avancePdf(btn){
-  if(!avUlt) return;
+async function avancePdf(btn, datos, sem){
+  const U = datos || avUlt;
+  if(!U) return;
   const txt0 = btn.textContent; btn.disabled = true; btn.textContent = "Preparando…";
   try{
-    const { N, act, ant } = avUlt, d = act.dias;
+    const { N, act, ant } = U, d = act.dias;
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:"mm", format:"a4", compress:true });
     const F = await fuentesPdf(doc), C = PDF_COL;
@@ -4781,11 +4746,11 @@ async function avancePdf(btn){
     const T = (s, x, y, o) => doc.text(L(s), x, y, o);
     const largo = f => inicioDe(f).toLocaleDateString("es-CL", { day:"numeric", month:"long" });
     let y = encabezadoPdf(doc, F, {
-      tipo: "Avance", fecha: N === 1 ? "Hoy" : "Últimos " + N + " días",
-      titulo: N === 1 ? "Avance de hoy" : "Avance · " + N + " días",
+      tipo: sem ? "Informe semanal" : "Avance", fecha: N === 1 ? "Hoy" : "Últimos " + N + " días",
+      titulo: sem ? "Informe semanal" : N === 1 ? "Avance de hoy" : "Avance · " + N + " días",
       sub: N === 1 ? largo(d[0].f) + "   ·   " + new Date().toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false }) + " h"
                    : largo(d[0].f) + " al " + largo(d[d.length - 1].f),
-      pct: act.prom, avance: "Promedio " + act.prom + "%"
+      pct: act.prom == null ? 0 : act.prom, avance: act.prom == null ? "Sin reportes" : "Promedio " + act.prom + "%"
     });
     const salto = n => { if(y + n > 280){ doc.addPage(); y = 20; } };
     const sec = t => { salto(16); doc.setFillColor(...C.coral); doc.rect(18, y - 3.6, 1.2, 4.6, "F");
@@ -4815,7 +4780,7 @@ async function avancePdf(btn){
     sec("El periodo en cifras");
     const dl = (a, b, suf) => (!ant || a == null || b == null) ? "" : (a === b ? "   (igual)" : "   (" + (a > b ? "+" : "-") + Math.abs(a - b) + (suf || "") + ")");
     doc.setFontSize(10.5); doc.setTextColor(...C.tinta);
-    [[N === 1 ? "Avance de hoy" : "Avance promedio", act.prom + "%" + dl(act.prom, ant && ant.prom, " puntos")],
+    [[N === 1 ? "Avance de hoy" : "Avance promedio", (act.prom == null ? "sin reportes" : act.prom + "%") + dl(act.prom, ant && ant.prom, " puntos")],
      N === 1 ? ["Personas con actividad", act.personas.length + dl(act.personas.length, ant && ant.personas.length)]
              : ["Días con reporte", act.con + " de " + N + dl(act.con, ant && ant.con, " días")],
      ["Fotos", act.fotos + dl(act.fotos, ant && ant.fotos)],
@@ -4845,7 +4810,7 @@ async function avancePdf(btn){
       doc.setFontSize(10.5); doc.setTextColor(...C.tinta); T(p.n, 22, y);
       doc.setFillColor(...C.linea); doc.roundedRect(72, y - 2.6, 80, 2.6, 1.3, 1.3, "F");
       if(p.pct){ doc.setFillColor(...C.coral); doc.roundedRect(72, y - 2.6, Math.max(2.6, 80 * p.pct / 100), 2.6, 1.3, 1.3, "F"); }
-      doc.setFont(...F.sb); T(p.pct == null ? "sin puesto" : p.pct + "%", 156, y); doc.setFont(...F.reg);
+      doc.setFont(...F.sb); T(p.pct == null ? (p.puestos.length ? "sin tareas" : "sin puesto") : p.pct + "%", 156, y); doc.setFont(...F.reg);
       y += 4.4;
       doc.setFontSize(8.5); doc.setTextColor(...C.grafito);
       T(p.dias + (p.dias === 1 ? " día" : " días") + (p.puestos.length ? " en " + p.puestos.join(", ") : " como Supervisor")
@@ -4856,7 +4821,51 @@ async function avancePdf(btn){
     doc.setFontSize(8); salto(12);
     T("El % es, de las tareas del puesto elegido cada día, cuántas dejó hechas o explicadas con motivo.", 22, y + 2);
     T("Lo hecho por otra persona del mismo puesto no cuenta en contra. La vara es la rutina actual.", 22, y + 6);
+    if(sem){
+      const corta = (t, ancho) => doc.splitTextToSize(L(t), ancho)[0];
+      y += 16;
+      sec("Motivos más repetidos");
+      if(!sem.motivos.length){ doc.setFontSize(10); doc.setTextColor(...C.grafito); T("Sin pendientes con motivo en la semana.", 22, y); y += 8; }
+      else {
+        const mx = Math.max(1, sem.motivos[0].n);
+        sem.motivos.slice(0, 8).forEach(m => {
+          salto(8);
+          doc.setFontSize(10); doc.setTextColor(...C.tinta); T(corta(m.k, 68), 22, y);
+          doc.setFillColor(...C.linea); doc.roundedRect(94, y - 2.6, 70, 2.6, 1.3, 1.3, "F");
+          doc.setFillColor(...C.ambar); doc.roundedRect(94, y - 2.6, Math.max(2.6, 70 * m.n / mx), 2.6, 1.3, 1.3, "F");
+          doc.setTextColor(...C.grafito); T(m.n + (m.n === 1 ? " vez" : " veces"), 168, y); y += 6.4;
+        });
+      }
+      y += 5;
+      sec("Tareas que más quedaron pendientes");
+      doc.setFontSize(9.5);
+      if(!sem.pendientes.length){ doc.setTextColor(...C.grafito); T("Ninguna con motivo en la semana.", 22, y); y += 8; }
+      else sem.pendientes.slice(0, 12).forEach((q, i) => {
+        salto(7);
+        doc.setTextColor(...C.tinta); T((i + 1) + ". " + corta(q.k, 150), 22, y);
+        doc.setTextColor(...C.grafito); T(String(q.n), 192, y, { align:"right" }); y += 5.4;
+      });
+      y += 5;
+      sec("Día por día");
+      const dc = f => { const t = inicioDe(f).toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" }); return t.charAt(0).toUpperCase() + t.slice(1); };
+      const conTareas = new Set((RUTINA.base || []).concat(...Object.keys(RUTINA.dias || {}).map(k => RUTINA.dias[k] || [])).map(x => x.p).filter(Boolean));
+      sem.dias.forEach(q => {
+        q = { ...q, sin: q.sin.filter(a => conTareas.has(a)) };
+        salto(13);
+        doc.setFont(...F.sb); doc.setFontSize(10); doc.setTextColor(...C.tinta); T(dc(q.f), 22, y);
+        doc.setFont(...F.reg);
+        if(!q.n){ doc.setTextColor(...C.ambar); T("Sin reporte", 192, y, { align:"right" }); y += 6.2; return; }
+        doc.setTextColor(...C.grafito); T(q.n + (q.n === 1 ? " informe" : " informes"), 192, y, { align:"right" }); y += 4.6;
+        doc.setFontSize(8.5);
+        T(corta("Reportó: " + (q.areas.join(", ") || "ningún área") + (q.sin.length ? "   ·   Sin reporte: " + q.sin.join(", ") : ""), 170), 22, y); y += 4.2;
+        T(corta("Quién: " + (q.quien.join(", ") || "-"), 170), 22, y); y += 6;
+      });
+      doc.setFontSize(8); doc.setTextColor(...C.grafito); salto(10);
+      T("«Sin reporte» no significa que el trabajo no se hiciera: puede que ese día no hubiera nadie en", 22, y + 1);
+      T("esa área. En motivos y pendientes sólo se cuenta lo que alguien explicó.", 22, y + 5);
+    }
     piePdf(doc, F);
+    if(sem){ compartirPdf(doc, "informe_semanal_" + d[d.length - 1].f + ".pdf", "Informe semanal — François"); return; }
     compartirPdf(doc, N === 1 ? "avance_" + d[0].f + ".pdf" : "avance_" + N + "dias_al_" + d[d.length - 1].f + ".pdf",
                  N === 1 ? "Avance de hoy — François" : "Avance " + N + " días — François");
   }catch(e){
