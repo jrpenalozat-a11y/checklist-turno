@@ -4607,7 +4607,20 @@ document.getElementById("supMensaje").addEventListener("click", () => abrirMensa
    historial no puede ir más atrás (y con 90 días no hay periodo anterior con
    qué comparar). La rutina que se usa de vara es la de HOY: si se agregaron o
    quitaron tareas, los días viejos se miden contra la lista actual. */
-let avPeriodo = 30, avUlt = null, avPersonas = false;
+/* Periodos: 1 = hoy · 7 (por defecto) · 30 · 0 = «desde el inicio».
+   AV_INICIO es el primer día de reporte real: ningún periodo cuenta días
+   anteriores (no son «días sin reporte», la app todavía no se usaba). Una sede
+   sin fecha fija parte desde su primer reporte. Tope: 90 días, por la limpieza. */
+const AV_INICIO = SEDE_ID === "lf" ? "2026-10-04" : "";
+/* «Administración» para el indicador de dependencia: el mando + estos nombres */
+const AV_ADMIN_EXTRA = SEDE_ID === "lf" ? ["Vanessa"] : [];
+function avAdmins(){
+  return USUARIOS.filter(u => ROLES_SUPERVISOR.indexOf(rolNorm(u.rol)) >= 0).map(u => u.nombre).concat(AV_ADMIN_EXTRA);
+}
+function avEtiqueta(N){ return N === 1 ? "Hoy" : N === 0 ? "Desde el inicio" : "Últimos " + N + " días"; }
+/* mínimo de días con reporte para mostrar el % de una persona */
+function avMinDias(nDias){ return nDias <= 7 ? 3 : 5; }
+let avPeriodo = 7, avUlt = null, avPersonas = false;
 async function avTraer(desde){
   const client = getSB(); if(!client) throw new Error("Sin conexión con la base");
   await vfSesion(client);
@@ -4626,8 +4639,13 @@ async function avTraer(desde){
      traen tareas que no son de la rutina y salían como días al 0% */
   return filas.filter(r => /^(?:[a-z0-9]{2,6}~)?guia-/.test(r.codigo || "") && r.estado && Array.isArray(r.estado.tareas));
 }
-function avResumen(filas, fechas){
+/* cum = true: una tarea no hecha pero explicada con motivo cuenta como
+   cumplida (así se mide el Avance de 7 días o más). El Pulso de hoy y el Pulso
+   semanal llaman sin «cum» y siguen contando sólo lo hecho. */
+function avResumen(filas, fechas, cum){
   const nombre = r => msgNombre(r.estado.entrega);
+  const pstR = r => { const m = /\(([^)]*)\)\s*$/.exec(r.estado.entrega || "");
+    return m ? m[1].split(",").map(x => x.trim()).filter(x => x && x !== "Supervisor") : []; };
   /* sólo cuenta como reporte un registro con algo adentro (una tarea hecha, un
      motivo o una foto): abrir la app sin marcar nada dejaba un «día con
      reporte» al 0% que no era tal */
@@ -4641,16 +4659,34 @@ function avResumen(filas, fechas){
        como día sin datos en vez de un 0% falso */
     const enRutina = new Set(rutina.map(x => x.id));
     const del = (porDia[f] || []).filter(r => r.estado.tareas.some(t => enRutina.has(t.id)));
-    const hechas = new Set(), fotos = new Set(); let pend = 0;
+    const hechas = new Set(), fotos = new Set(), mot = {}, hizo = {}; let pend = 0;
     del.forEach(r => r.estado.tareas.forEach(t => {
-      if(t.ok) hechas.add(t.id);
+      if(t.ok){ hechas.add(t.id); if(!hizo[t.id]) hizo[t.id] = (t.por && t.por.q) || nombre(r); }
       fotosT(t).forEach(p => fotos.add(p));
-      if(!t.ok && t.motivo) pend++;
+      if(!t.ok && t.motivo){ pend++; mot[t.id] = t.motivo; }
     }));
-    const pct = its => its.length ? Math.round(its.filter(x => hechas.has(x.id)).length / its.length * 100) : null;
+    const cumple = x => hechas.has(x.id) || (!!cum && !!mot[x.id]);
+    const pct = its => its.length ? Math.round(its.filter(cumple).length / its.length * 100) : null;
     const areas = {};
     AREAS_TAB.forEach(a => { areas[a.a] = del.length ? pct(rutina.filter(x => a.a === "gen" ? !x.p : x.p === a.a)) : null; });
-    return { f, n:del.length, pct: del.length ? pct(rutina) : null, fotos:fotos.size, pend, areas };
+    /* Áreas que reportaron ese día: la que alguien eligió como puesto, o donde
+       alguien marcó o explicó algo. Lo no hecho se cuenta SÓLO en ellas: si un
+       día reporta nada más que Caja, las tareas de Cocina no son «sin explicar»,
+       es un área sin reporte (va aparte, en sinRep). */
+    const areaDe = {}; rutina.forEach(x => { areaDe[x.id] = x.p || "gen"; });
+    const rep = new Set();
+    del.forEach(r => { pstR(r).forEach(a => rep.add(a));
+      r.estado.tareas.forEach(t => { if(areaDe[t.id] && (t.ok || t.motivo)) rep.add(areaDe[t.id]); }); });
+    const nh = [], sinRep = [];
+    if(del.length) AREAS_TAB.forEach(a => {
+      const its = rutina.filter(x => a.a === "gen" ? !x.p : x.p === a.a); if(!its.length) return;
+      if(!rep.has(a.a)){ sinRep.push(a.a); return; }
+      its.forEach(x => { if(!hechas.has(x.id)) nh.push({ id:x.id, a:a.a, m:!!mot[x.id] }); });
+    });
+    /* quién marcó cada tarea hecha de la rutina (para «cubiertas por administración») */
+    const adm = { tot:0, por:{} };
+    rutina.forEach(x => { if(!hechas.has(x.id)) return; adm.tot++; const q = hizo[x.id]; if(q) adm.por[q] = (adm.por[q] || 0) + 1; });
+    return { f, n:del.length, pct: del.length ? pct(rutina) : null, fotos:fotos.size, pend, areas, nh, sinRep, adm };
   });
   const con = dias.filter(d => d.n);
   const prom = con.length ? Math.round(con.reduce((s, d) => s + (d.pct || 0), 0) / con.length) : null;
@@ -4713,24 +4749,43 @@ function avFechas(n, hasta){
 }
 async function cargarAvance(reusar){
   const cont = document.getElementById("supAvance");
-  const chips = '<div class="av-chips">' + [1, 7, 30, 90].map(n =>
-    '<span class="chip' + (n === avPeriodo ? " on" : "") + '" data-n="' + n + '">' + (n === 1 ? "Hoy" : n + " días") + '</span>').join("") + '</div>';
+  const chips = '<div class="av-chips">' + [1, 7, 30, 0].map(n =>
+    '<span class="chip' + (n === avPeriodo ? " on" : "") + '" data-n="' + n + '">' + (n === 1 ? "Hoy" : n === 0 ? "Desde el inicio" : n + " días") + '</span>').join("") + '</div>';
   const yaEsta = reusar && avUlt && avUlt.N === avPeriodo;
   if(!yaEsta) cont.innerHTML = chips + '<div class="sinreg">Cargando…</div>';
   try{
-    const N = avPeriodo, comparar = N < 90;                 // con 90 días no queda periodo anterior guardado
+    const N = avPeriodo, largoP = N === 0 ? 90 : N, comparar = N !== 0;   // «desde el inicio» no tiene periodo anterior
     if(!yaEsta){
       const hoy = new Date();
-      const desde = new Date(hoy.getTime() - (comparar ? 2 * N : N) * 864e5); desde.setHours(0, 0, 0, 0);
+      const desde = new Date(hoy.getTime() - (N === 1 ? 2 : Math.max(comparar ? 2 * largoP : largoP, 14)) * 864e5); desde.setHours(0, 0, 0, 0);
       const filas = await avTraer(desde);
-      avUlt = { N, act: avResumen(filas, avFechas(N, hoy)),
-                ant: comparar ? avResumen(filas, avFechas(N, new Date(hoy.getTime() - N * 864e5))) : null };
+      if(N === 1){
+        avUlt = { N, act: avResumen(filas, avFechas(1, hoy)), ant: avResumen(filas, avFechas(1, new Date(hoy.getTime() - 864e5))), base:true };
+      } else {
+        /* ningún periodo cuenta días anteriores al inicio real del reporte */
+        const desdeIni = fs => AV_INICIO ? fs.filter(f => f >= AV_INICIO) : fs;
+        let fechas = desdeIni(avFechas(largoP, hoy));
+        let act = avResumen(filas, fechas, true);
+        if(N === 0 && !AV_INICIO){                      // sede sin fecha fija: desde su primer reporte
+          const i0 = act.dias.findIndex(q => q.n);
+          if(i0 > 0){ fechas = fechas.slice(i0); act = avResumen(filas, fechas, true); }
+        }
+        const fAnt = comparar ? desdeIni(avFechas(largoP, new Date(hoy.getTime() - largoP * 864e5))) : [];
+        const ant = fAnt.length ? avResumen(filas, fAnt, true) : null;
+        /* la última semana y la anterior, sea cual sea el periodo elegido */
+        const f7 = desdeIni(avFechas(7, hoy)), f7a = desdeIni(avFechas(7, new Date(hoy.getTime() - 7 * 864e5)));
+        const sem = avResumen(filas, f7, true), semAnt = f7a.length ? avResumen(filas, f7a, true) : null;
+        /* con menos de 5 días con reporte en el periodo anterior no hay con qué comparar */
+        avUlt = { N, act, ant, base: !!(ant && ant.con >= 5), sem, semAnt, semBase: !!(semAnt && semAnt.con >= 5) };
+      }
     }
-    const act = avUlt.act, ant = avUlt.ant;
-    if(!act.con){ cont.innerHTML = chips + '<div class="sinreg">' + (N === 1 ? "Hoy todavía nadie ha marcado nada." : "No hay registros en los últimos " + N + " días.") + '</div>'; return; }
+    const act = avUlt.act, ant = avUlt.base ? avUlt.ant : null;
+    if(!act.con){ cont.innerHTML = chips + '<div class="sinreg">' + (N === 1 ? "Hoy todavía nadie ha marcado nada." : "No hay registros " + (N === 0 ? "desde el inicio." : "en los últimos " + N + " días.")) + '</div>'; return; }
 
     /* gráfico: un punto por día; los días sin reporte van abajo, huecos */
-    const W = 520, H = 190, x0 = 40, x1 = 510, y0 = 20, y1 = 155, d = act.dias;
+    const W = 520, H = 190, x0 = 40, x1 = 510, y0 = 20, y1 = 155;
+    /* el gráfico parte en el primer día con reporte: no se rellena lo anterior */
+    const d = N === 1 ? act.dias : act.dias.slice(Math.max(0, act.dias.findIndex(q => q.n)));
     const X = i => d.length === 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * i / (d.length - 1);
     const Y = p => y1 - (y1 - y0) * p / 100;
     const corto = f => inicioDe(f).toLocaleDateString("es-CL", { day:"numeric", month:"short" });
@@ -4759,17 +4814,23 @@ async function cargarAvance(reusar){
       + '<div class="av-k"><b>' + act.prom + '%</b><span>' + (N === 1 ? "pulso de hoy" : "avance promedio") + '</span>' + delta(act.prom, ant && ant.prom, " puntos") + '</div>'
       + (N === 1
           ? '<div class="av-k"><b>' + act.personas.length + '</b><span>personas con actividad</span>' + delta(act.personas.length, ant && ant.personas.length) + '</div>'
-          : '<div class="av-k"><b>' + act.con + ' de ' + N + '</b><span>días con reporte</span>' + delta(act.con, ant && ant.con, " días") + '</div>')
+          : '<div class="av-k"><b>' + act.con + ' de ' + act.dias.length + '</b><span>días con reporte</span>' + delta(act.con, ant && ant.con, " días") + '</div>')
       + '<div class="av-k"><b>' + act.fotos + '</b><span>fotos</span>' + delta(act.fotos, ant && ant.fotos) + '</div>'
       + '<div class="av-k"><b>' + act.pend + '</b><span>pendientes con motivo</span>' + delta(act.pend, ant && ant.pend, "", true) + '</div></div>'
       + '<div class="av-nota">' + (N === 1 ? "Comparado con el día completo de ayer: a media tarde es normal ir por debajo."
-        : ant ? "Comparado con los " + N + " días anteriores." : "Con 90 días no hay periodo anterior guardado para comparar.") + '</div>';
+        : ant ? "Comparado con los " + N + " días anteriores."
+        : N === 0 ? "Desde el " + (AV_INICIO ? inicioDe(AV_INICIO).toLocaleDateString("es-CL", { day:"numeric", month:"long" }) : "primer reporte") + ". Los registros de más de 90 días se borran, así que no llega más atrás que eso."
+        : "Sin base de comparación: el periodo anterior tiene menos de 5 días con reporte.")
+      + (N === 1 ? "" : " Una tarea no hecha pero explicada con motivo cuenta como cumplida.") + '</div>';
 
     const conDatos = d.filter(q => q.n);
     const areas = AREAS_TAB.map(a => {
       const vals = conDatos.map(q => q.areas[a.a]).filter(v => v != null);
-      if(!vals.length) return "";
-      const prom = Math.round(vals.reduce((s, v) => s + v, 0) / vals.length), t = avTendencia(vals);
+      if(!vals.length) return null;
+      return [a, Math.round(vals.reduce((s, v) => s + v, 0) / vals.length), vals];
+    }).filter(Boolean).sort((x, y) => N === 1 ? 0 : x[1] - y[1]).map(par => {       // lo que necesita atención, arriba
+      const a = par[0], prom = par[1], vals = par[2], t = avTendencia(vals);
+      const sinH = N === 1 ? 0 : conDatos.reduce((n, q) => n + q.nh.filter(x => x.a === a.a).length, 0);
       const sp = vals.map((v, i) => (vals.length === 1 ? 100 : 200 * i / (vals.length - 1)).toFixed(1) + "," + (24 - 22 * v / 100).toFixed(1)).join(" ");
       /* un solo día no tiene tendencia: barra con lo que va hecho */
       if(N === 1) return '<div class="av-row"><span class="av-a">' + esc(a.n) + '</span>'
@@ -4777,20 +4838,23 @@ async function cargarAvance(reusar){
         + '<span class="av-v' + (prom >= 100 ? " up" : "") + '">' + prom + '%' + (prom ? "" : " · sin marcar") + '</span></div>';
       return '<div class="av-row"><span class="av-a">' + esc(a.n) + '</span>'
         + '<svg viewBox="0 0 200 26" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="var(--coral)" stroke-width="2" vector-effect="non-scaling-stroke" points="' + sp + '"/></svg>'
-        + '<span class="av-v ' + t[1] + '">' + prom + '%' + (t[0] ? " · " + t[0] : "") + '</span></div>';
+        + '<span class="av-v ' + t[1] + '">' + prom + '%' + (t[0] ? " · " + t[0] : "") + '</span>'
+        + (sinH ? '<span class="av-det">' + sinH + (sinH === 1 ? " tarea quedó" : " tareas quedaron") + ' sin hacer en el periodo</span>' : "") + '</div>';
     }).join("");
 
     const activos = new Set(act.personas.map(p => p.n));
     const sinAct = USUARIOS.filter(u => u.activo !== false && rolNorm(u.rol) === "colaborador" && !activos.has(u.nombre)).map(u => u.nombre);
     const pers = '<div class="av-sec">Aporte por persona, según su puesto</div>'
-      + act.personas.map(p => '<div class="av-row"><span class="av-a">' + esc(p.n) + '</span>'
-          + '<span class="av-bar"><i style="width:' + (p.pct || 0) + '%"></i></span>'
-          + '<span class="av-v">' + (p.pct == null ? (p.puestos.length ? "sin tareas" : "sin puesto") : p.pct + "%") + '</span>'
+      + act.personas.map(p => { const pocos = N !== 1 && p.dias < avMinDias(act.dias.length);
+          return '<div class="av-row"><span class="av-a">' + esc(p.n) + '</span>'
+          + (pocos ? '<span class="av-v" style="grid-column:span 2">datos insuficientes (' + p.dias + (p.dias === 1 ? " día)" : " días)") + '</span>'
+            : '<span class="av-bar"><i style="width:' + (p.pct || 0) + '%"></i></span>'
+              + '<span class="av-v">' + (p.pct == null ? (p.puestos.length ? "sin tareas" : "sin puesto") : p.pct + "%") + '</span>')
           + '<span class="av-det">' + p.dias + (p.dias === 1 ? " día" : " días")
           + (p.puestos.length ? " en " + esc(p.puestos.join(", ")) : " como Supervisor")
-          + (p.toca ? " · resolvió " + (p.hechas + p.expl) + " de " + p.toca + " de su puesto" + (p.expl ? " (" + p.expl + " con motivo)" : "") : "")
+          + (p.toca && !pocos ? " · resolvió " + (p.hechas + p.expl) + " de " + p.toca + " de su puesto" + (p.expl ? " (" + p.expl + " con motivo)" : "") : "")
           + (p.fuera ? " · +" + p.fuera + " fuera de su puesto" : "")
-          + " · " + p.fotos + (p.fotos === 1 ? " foto" : " fotos") + '</span></div>').join("")
+          + " · " + p.fotos + (p.fotos === 1 ? " foto" : " fotos") + '</span></div>'; }).join("")
       + (sinAct.length ? '<div class="av-nota">Sin actividad en el periodo: ' + esc(sinAct.join(", ")) + '</div>' : "")
       + '<div class="av-nota"><b>Cómo se calcula:</b> de las tareas del puesto que la persona eligió cada día, cuántas dejó hechas o explicadas con motivo. '
       + 'Las que hizo otra persona del mismo puesto no se le cuentan en contra, y lo que marcó fuera de su puesto va aparte. Sólo lo ve el mando.</div>';
@@ -4805,8 +4869,14 @@ async function cargarAvance(reusar){
             + '<div class="av-nota">Cada punto lleno es un día con reporte; los huecos de abajo, días sin ninguno.</div>')
       + kpi
       + '<div class="av-sec">' + (N === 1 ? "Avance por área" : "Tendencia por área") + '</div>' + areas
-      + '<div class="fila2" style="margin-top:14px"><button class="accion wsp" id="avPdf">📄 Enviar PDF</button>'
-      + '<button class="accion" id="avVerPers">' + (avPersonas ? "Ocultar personas" : "👥 Ver por persona") + '</button></div>'
+      + (N === 1
+          ? '<div class="fila2" style="margin-top:14px"><button class="accion wsp" id="avPdf">📄 Enviar PDF</button>'
+            + '<button class="accion" id="avVerPers">' + (avPersonas ? "Ocultar personas" : "👥 Ver por persona") + '</button></div>'
+          : '<div class="av-sec" style="margin-top:16px">Informe en PDF</div>'
+            + '<div class="fila2"><button class="accion wsp" id="avPdfEq">📄 Para el equipo</button>'
+            + '<button class="accion wsp" id="avPdfAd">📄 Para administración</button></div>'
+            + '<div class="av-nota">El del equipo no trae el detalle por persona. El de administración sí, y suma las tareas cubiertas por administración.</div>'
+            + '<button class="accion" id="avVerPers" style="width:100%;margin-top:8px">' + (avPersonas ? "Ocultar personas" : "👥 Ver por persona") + '</button>')
       + (avPersonas ? pers : "");
   }catch(e){
     cont.innerHTML = chips + '<div class="sinreg">No se pudo cargar: ' + esc((e && e.message) || e) + '</div>';
@@ -4951,10 +5021,197 @@ async function avancePdf(btn, datos, sem){
     alert("No se pudo armar el PDF: " + ((e && e.message) || e));
   }finally{ btn.disabled = false; btn.textContent = txt0; }
 }
+/* ---- Informe de Avance en PDF (7 días, 30 días o desde el inicio) ----
+   Dos versiones: «para el equipo» (sin el detalle por persona) y «para
+   administración» (con él y con las tareas cubiertas por administración).
+   El Pulso de hoy y el Pulso semanal siguen saliendo de avancePdf(). */
+async function avanceInformePdf(btn, admin){
+  const U = avUlt; if(!U || U.N === 1) return;
+  const txt0 = btn.textContent; btn.disabled = true; btn.textContent = "Preparando…";
+  try{
+    const { N, act, sem, semAnt } = U, ant = U.base ? U.ant : null;
+    const dias = act.dias, con = dias.filter(q => q.n);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:"mm", format:"a4", compress:true });
+    const F = await fuentesPdf(doc), C = PDF_COL, OSC = [198, 63, 57];
+    const L = s => F.R ? String(s) : String(s).replace(/[—–−]/g, "-");
+    const T = (s, x, y, o) => doc.text(L(s), x, y, o);
+    const largo = f => inicioDe(f).toLocaleDateString("es-CL", { day:"numeric", month:"long" });
+    const corto = f => inicioDe(f).toLocaleDateString("es-CL", { day:"numeric", month:"short" }).replace(".", "");
+    const corta = (t, ancho) => doc.splitTextToSize(L(t), ancho)[0];
+    const semPct = sem && sem.prom != null ? sem.prom : null;
+    let y = encabezadoPdf(doc, F, {
+      tipo: "Avance · " + (admin ? "administración" : "equipo"), fecha: avEtiqueta(N),
+      titulo: "Avance · " + (N === 0 ? "desde el inicio" : N + " días"),
+      sub: largo(dias[0].f) + " al " + largo(dias[dias.length - 1].f) + "   ·   versión para " + (admin ? "administración" : "el equipo"),
+      pct: semPct == null ? 0 : semPct, avance: semPct == null ? "Sin reportes" : "Última semana " + semPct + "%"
+    });
+    const salto = n => { if(y + n > 280){ doc.addPage(); y = 20; } };
+    const sec = t => { salto(18); doc.setFillColor(...C.coral); doc.rect(18, y - 3.6, 1.2, 4.6, "F");
+      doc.setFont(...F.sb); doc.setFontSize(12); doc.setTextColor(...C.tinta); T(t, 22, y); doc.setFont(...F.reg); y += 7; };
+    const dif = (a, b, suf) => a === b ? "igual que antes" : (a > b ? "+" : "-") + Math.abs(a - b) + suf + " vs. periodo anterior";
+
+    /* --- tres números fijos --- */
+    const nh = [].concat(...con.map(q => q.nh));
+    const conM = nh.filter(x => x.m).length, sinM = nh.length - conM, alerta = sinM > conM;
+    const sinRep = dias.filter(q => !q.n).map(q => corto(q.f));
+    const areasSinRep = con.reduce((n, q) => n + q.sinRep.length, 0);
+    const tarj = [
+      { n: act.con + " de " + dias.length, t: "días con reporte",
+        c: ant ? dif(act.con, ant.con, " días") : "sin base de comparación",
+        d: sinRep.length ? "Sin reporte: " + sinRep.slice(0, 9).join(", ") + (sinRep.length > 9 ? " y " + (sinRep.length - 9) + " más" : "") : "Todos los días tienen reporte." },
+      { n: semPct == null ? "—" : semPct + "%", t: "avance de la última semana",
+        c: (U.semBase && semPct != null && semAnt.prom != null) ? dif(semPct, semAnt.prom, " puntos").replace("periodo anterior", "semana anterior") : "sin base de comparación",
+        d: sem ? sem.con + " de " + sem.dias.length + " días con reporte en la semana." : "" },
+      { n: conM + " / " + sinM, t: "no hechas: con motivo / sin motivo", osc: alerta,
+        c: alerta ? "Hay tareas que quedan sin explicar" : (nh.length ? "La mayoría quedó explicada" : "No quedó nada sin hacer"),
+        d: "En las áreas que reportaron." + (areasSinRep ? " Además, " + areasSinRep + (areasSinRep === 1 ? " vez un área no reportó." : " veces un área no reportó.") : "") }
+    ];
+    const cw = 56, ch = 40;
+    tarj.forEach((k, i) => {
+      const x = 18 + i * (cw + 3);
+      doc.setFillColor(...(k.osc ? OSC : C.crema)); doc.roundedRect(x, y, cw, ch, 3, 3, "F");
+      const claro = k.osc ? [255, 255, 255] : C.tinta, suave = k.osc ? [254, 236, 214] : C.grafito;
+      doc.setFont(...F.b); doc.setFontSize(19); doc.setTextColor(...claro); T(k.n, x + 4, y + 10.5);
+      doc.setFont(...F.sb); doc.setFontSize(8); T(k.t, x + 4, y + 16);
+      doc.setFont(...(k.osc ? F.b : F.reg)); doc.setFontSize(7.4); doc.setTextColor(...(k.osc ? [255, 255, 255] : C.coral));
+      doc.splitTextToSize(L(k.c), cw - 8).slice(0, 2).forEach((l, j) => T(l, x + 4, y + 21 + j * 3.3));
+      doc.setFont(...F.reg); doc.setFontSize(7); doc.setTextColor(...suave);
+      doc.splitTextToSize(L(k.d), cw - 8).slice(0, 3).forEach((l, j) => T(l, x + 4, y + 29.5 + j * 3.1));
+    });
+    y += ch + 11;
+
+    /* --- gráfico: desde el primer día con reporte --- */
+    const d = dias.slice(Math.max(0, dias.findIndex(q => q.n)));
+    sec("Avance por día");
+    {
+      const gx0 = 30, gx1 = 190, gy0 = y, gy1 = y + 44;
+      const X = i => d.length === 1 ? (gx0 + gx1) / 2 : gx0 + (gx1 - gx0) * i / (d.length - 1);
+      const Y = v => gy1 - (gy1 - gy0) * v / 100;
+      doc.setFontSize(7.5); doc.setTextColor(...C.grafito); doc.setDrawColor(...C.linea); doc.setLineWidth(0.2);
+      [100, 67, 33, 0].forEach(v => { doc.line(gx0, Y(v), gx1, Y(v)); T(v + "%", gx0 - 2, Y(v) + 1, { align:"right" }); });
+      doc.setDrawColor(...C.coral); doc.setLineWidth(0.6);
+      const pts = d.map((q, i) => q.n ? [X(i), Y(q.pct)] : null).filter(Boolean);
+      for(let i = 1; i < pts.length; i++) doc.line(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
+      doc.setFillColor(...C.coral);
+      if(pts.length <= 45) pts.forEach(q => doc.circle(q[0], q[1], 0.9, "F"));
+      doc.setFillColor(255, 255, 255); doc.setLineWidth(0.4);
+      d.forEach((q, i) => { if(!q.n) doc.circle(X(i), gy1, 0.9, "FD"); });
+      T(largo(d[0].f), gx0, gy1 + 5); if(d.length > 1) T(largo(d[d.length - 1].f), gx1, gy1 + 5, { align:"right" });
+      y = gy1 + 10;
+      doc.setFontSize(8); T("Cada punto lleno es un día con reporte; los huecos de abajo, días sin ninguno. Parte en el primer día con reporte.", 22, y); y += 9;
+    }
+
+    /* --- áreas: de menor a mayor, con lo que quedó sin hacer --- */
+    sec("Tendencia por área · lo que necesita atención va primero");
+    const texto = {}; (RUTINA.base || []).concat(...Object.keys(RUTINA.dias || {}).map(k => RUTINA.dias[k] || [])).forEach(x => { texto[x.id] = soloTarea(x.t); });
+    AREAS_TAB.map(a => {
+      const vals = con.map(q => q.areas[a.a]).filter(v => v != null); if(!vals.length) return null;
+      return { a, prom: Math.round(vals.reduce((s2, v) => s2 + v, 0) / vals.length), t: avTendencia(vals)[0] };
+    }).filter(Boolean).sort((p1, p2) => p1.prom - p2.prom).forEach(r => {
+      const mias = nh.filter(x => x.a === r.a.a), cm = mias.filter(x => x.m).length;
+      const veces = {}; mias.forEach(x => { veces[x.id] = (veces[x.id] || 0) + 1; });
+      const top = Object.keys(veces).sort((i1, i2) => veces[i2] - veces[i1]).slice(0, 3);
+      const sinR = con.filter(q => q.sinRep.indexOf(r.a.a) >= 0).length;
+      salto(13 + top.length * 4.2);
+      doc.setFont(...F.sb); doc.setFontSize(10.5); doc.setTextColor(...C.tinta); T(r.a.n.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ]+/, ""), 22, y); doc.setFont(...F.reg);
+      doc.setFillColor(...C.linea); doc.roundedRect(72, y - 2.6, 80, 2.6, 1.3, 1.3, "F");
+      doc.setFillColor(...C.coral); doc.roundedRect(72, y - 2.6, Math.max(2.6, 80 * r.prom / 100), 2.6, 1.3, 1.3, "F");
+      doc.setTextColor(...C.grafito); T(r.prom + "%" + (r.t ? " · " + r.t : ""), 156, y); y += 4.6;
+      doc.setFontSize(8.5);
+      T((mias.length ? mias.length + (mias.length === 1 ? " tarea quedó sin hacer" : " tareas quedaron sin hacer") + " (" + cm + " con motivo, " + (mias.length - cm) + " sin motivo)" : "Nada quedó sin hacer en los días que reportó")
+        + (sinR ? "   ·   " + sinR + (sinR === 1 ? " día sin reporte" : " días sin reporte") : ""), 22, y); y += 4.4;
+      top.forEach(id => { doc.setTextColor(...C.tinta); T(corta("· " + (texto[id] || "Tarea que ya no está en la rutina"), 150), 24, y);
+        doc.setTextColor(...C.grafito); T(veces[id] + (veces[id] === 1 ? " vez" : " veces"), 192, y, { align:"right" }); y += 4.2; });
+      y += 3.2;
+    });
+    y += 2;
+
+    if(admin){
+      /* --- personas: sólo con días suficientes --- */
+      const min = avMinDias(dias.length);
+      sec("Aporte por persona, según su puesto");
+      /* primero quienes tienen días suficientes; el resto, al final */
+      act.personas.slice().sort((p1, p2) => (p1.dias < min) - (p2.dias < min)).forEach(q => {
+        salto(12);
+        const pocos = q.dias < min;
+        doc.setFontSize(10.5); doc.setTextColor(...C.tinta); T(q.n, 22, y);
+        if(pocos){ doc.setTextColor(...C.grafito); T("datos insuficientes (" + q.dias + (q.dias === 1 ? " día)" : " días)"), 72, y); }
+        else {
+          doc.setFillColor(...C.linea); doc.roundedRect(72, y - 2.6, 80, 2.6, 1.3, 1.3, "F");
+          if(q.pct){ doc.setFillColor(...C.coral); doc.roundedRect(72, y - 2.6, Math.max(2.6, 80 * q.pct / 100), 2.6, 1.3, 1.3, "F"); }
+          doc.setFont(...F.sb); T(q.pct == null ? (q.puestos.length ? "sin tareas" : "sin puesto") : q.pct + "%", 156, y); doc.setFont(...F.reg);
+        }
+        y += 4.4;
+        doc.setFontSize(8.5); doc.setTextColor(...C.grafito);
+        T(corta(q.dias + (q.dias === 1 ? " día" : " días") + (q.puestos.length ? " en " + q.puestos.join(", ") : " como Supervisor")
+          + (q.toca && !pocos ? " · resolvió " + (q.hechas + q.expl) + " de " + q.toca + " de su puesto" + (q.expl ? " (" + q.expl + " con motivo)" : "") : "")
+          + (q.fuera ? " · +" + q.fuera + " fuera de su puesto" : "") + " · " + q.fotos + (q.fotos === 1 ? " foto" : " fotos"), 170), 22, y);
+        y += 6.4;
+      });
+      doc.setFontSize(8); doc.setTextColor(...C.grafito); salto(8);
+      T("El % de una persona se muestra sólo con al menos " + min + " días con reporte en el periodo.", 22, y + 1); y += 9;
+
+      /* --- dependencia: cuánto de lo hecho lo marcó administración --- */
+      sec("Tareas cubiertas por administración");
+      const adms = avAdmins();
+      const cuenta = qs => { const o = { tot:0, adm:0, por:{} };
+        qs.forEach(q => { o.tot += q.adm.tot; adms.forEach(n => { const v = q.adm.por[n] || 0; o.adm += v; o.por[n] = (o.por[n] || 0) + v; }); });
+        o.pct = o.tot ? Math.round(o.adm / o.tot * 100) : null; return o; };
+      const tot = cuenta(con);
+      salto(14);
+      doc.setFont(...F.b); doc.setFontSize(13); doc.setTextColor(...C.tinta);
+      T(tot.pct == null ? "Sin tareas hechas en el periodo" : "Tareas cubiertas por administración: " + tot.pct + "% del total", 22, y + 1); doc.setFont(...F.reg); y += 6.5;
+      doc.setFontSize(8.5); doc.setTextColor(...C.grafito);
+      T(tot.adm + " de " + tot.tot + " tareas hechas las marcó alguien de administración. La meta es que baje.", 22, y); y += 6.5;
+      adms.filter(n => tot.por[n]).sort((n1, n2) => tot.por[n2] - tot.por[n1]).forEach(n => {
+        salto(7); const v = Math.round(tot.por[n] / tot.tot * 100);
+        doc.setFontSize(10); doc.setTextColor(...C.tinta); T(n, 22, y);
+        doc.setFillColor(...C.linea); doc.roundedRect(72, y - 2.6, 80, 2.6, 1.3, 1.3, "F");
+        doc.setFillColor(...C.ambar); doc.roundedRect(72, y - 2.6, Math.max(2.6, 80 * v / 100), 2.6, 1.3, 1.3, "F");
+        doc.setTextColor(...C.grafito); T(v + "% · " + tot.por[n] + (tot.por[n] === 1 ? " tarea" : " tareas"), 156, y); y += 6;
+      });
+      /* semana a semana: bloques de 7 días hacia atrás desde hoy */
+      const semanas = [];
+      for(let fin = dias.length; fin > 0; fin -= 7){
+        const blo = dias.slice(Math.max(0, fin - 7), fin), c2 = cuenta(blo.filter(q => q.n));
+        if(c2.pct != null) semanas.unshift({ f: blo[blo.length - 1].f, pct: c2.pct });
+      }
+      if(N === 7 && U.ant){ const c2 = cuenta(U.ant.dias.filter(q => q.n)); if(c2.pct != null) semanas.unshift({ f: U.ant.dias[U.ant.dias.length - 1].f, pct: c2.pct }); }
+      salto(12); y += 1;
+      doc.setFontSize(9); doc.setTextColor(...C.tinta);
+      if(semanas.length < 2) T("Semana a semana: todavía no hay dos semanas con datos para ver la tendencia.", 22, y);
+      else {
+        const u = semanas[semanas.length - 1].pct, a2 = semanas[semanas.length - 2].pct;
+        T(corta("Semana a semana: " + semanas.map(w => "al " + corto(w.f) + " " + w.pct + "%").join("   ·   "), 170), 22, y); y += 4.8;
+        doc.setFont(...F.sb); doc.setTextColor(...(u < a2 ? C.verde : u > a2 ? OSC : C.grafito));
+        T(u < a2 ? "Baja " + (a2 - u) + " puntos respecto de la semana anterior: va en la dirección buscada."
+          : u > a2 ? "Sube " + (u - a2) + " puntos respecto de la semana anterior." : "Igual que la semana anterior.", 22, y);
+        doc.setFont(...F.reg);
+      }
+      y += 9;
+    }
+
+    /* --- pie: cómo se calcula --- */
+    salto(22); doc.setFontSize(8); doc.setTextColor(...C.grafito);
+    ["Cómo se calcula el %: de las tareas de la rutina de cada día, cuántas quedaron hechas o explicadas, sin importar quién las marcó.",
+     "Una tarea no hecha pero explicada con motivo cuenta como cumplida.",
+     "«Sin motivo» cuenta sólo las áreas que reportaron ese día; un área sin reporte se informa aparte. La vara es la rutina actual."
+       + (N === 0 ? " Los registros de más de 90 días se borran: «desde el inicio» no llega más atrás que eso." : "")
+    ].forEach(t => { doc.splitTextToSize(L(t), 170).forEach(l => { T(l, 22, y); y += 3.8; }); });
+    piePdf(doc, F);
+    compartirPdf(doc, "avance_" + (N === 0 ? "desde_inicio" : N + "dias") + "_" + (admin ? "administracion" : "equipo") + "_al_" + dias[dias.length - 1].f + ".pdf",
+                 "Avance " + (N === 0 ? "desde el inicio" : N + " días") + " — François (" + (admin ? "administración" : "equipo") + ")");
+  }catch(e){
+    alert("No se pudo armar el PDF: " + ((e && e.message) || e));
+  }finally{ btn.disabled = false; btn.textContent = txt0; }
+}
 document.getElementById("supAvance").addEventListener("click", e => {
   const c = e.target.closest(".chip");
   if(c){ avPeriodo = +c.dataset.n; cargarAvance(); return; }
   if(e.target.closest("#avVerPers")){ avPersonas = !avPersonas; cargarAvance(true); return; }
+  const eq = e.target.closest("#avPdfEq"); if(eq){ avanceInformePdf(eq, false); return; }
+  const ad = e.target.closest("#avPdfAd"); if(ad){ avanceInformePdf(ad, true); return; }
   const b = e.target.closest("#avPdf"); if(b) avancePdf(b);
 });
 

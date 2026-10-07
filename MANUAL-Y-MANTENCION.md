@@ -212,6 +212,27 @@ sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
 - Solo de La Florida (no se copian a otras sedes): la lista de respaldo `USUARIOS_DEFAULT`, el
   permiso `INFORME_DIARIO_EXTRA` y los nombres que aparecen en los textos de Ayuda.
 
+### Informe de Avance en PDF (7-oct-2026)
+
+Supervisión → Avance. Periodos: **Hoy · 7 días (por defecto) · 30 días · Desde el inicio**
+(`avPeriodo` = 1, 7, 30, 0). Con 7 días o más se genera con `avanceInformePdf(btn, admin)`, en dos
+versiones: **para el equipo** (sin detalle por persona) y **para administración** (con él y con
+«Tareas cubiertas por administración»). «Hoy» y el Pulso semanal siguen saliendo de `avancePdf()`.
+
+- **Inicio real:** `AV_INICIO = "2026-10-04"` (La Florida). Ningún periodo cuenta días anteriores.
+  «Desde el inicio» no llega más atrás de 90 días, por la limpieza semanal.
+- **Con motivo cuenta como cumplida** en el Avance de 7 días o más (`avResumen(…, cum = true)`).
+  El Pulso de hoy y el Pulso semanal llaman sin `cum`: ahí el % sigue siendo sólo lo hecho.
+- **Comparación:** sólo si el periodo anterior tiene 5 o más días con reporte; si no, «sin base de
+  comparación».
+- **No hechas con / sin motivo:** se cuentan sólo en las áreas que reportaron ese día (alguien la
+  eligió como puesto, o marcó o explicó algo en ella). Un área sin reporte se informa aparte.
+- **Por persona:** el % se muestra con al menos 3 días con reporte (periodo de hasta 7 días) o 5
+  (más largo); si no, «datos insuficientes (N días)» (`avMinDias`).
+- **Cubiertas por administración:** de las tareas hechas de la rutina, cuántas marcó alguien de
+  administración = roles de mando + `AV_ADMIN_EXTRA` (hoy Vanessa). Usa quién marcó cada tarea
+  (`por.q`), no el puesto. Semana a semana en bloques de 7 días.
+
 ### Dónde vive cada cosa (importante antes de tocar nada)
 
 | Dato | Dónde | Se borra si… |
