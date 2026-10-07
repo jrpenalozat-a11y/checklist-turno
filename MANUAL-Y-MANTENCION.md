@@ -233,6 +233,17 @@ versiones: **para el equipo** (sin detalle por persona) y **para administración
   administración = roles de mando + `AV_ADMIN_EXTRA` (hoy Vanessa). Usa quién marcó cada tarea
   (`por.q`), no el puesto. Semana a semana en bloques de 7 días.
 
+### Un registro es una foto del momento: cruzar siempre con el día (7-oct-2026)
+
+Cada teléfono guarda su registro con las tareas de su puesto, hechas o no. Si dos personas
+comparten puesto y una termina una tarea minutos después de que la otra guardó, en el registro
+de la primera esa tarea queda como no hecha. **Ningún informe debe decir «no se pudo hacer» sin
+cruzar antes con `hechasPorDia(filas)`** («fecha|tarea» → quién la hizo). Lo usan Supervisión →
+Informe del día (sección «🤝 Las hizo otra persona»), Inspección y el Pulso semanal; el Pulso
+diario y el Avance ya unían los registros. Además, cuando un teléfono se entera de que otro hizo
+una tarea, vuelve a subir su propio registro sin ella (`cargarOtros`), y el informe del área
+relee lo de los demás justo antes de armarse.
+
 ### Dónde vive cada cosa (importante antes de tocar nada)
 
 | Dato | Dónde | Se borra si… |

@@ -1745,13 +1745,16 @@ async function cargarChecklists(){
     await firmarFotos(paths);
     const enc = filas.length + (filas.length === 1 ? " informe" : " informes")
       + (nombreFiltro() ? " · " + nombreFiltro() : "");
+    const hechoDia = hechasPorDia(filas);
     cont.innerHTML = '<div class="ck-tot">' + esc(enc) + '</div>' + cobertura(filas) + filas.map(r => {
       const e = r.estado;
+      const otro = t => !t.ok && hechoDia[fechaDeReg(r) + "|" + t.id];     // la hizo otra persona ese día
       const quien = (e.entrega || "—") + (e.recibe ? " → " + e.recibe : "");
       const fecha = inicioDe(fechaDeReg(r)).toLocaleDateString("es-CL", { weekday:"short", day:"numeric", month:"short" })
         + " · " + new Date(r.updated_at).toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit" });
       const hechas = e.tareas.filter(t => t.ok).length;
-      const pend = e.tareas.filter(t => !t.ok);
+      const pend = e.tareas.filter(t => !t.ok && !otro(t));
+      const deOtro = e.tareas.filter(t => otro(t));
       /* áreas donde realmente trabajó: si rotó, salen las dos */
       const zonas = [...new Set(e.tareas.filter(t => t.ok && t.p).map(t => t.p))];
       const linea = t => {
@@ -1803,6 +1806,16 @@ async function cargarChecklists(){
              : '<details class="ck-mas"><summary>Ver las ' + sinFotoOk.length + ' hechas</summary>'
                + sinFotoOk.map(linea).join("") + '</details>');
       }
+      /* quedaron sin marcar en este registro, pero otra persona las hizo ese día */
+      if(deOtro.length){
+        const lin = t => { const o = otro(t);
+          return '<div class="ck-t"><span class="ck-chk on"></span><span class="ck-txt">' + esc(t.t || "")
+            + (t.p ? ' <span class="sem-badge">' + esc(t.p) + '</span>' : "")
+            + '<div class="ck-por">✓ ' + esc(o.q || "otra persona") + (o.h ? " · " + esc(o.h) : "") + '</div></span></div>'; };
+        cuerpo += '<div class="ck-sec">🤝 Las hizo otra persona · ' + deOtro.length + '</div>'
+          + (deOtro.length <= 8 ? deOtro.map(lin).join("")
+             : '<details class="ck-mas"><summary>Ver las ' + deOtro.length + ' que hizo otra persona</summary>' + deOtro.map(lin).join("") + '</details>');
+      }
       const ex = Array.isArray(e.extras) ? e.extras : [];
       if(ex.length){
         cuerpo += '<div class="ck-sec">➕ Agregado en el día · ' + ex.length + '</div>'
@@ -1817,7 +1830,7 @@ async function cargarChecklists(){
       /* día sin pendientes, sin fotos y sin agregados: antes se escondía entero */
       if(!cuerpo) cuerpo = '<div class="ck-limpio">✅ Sin pendientes, sin fotos y sin agregados.</div>';
       return '<div class="ck-card"><div class="ck-h"><b>' + esc(e.titulo || "Checklist") + '</b><br>' + esc(quien) + ' · ' + fecha
-        + '<br><small>' + hechas + ' de ' + e.tareas.length + ' hechas'
+        + '<br><small>' + hechas + ' de ' + e.tareas.length + ' hechas' + (deOtro.length ? ' · ' + deOtro.length + ' más las hizo otra persona' : "")
         + (zonas.length > 1 ? ' · trabajó en <b>' + esc(zonas.join(" y ")) + '</b>' : "")
         + '</small></div>' + cuerpo + '</div>';
     }).join("");
@@ -1844,6 +1857,18 @@ document.getElementById("ckFecha").addEventListener("change", e => {
    que es una tarea distinta de leer los informes. Sólo los de mando, detrás
    del mismo candado que la Supervisión. */
 /* fotos de una tarea ya reportada: «fotos» si trae varias, si no la única «foto» */
+/* Lo que quedó HECHO cada día, por cualquiera: «fecha|tarea» → quién y a qué hora.
+   El registro de una persona es una foto del momento en que su teléfono guardó:
+   si un compañero del mismo puesto hizo la tarea minutos después, en el registro
+   de ella sigue como no hecha. Los informes cruzan con este mapa para no decir
+   «no se pudo hacer» de algo que sí se hizo. */
+function hechasPorDia(filas){
+  const m = {};
+  (filas || []).forEach(r => { const f = fechaDeReg(r);
+    (r.estado.tareas || []).forEach(t => { if(t.ok && t.id && !m[f + "|" + t.id]) m[f + "|" + t.id] = { q:(t.por && t.por.q) || msgNombreSimple(r.estado.entrega), h:(t.por && t.por.h) || "" }; }); });
+  return m;
+}
+function msgNombreSimple(s2){ return String(s2 || "").replace(/\s*\(.*\)\s*$/, "").trim(); }
 function fotosT(t){ return Array.isArray(t.fotos) && t.fotos.length ? t.fotos : (t.foto ? [t.foto] : []); }
 let inspFiltro = "ayer";
 let inspDia    = "";     // fecha elegida en el calendario del modo inspeccion
@@ -1886,6 +1911,7 @@ async function cargarInspeccion(){
     if(error) throw error;
     const filas = (data || []).filter(r => r.estado && Array.isArray(r.estado.tareas))
                               .filter(r => pasaFechaDe(r, inspFiltro, inspDia));
+    const hechoInsp = hechasPorDia(filas);
     /* se juntan todas las tareas de todas las personas: acá interesa la
        evidencia del local, no quién armó cada informe */
     const fotos = [], pend = [];
@@ -1894,7 +1920,7 @@ async function cargarInspeccion(){
       (r.estado.tareas || []).forEach(t => {
         const fs = fotosT(t);                 // una tarjeta por foto
         if(fs.length) fs.forEach(p => fotos.push({ ...t, foto:p, dia, _q:r.estado.entrega }));
-        else if(!t.ok && t.motivo) pend.push({ ...t, dia });
+        else if(!t.ok && t.motivo && !hechoInsp[dia + "|" + t.id]) pend.push({ ...t, dia });
       });
       (r.estado.extras || []).forEach(x => { if(!x.ok && x.motivo) pend.push({ ...x, dia }); });
     });
@@ -2187,9 +2213,9 @@ async function datosSemana(){
   }
   /* sólo se cuentan los pendientes CON motivo: son los que alguien explicó.
      Los sin motivo vienen de equipos que nunca se usaron y falsearían el ranking. */
-  const mot = {}, pend = {};
+  const mot = {}, pend = {}, hechoSem = hechasPorDia(filas);
   filas.forEach(r => (r.estado.tareas || []).forEach(t => {
-    if(!t.ok && t.motivo){
+    if(!t.ok && t.motivo && !hechoSem[fechaDeReg(r) + "|" + t.id]){
       mot[t.motivo] = (mot[t.motivo] || 0) + 1;
       const k = limpio(t.t || "");
       pend[k] = (pend[k] || 0) + 1;
@@ -3377,6 +3403,9 @@ async function cargarOtros(forzar){
     OTROS = m;
     try{ localStorage.setItem("guia.otros", JSON.stringify({ f:hoy, m })); }catch(e){}
     renderGuia();
+    /* si esta persona ya había guardado algo hoy, su registro se vuelve a subir:
+       así deja de figurar como pendiente lo que otro terminó después */
+    try{ if(cargarDia().done.size || Object.keys(cargarMot()).length) syncGuiaRemoto(); }catch(e){}
   }catch(e){}
 }
 setTimeout(() => cargarOtros(true), 3500);
@@ -4153,7 +4182,7 @@ document.getElementById("extraAdd").addEventListener("click", e => {
     inp.value = ""; renderGuia(); syncGuiaRemoto(); avisarSiTerminada();
     return;
   }
-  if(e.target.closest("#btnInforme")) enviarInforme();
+  if(e.target.closest("#btnInforme")){ Promise.race([cargarOtros(true), new Promise(r => setTimeout(r, 2500))]).then(() => enviarInforme()); }
   const bd = e.target.closest("#btnDiario");
   if(bd) pedirInformeDiario(fechaISO(new Date()), bd);
 });
