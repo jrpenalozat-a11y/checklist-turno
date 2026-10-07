@@ -4852,8 +4852,8 @@ async function cargarAvance(reusar){
               + '<span class="av-v">' + (p.pct == null ? (p.puestos.length ? "sin tareas" : "sin puesto") : p.pct + "%") + '</span>')
           + '<span class="av-det">' + p.dias + (p.dias === 1 ? " día" : " días")
           + (p.puestos.length ? " en " + esc(p.puestos.join(", ")) : " como Supervisor")
+          + " · hizo " + (p.hechas + p.fuera) + (p.hechas + p.fuera === 1 ? " tarea" : " tareas") + " en total (" + p.hechas + " de su puesto, " + p.fuera + " fuera de su puesto)"
           + (p.toca && !pocos ? " · resolvió " + (p.hechas + p.expl) + " de " + p.toca + " de su puesto" + (p.expl ? " (" + p.expl + " con motivo)" : "") : "")
-          + (p.fuera ? " · +" + p.fuera + " fuera de su puesto" : "")
           + " · " + p.fotos + (p.fotos === 1 ? " foto" : " fotos") + '</span></div>'; }).join("")
       + (sinAct.length ? '<div class="av-nota">Sin actividad en el periodo: ' + esc(sinAct.join(", ")) + '</div>' : "")
       + '<div class="av-nota"><b>Cómo se calcula:</b> de las tareas del puesto que la persona eligió cada día, cuántas dejó hechas o explicadas con motivo. '
@@ -5144,10 +5144,17 @@ async function avanceInformePdf(btn, admin){
         }
         y += 4.4;
         doc.setFontSize(8.5); doc.setTextColor(...C.grafito);
-        T(corta(q.dias + (q.dias === 1 ? " día" : " días") + (q.puestos.length ? " en " + q.puestos.join(", ") : " como Supervisor")
+        /* todo lo que hizo, sea o no de su puesto: se muestra siempre, también
+           con «datos insuficientes» (es un conteo, no un porcentaje) */
+        const tt = q.hechas + q.fuera;
+        const det = q.dias + (q.dias === 1 ? " día" : " días") + (q.puestos.length ? " en " + q.puestos.join(", ") : " como Supervisor")
+          + " · hizo " + tt + (tt === 1 ? " tarea" : " tareas") + " en total (" + q.hechas + " de su puesto, " + q.fuera + " fuera de su puesto)"
           + (q.toca && !pocos ? " · resolvió " + (q.hechas + q.expl) + " de " + q.toca + " de su puesto" + (q.expl ? " (" + q.expl + " con motivo)" : "") : "")
-          + (q.fuera ? " · +" + q.fuera + " fuera de su puesto" : "") + " · " + q.fotos + (q.fotos === 1 ? " foto" : " fotos"), 170), 22, y);
-        y += 6.4;
+          + " · " + q.fotos + (q.fotos === 1 ? " foto" : " fotos");
+        const ls = doc.splitTextToSize(L(det), 170).slice(0, 2);
+        salto(ls.length * 3.9 + 3);
+        ls.forEach((l, i) => T(l, 22, y + i * 3.9));
+        y += (ls.length - 1) * 3.9 + 6.4;
       });
       doc.setFontSize(8); doc.setTextColor(...C.grafito); salto(8);
       T("El % de una persona se muestra sólo con al menos " + min + " días con reporte en el periodo.", 22, y + 1); y += 9;
