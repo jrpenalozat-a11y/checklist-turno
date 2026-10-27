@@ -968,7 +968,7 @@
         <li>Dentro de cada área las tareas van agrupadas por momento: <b>🌅 Apertura · ☀️ Durante el turno · 🌙 Al cierre</b>.</li>
         <li>Marca cada tarea al hacerla; con <b>📷</b> dejas la <b>foto del día</b> como prueba (el supervisor la ve).</li>
         <li><b>Hasta 4 fotos por tarea</b>: toca la miniatura para verlas, quitar una o <b>agregar otra</b>. En la cámara, <b>↔️ Panorámica 0,5×</b> abre el lente ancho si tu teléfono lo permite; si no aparece, usa <b>📱 Cámara del teléfono</b> y elige el 0,5× ahí.</li>
-        <li>El botón <b>PI</b> de cada tarea la agrega al informe: desde entonces sus fotos van en el informe todos los días (y la tarea pide foto). Las demás fotos las ve el supervisor en la app. Sacar una tarea del informe lo hace quien mantiene la rutina.</li>
+        <li>Las tareas con <b>📷 foto para el informe</b> llevan su foto en el informe todos los días. Las demás fotos las ve el supervisor en la app. Qué tareas van al informe lo deciden los dueños, el encargado y el encargado de local.</li>
         <li><b>Lo que ya hizo otra persona hoy aparece marcado</b> en todos los teléfonos, con su nombre y la hora en verde: no hay que hacerlo ni marcarlo de nuevo.</li>
         <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
         <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área.</li>
@@ -2402,6 +2402,12 @@ function puedeEditarRutina(){
   const r = rolDeQuienEntra();
   return r ? ROLES_RUTINA.indexOf(r) >= 0 : false;
 }
+/* Quién marca PI en la Guía: el mando y, además, las personas de esta lista
+   (colaboradores a quienes el dueño se lo encargó). El nombre va tal como
+   aparece en 👥 Usuarios. Pueden ponerlo y quitarlo desde la Guía; la pestaña
+   Semanal sigue siendo sólo del mando. */
+const PI_EXTRA = SEDE_ID === "lf" ? ["María"] : [];
+function puedeMarcarPI(){ return puedeEditarRutina() || PI_EXTRA.indexOf(quienActual()) >= 0; }
 function rolNorm(r){ return r === "jefe de local" ? "encargado de local" : (r || "colaborador"); }  // compat rol viejo
 function rolLabel(r){ const f = ROLES.find(x => x[0] === rolNorm(r)); return f ? f[1] : "Colaborador"; }
 function rolSelect(rol, id){
@@ -3679,7 +3685,7 @@ function renderGuia(){
       + '<label><input type="checkbox" data-gid="' + x.id + '"' + (ok ? " checked" : "") + (otro ? " disabled" : "")
       + '><span class="caja"><svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 5"/></svg></span></label>'
       + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + req + deOtro + '</span>'
-      + (esExtra ? "" : '<button class="sem-pi' + (x.pi ? " on" : "") + '" data-pi="' + x.id
+      + (esExtra || !puedeMarcarPI() ? "" : '<button class="sem-pi' + (x.pi ? " on" : "") + '" data-pi="' + x.id
           + '" aria-label="' + (x.pi ? "Sus fotos van al informe" : "Agregar sus fotos al informe") + '">PI</button>')
       + foto(x) + btn + com + '</li>';
   }
@@ -4220,9 +4226,11 @@ document.getElementById("guiaLista").addEventListener("click", async e => {
   /* con fotos: la tarjeta para verlas, quitar o agregar. Sin fotos: la cámara */
   if(fotosDe(cargarDia(), id).length) abrirFotos(id); else tomarFoto(id);
 });
-/* Botón PI en la guía: cualquiera puede AGREGAR una tarea al informe y queda
-   fija para todos (es la misma marca de la pestaña Semanal). Sacarla es sólo de
-   quien mantiene la rutina: si no, bastaría un toque para librarse de la foto.
+/* Botón PI en la guía: es la misma marca de la pestaña Semanal y queda fija
+   para todos. Antes cualquiera podía AGREGAR una tarea al informe; desde oct-2026
+   ponerla y sacarla es sólo de quien mantiene la rutina (dueños, encargado y
+   encargado de local) y de quienes estén en PI_EXTRA; a los demás ni les
+   aparece el botón.
    Se lee la rutina del servidor justo antes de guardar, para no pisar un cambio
    que otra persona haya hecho mientras tanto. */
 let piOcupado = false;
@@ -4231,8 +4239,8 @@ async function alternarPI(id){
   if(!quienActual()){ alert("Elige tu nombre antes de cambiar qué va al informe."); return; }
   const busca = r => (r.base || []).concat(...Object.values(r.dias || {})).find(t => t && t.id === id);
   const x = busca(RUTINA); if(!x) return;
-  if(x.pi && !puedeEditarRutina()){
-    alert("Las fotos de esta tarea ya van al informe.\nSacarla del informe lo hace quien mantiene la rutina, en la pestaña Semanal.");
+  if(!puedeMarcarPI()){
+    alert("Qué tareas van al informe lo deciden los dueños, el encargado y el encargado de local.");
     return;
   }
   const poner = !x.pi;
