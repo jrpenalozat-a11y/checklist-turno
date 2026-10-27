@@ -10,7 +10,7 @@
 -- Barismo/Vitrina; Heladería = puesto propio de Puerto Varas; «Al cierre» =
 -- [CIERRE]; la observación va tras « — ». 75 tareas fijas + «Dejar la
 -- máquina de helados descongelando» solo de lunes a jueves.
--- Copia legible: «checklist puerto varasutina-puerto-varas.json».
+-- Copia legible: archivo rutina-puerto-varas.json, en la carpeta «checklist puerto varas» del Escritorio.
 -- ===================================================================
 
 do $do$
