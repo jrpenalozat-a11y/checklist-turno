@@ -212,6 +212,34 @@ sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
 - Solo de La Florida (no se copian a otras sedes): la lista de respaldo `USUARIOS_DEFAULT`, el
   permiso `INFORME_DIARIO_EXTRA` y los nombres que aparecen en los textos de Ayuda.
 
+### Puestos por sede y rutina de Puerto Varas (27-oct-2026)
+
+Cada sede tiene su lista de puestos en `PUESTOS_SEDE` (junto a `ROLES`); una sede sin lista
+usa la de La Florida. Esa lista arma las pestañas de la Guía diaria (`AREAS_TAB`), el
+selector de puesto al entrar, el de 👥 Usuarios y el de Semanal. La Florida conserva su orden
+de pestañas en `ORDEN_TABS`.
+
+| Sede | Puestos |
+|---|---|
+| `lf` La Florida | Cocina · Caja · Barismo/Vitrina · Terminados · Salón |
+| `s2` Puerto Varas | Salón · Caja · Barismo/Vitrina · **Heladería** |
+
+La rutina inicial de Puerto Varas sale de la planilla `TAREAS DIARIAS FRANCOIS PV.ods`
+(carpeta `Escritorio\checklist puerto varas`, con la copia legible `rutina-puerto-varas.json`),
+traducida con las reglas que se usaron en La Florida: Turno 1 → sin puesto y `[APERTURA]`;
+Turno 2 general → Salón; Barra/caja → Caja; Cafetería/pastelería → Barismo/Vitrina; «Al
+cierre» → `[CIERRE]`; la observación va tras « — ». Son 75 tareas fijas, más «Dejar la máquina
+de helados descongelando», que va solo de lunes a jueves. Ninguna parte con foto obligatoria
+(decisión de Jaime): las elige el encargado de Puerto Varas con 📸 en Semanal.
+Se carga con `SQL-rutina-puerto-varas.sql`, que no pisa una rutina `s2:rutina` que ya tenga
+tareas y crea `s2:Ricardo` si falta.
+
+**Flujo para armar el equipo de Puerto Varas:** Ricardo cambia de sede (toca el nombre de la
+sede bajo el logo) → entra como Ricardo y crea su PIN → 🔑 modo supervisor (la clave de
+supervisor de Puerto Varas es propia y se crea la primera vez) → 👥 Usuarios → agrega al
+encargado del local con rol «Encargado de local» → esa persona entra en la tablet o el
+teléfono del local, crea su PIN y agrega al resto del equipo con su puesto.
+
 ### Informe de Avance en PDF (7-oct-2026)
 
 Supervisión → Avance. Periodos: **Hoy · 7 días (por defecto) · 30 días · Desde el inicio**

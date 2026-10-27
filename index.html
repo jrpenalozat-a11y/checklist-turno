@@ -2369,7 +2369,18 @@ const USUARIOS_DEFAULT = [
 ];
 const ROLES = [["dueño","👑 Dueño"], ["encargado","📋 Encargado"], ["encargado de local","🏪 Encargado de local"], ["colaborador","Colaborador"]];
 const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // roles con nivel supervisor
-const PUESTOS = ["Cocina", "Caja", "Barismo/Vitrina", "Terminados", "Salón"];
+/* Puestos de cada sede. Puerto Varas no tiene Cocina ni Terminados y sí
+   Heladería; sus otras áreas usan los nombres de La Florida (Turno 2 general =
+   Salón, Barra/caja = Caja, Cafetería/pastelería = Barismo/Vitrina). Una sede
+   sin lista propia usa la de La Florida. */
+const PUESTOS_SEDE = {
+  lf: ["Cocina", "Caja", "Barismo/Vitrina", "Terminados", "Salón"],
+  s2: ["Salón", "Caja", "Barismo/Vitrina", "Heladería"]
+};
+const PUESTOS = PUESTOS_SEDE[SEDE_ID] || PUESTOS_SEDE.lf;
+/* el selector de «Agregar» en 👥 Usuarios viene escrito en el HTML: se rehace con los de la sede */
+document.getElementById("usrPuesto").innerHTML = '<option value="">— puesto —</option>'
+  + PUESTOS.map(p => '<option>' + p + '</option>').join("");
 /* Permisos: los tres roles de mando —dueños, encargado y encargado de local—
    tienen acceso completo. Antes el encargado de local (Ángel) mantenía la
    planilla de tareas pero no gestionaba usuarios; por decisión del dueño
@@ -3328,15 +3339,11 @@ async function syncGuiaRemoto(){
   try{ await vfSesion(client); await client.from("checklists").upsert({ codigo:cod, estado, updated_at:new Date().toISOString() }); }catch(e){}
 }
 /* ---- Guía diaria: pestañas por ÁREA (como la planilla) + momento + pendientes ---- */
-/* Un tab por área. "gen" = bloque «Turno 1» (tareas sin puesto asignado). */
-const AREAS_TAB = [
-  { a:"gen", n:"🌅 Turno 1" },
-  { a:"Cocina", n:"Cocina" },
-  { a:"Barismo/Vitrina", n:"Barismo/Vitrina" },
-  { a:"Caja", n:"Caja" },
-  { a:"Salón", n:"Salón" },
-  { a:"Terminados", n:"Terminados" }
-];
+/* Un tab por área. "gen" = bloque «Turno 1» (tareas sin puesto asignado).
+   La Florida conserva su orden de pestañas; las demás sedes, el de PUESTOS. */
+const ORDEN_TABS = { lf: ["Cocina", "Barismo/Vitrina", "Caja", "Salón", "Terminados"] };
+const AREAS_TAB = [{ a:"gen", n:"🌅 Turno 1" }]
+  .concat((ORDEN_TABS[SEDE_ID] || PUESTOS).map(p => ({ a:p, n:p })));
 let areaSel = "mio";                       // mio | todos | gen | <puesto>
 
 function momentoDe(t){
