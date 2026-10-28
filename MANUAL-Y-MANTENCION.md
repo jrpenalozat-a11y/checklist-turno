@@ -187,8 +187,9 @@ no se compara con el periodo anterior (ya se borró). Solo para el mando.
 
 La app pregunta la sede la primera vez en cada teléfono y la recuerda (clave `sede`); se cambia
 tocando el nombre de la sede bajo el logo. La lista está al inicio de `index.html`, en `SEDES`:
-`lf` = La Florida (la original) y `s2` = Puerto Varas. **El `id` no se cambia nunca** (es el
-prefijo de los datos); el nombre que se muestra (`n`) sí se puede cambiar.
+`lf` = La Florida (la original), `s2` = Puerto Varas y `s3` = Maximarket PV. **El `id` no se
+cambia nunca** (es el prefijo de los datos); el nombre que se muestra (`n`) sí se puede cambiar.
+Un `id` nuevo: 2 a 6 letras minúsculas o números, y nunca `guia`, `rutina` ni `checks`.
 
 **La Florida no lleva prefijo en ninguna parte**: sus datos quedaron tal como estaban. Las demás
 sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
@@ -204,7 +205,7 @@ sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
 - **Una sede nueva parte vacía**: sin tareas, sin registros y sin gente. Para que alguien pueda
   entrar hay que crear a mano a la primera persona de mando (fila en `usuarios` con nombre
   `<id>:<Nombre>`); esa persona crea su PIN al entrar y agrega al resto en 👥 Usuarios.
-  En `s2` se creó `s2:Ricardo` (encargado).
+  En `s2` se creó `s2:Ricardo` (encargado); en `s3`, con `SQL-maximarket-pv-inicio.sql`.
 - **Toda consulta nueva a `checklists` debe usar `ckSel(client)`**, y todo nombre que vaya a la
   base, `nDB()`. Si no, una sede vería los datos de la otra.
 - La separación la hace la app, no la base: no es un muro de seguridad entre sedes.
@@ -225,6 +226,7 @@ de pestañas en `ORDEN_TABS`.
 |---|---|
 | `lf` La Florida | Cocina · Caja · Barismo/Vitrina · Terminados · Salón |
 | `s2` Puerto Varas | Salón · Caja · Barismo/Vitrina · **Heladería** |
+| `s3` Maximarket PV | Caja · Sala (*provisorios, hasta tener su planilla*) |
 
 La rutina inicial de Puerto Varas sale de la planilla `TAREAS DIARIAS FRANCOIS PV.ods`
 (carpeta `Escritorio\checklist puerto varas`, con la copia legible `rutina-puerto-varas.json`),
@@ -241,6 +243,49 @@ sede bajo el logo) → entra como Ricardo y crea su PIN → 🔑 modo supervisor
 supervisor de Puerto Varas es propia y se crea la primera vez) → 👥 Usuarios → agrega al
 encargado del local con rol «Encargado de local» → esa persona entra en la tablet o el
 teléfono del local, crea su PIN y agrega al resto del equipo con su puesto.
+
+### Maximarket PV, tercera sede (28-oct-2026)
+
+Maximarket es otro local de François en Puerto Varas: un **minimarket** (la rutina de Puerto
+Varas le pide bollería e insumos). Va como sede `s3` = «Maximarket PV», con el mismo mecanismo que
+Puerto Varas: parte **vacía**, con los puestos provisorios Caja y Sala.
+
+- **Para entrar:** correr una vez `SQL-maximarket-pv-inicio.sql` (crea `s3:Ricardo`, encargado,
+  sin tocar a nadie más). Después, el mismo flujo de Puerto Varas: cambiar de sede → Ricardo crea
+  su PIN → 🔑 modo supervisor (clave propia de Maximarket) → 👥 Usuarios → «Encargado de local».
+- **Tareas, puestos y equipo:** Jaime los entrega en la planilla
+  `Escritorio\checklist maximarket pv\PLANTILLA TAREAS MAXIMARKET PV.xlsx` (mismo formato que la
+  de Puerto Varas: Área · Tareas diarias · Observaciones, más una hoja Equipo).
+- **Cambiar los puestos provisorios:** se edita `PUESTOS_SEDE.s3` antes de cargar la rutina y el
+  equipo (después, cambiar un nombre deja tareas huérfanas: ver «Qué NO hacer»).
+- **En el panel (el-pase):** la sede está en su `SEDES` con `propinas:false` (un minimarket no
+  reparte propinas: Ventas no muestra la pestaña Propinas) y sin Capacitación (esa app es de la
+  cafetería). Bitácora y Mi Turno siguen siendo solo de La Florida, igual que con Puerto Varas.
+
+### De la planilla a la rutina: `herramientas/planilla-a-rutina.py` (28-oct-2026)
+
+Las reglas con que se tradujeron La Florida y Puerto Varas, en un script de dos pasos:
+
+1. `borrador` lee la planilla (.ods, .xlsx o .csv) y escribe la rutina en JSON:
+   «Turno 1» → sin puesto y `[APERTURA]`; un título de sección → el puesto de ese nombre (o el
+   que diga `--mapa "Título=Puesto"`); «Al cierre» → `[CIERRE]` en ese puesto; la observación va
+   tras « — » (si solo dice «diario» se omite); si nombra días («lunes a jueves») la tarea va solo
+   esos días, en `dias`. **Ninguna tarea con foto obligatoria** salvo que Jaime lo pida.
+   Avisa lo dudoso: tareas con « / » (¿son dos?), repetidas, títulos que no son puesto y hojas
+   extra (notas, equipo) que hay que leer a mano.
+2. Se revisa el JSON **a mano**: tildes, redacción («Limpiar los…», no «LIMPIEZA…») y si cada
+   tarea de Turno 1 es de apertura. Se le muestra a Jaime antes de cargarla.
+3. `sql` valida el JSON contra `PUESTOS_SEDE` de la sede (ids únicos, puestos que existen, sin
+   foto obligatoria) y escribe el SQL que carga `<sede>:rutina` **sin pisar una rutina que ya
+   tenga tareas**, más `<sede>:Ricardo` si falta. Sale en UTF-8 sin CR (el script lo verifica).
+
+```
+python herramientas/planilla-a-rutina.py borrador "TAREAS MAXIMARKET PV.xlsx" --sede s3 --prefijo mx -o rutina-maximarket-pv.json
+python herramientas/planilla-a-rutina.py sql rutina-maximarket-pv.json --sede s3 --nombre "Maximarket PV" --origen "Planilla TAREAS MAXIMARKET PV" -o SQL-rutina-maximarket-pv.sql
+```
+
+Probado con la planilla de Puerto Varas: el SQL que sale de `rutina-puerto-varas.json` carga
+exactamente la misma rutina que `SQL-rutina-puerto-varas.sql`.
 
 ### Informe de Avance en PDF (7-oct-2026)
 

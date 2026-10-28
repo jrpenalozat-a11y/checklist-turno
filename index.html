@@ -27,7 +27,7 @@
    Para sumar una sede: una línea más en SEDES. Para cambiar un nombre: sólo
    el «n» (el «id» no se toca nunca: es el prefijo de sus datos). */
 (function(){
-  var SEDES = [ { id:"lf", n:"La Florida" }, { id:"s2", n:"Puerto Varas" } ];
+  var SEDES = [ { id:"lf", n:"La Florida" }, { id:"s2", n:"Puerto Varas" }, { id:"s3", n:"Maximarket PV" } ];
   var LS = null, P = Storage.prototype, g = P.getItem, st = P.setItem, rm = P.removeItem;
   try{ LS = window.localStorage; }catch(e){}
   var crudo = function(k){ try{ return g.call(LS, k); }catch(e){ return null; } };
@@ -2371,11 +2371,14 @@ const ROLES = [["dueño","👑 Dueño"], ["encargado","📋 Encargado"], ["encar
 const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // roles con nivel supervisor
 /* Puestos de cada sede. Puerto Varas no tiene Cocina ni Terminados y sí
    Heladería; sus otras áreas usan los nombres de La Florida (Turno 2 general =
-   Salón, Barra/caja = Caja, Cafetería/pastelería = Barismo/Vitrina). Una sede
-   sin lista propia usa la de La Florida. */
+   Salón, Barra/caja = Caja, Cafetería/pastelería = Barismo/Vitrina). Maximarket
+   PV (minimarket) parte con Caja y Sala, provisorios hasta tener su planilla:
+   se cambian sin problema mientras no tenga tareas ni equipo. Una sede sin
+   lista propia usa la de La Florida. */
 const PUESTOS_SEDE = {
   lf: ["Cocina", "Caja", "Barismo/Vitrina", "Terminados", "Salón"],
-  s2: ["Salón", "Caja", "Barismo/Vitrina", "Heladería"]
+  s2: ["Salón", "Caja", "Barismo/Vitrina", "Heladería"],
+  s3: ["Caja", "Sala"]
 };
 const PUESTOS = PUESTOS_SEDE[SEDE_ID] || PUESTOS_SEDE.lf;
 /* el selector de «Agregar» en 👥 Usuarios viene escrito en el HTML: se rehace con los de la sede */
