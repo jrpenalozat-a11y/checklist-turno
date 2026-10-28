@@ -260,7 +260,11 @@ Puerto Varas: parte **vacía**, con los puestos provisorios Caja y Sala.
   equipo (después, cambiar un nombre deja tareas huérfanas: ver «Qué NO hacer»).
 - **En el panel (el-pase):** la sede está en su `SEDES` con `propinas:false` (un minimarket no
   reparte propinas: Ventas no muestra la pestaña Propinas) y sin Capacitación (esa app es de la
-  cafetería). Bitácora y Mi Turno siguen siendo solo de La Florida, igual que con Puerto Varas.
+  cafetería). Mi Turno sigue siendo solo de La Florida.
+- **Bitácora por sede (28-oct-2026):** Informe François tiene una app por sede con su propia
+  cuenta (Informe François PV, Informe Maximarket PV; ver el README de `informe-francois`) y el
+  panel lee la bitácora de la sede con que se entró. El panel suma además la página privada
+  **Panorama** (`panorama.js`, solo Ricardo): los tres negocios juntos y el análisis de Supervisandro.
 
 ### De la planilla a la rutina: `herramientas/planilla-a-rutina.py` (28-oct-2026)
 
