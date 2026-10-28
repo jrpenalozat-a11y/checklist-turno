@@ -1020,7 +1020,7 @@
         <li class="solo-turno"><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, <b>puesto</b>, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
         <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
         <li><b>💬 Comentar</b> (bajo cada foto, en Informe del día e Inspección): elige <b>👏 Felicitación</b> u <b>👁 Observación</b>, escribe y envía. Le llega a quien sacó la foto cuando abre la app; bajo la foto verás si ya lo leyó (<b>✓ visto</b>). <b>💬 Mensaje</b> (arriba) manda uno sin foto a una persona. Un mensaje enviado no se puede editar ni borrar.</li>
-        <li><b>📊 Avance</b> (sub-pestaña): el historial en un gráfico. Eliges 7, 30 o 90 días y ves el % de tareas hechas cada día, las cifras comparadas con el periodo anterior, la tendencia de cada área y, con <b>Ver por persona</b>, quién usó la app. Se puede enviar en PDF. El historial llega a 90 días.</li>
+        <li><b>📊 Avance</b> (sub-pestaña): el historial en un gráfico. Eliges hoy, 7 días, 30 días o desde el inicio y ves el % de tareas hechas cada día, las cifras comparadas con el periodo anterior (en 30 días no hay comparación: lo anterior ya se borró), la tendencia de cada área y, con <b>Ver por persona</b>, quién usó la app. Se puede enviar en PDF. El historial llega a 30 días.</li>
         <li><b>💬 Mensajes</b> (sub-pestaña): la lista de todo lo enviado, con <b>✓ visto</b> y la hora en que lo abrieron, o <b>sin leer</b>.</li>
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
@@ -1041,7 +1041,7 @@
       <h3>🗄️ Datos y limpieza automática</h3>
       <ul>
         <li>Todo se guarda en <b>Supabase</b> (proyecto François): fotos, traspasos, usuarios y rutina.</li>
-        <li>Cada <b>lunes de madrugada</b> se borra solo lo que tenga <b>más de 90 días</b> (fotos y registros viejos). Las <b>fotos de referencia de la rutina nunca se borran</b>. Así el almacenamiento no se llena.</li>
+        <li>Cada <b>lunes de madrugada</b> se borra solo lo que tenga <b>más de 30 días</b> (fotos y registros viejos), en todas las sedes. Las <b>fotos de referencia de la rutina nunca se borran</b>. Así el almacenamiento no se llena.</li>
       </ul>
     </div>
     <div class="fila2">
@@ -4295,7 +4295,7 @@ async function tomarFoto(id){
   return true;
 }
 /* Tarjeta con las fotos de la tarea: tocar una la abre grande, × la quita del
-   día (el archivo ya subido se borra solo con la limpieza de 90 días). */
+   día (el archivo ya subido se borra solo con la limpieza de 30 días). */
 function abrirFotos(id){
   const prev = document.getElementById("motOvl"); if(prev) prev.remove();
   const fs = fotosDe(cargarDia(), id);
@@ -4647,15 +4647,18 @@ document.getElementById("supMensaje").addEventListener("click", () => abrirMensa
    segundo paso, la participación por persona. Sólo para el mando.
    Misma regla que el resto de la app: una tarea cuenta como hecha si CUALQUIERA
    la reportó hecha; el total del día es la rutina de ese día de la semana.
-   Límite: la limpieza de los lunes borra lo de más de 90 días, así que el
-   historial no puede ir más atrás (y con 90 días no hay periodo anterior con
+   Límite: la limpieza de los lunes borra lo de más de 30 días, así que el
+   historial no puede ir más atrás (y con 30 días no hay periodo anterior con
    qué comparar). La rutina que se usa de vara es la de HOY: si se agregaron o
    quitaron tareas, los días viejos se miden contra la lista actual. */
 /* Periodos: 1 = hoy · 7 (por defecto) · 30 · 0 = «desde el inicio».
    AV_INICIO es el primer día de reporte real: ningún periodo cuenta días
    anteriores (no son «días sin reporte», la app todavía no se usaba). Una sede
-   sin fecha fija parte desde su primer reporte. Tope: 90 días, por la limpieza. */
+   sin fecha fija parte desde su primer reporte. Tope: DIAS_HISTORIAL, por la limpieza. */
 const AV_INICIO = SEDE_ID === "lf" ? "2026-10-04" : "";
+/* lo que guarda la limpieza de los lunes (Edge Function limpiar-antiguos,
+   copia en supabase/limpiar-antiguos.ts): si se cambia allá, cambiarlo acá */
+const DIAS_HISTORIAL = 30;
 /* «Administración» para el indicador de dependencia: el mando + estos nombres */
 const AV_ADMIN_EXTRA = SEDE_ID === "lf" ? ["Vanessa"] : [];
 function avAdmins(){
@@ -4798,7 +4801,8 @@ async function cargarAvance(reusar){
   const yaEsta = reusar && avUlt && avUlt.N === avPeriodo;
   if(!yaEsta) cont.innerHTML = chips + '<div class="sinreg">Cargando…</div>';
   try{
-    const N = avPeriodo, largoP = N === 0 ? 90 : N, comparar = N !== 0;   // «desde el inicio» no tiene periodo anterior
+    /* «desde el inicio» no tiene periodo anterior, y uno que ya se borró tampoco */
+    const N = avPeriodo, largoP = N === 0 ? DIAS_HISTORIAL : N, comparar = N !== 0 && 2 * N <= DIAS_HISTORIAL;
     if(!yaEsta){
       const hoy = new Date();
       const desde = new Date(hoy.getTime() - (N === 1 ? 2 : Math.max(comparar ? 2 * largoP : largoP, 14)) * 864e5); desde.setHours(0, 0, 0, 0);
@@ -4863,7 +4867,8 @@ async function cargarAvance(reusar){
       + '<div class="av-k"><b>' + act.pend + '</b><span>pendientes con motivo</span>' + delta(act.pend, ant && ant.pend, "", true) + '</div></div>'
       + '<div class="av-nota">' + (N === 1 ? "Comparado con el día completo de ayer: a media tarde es normal ir por debajo."
         : ant ? "Comparado con los " + N + " días anteriores."
-        : N === 0 ? "Desde el " + (AV_INICIO ? inicioDe(AV_INICIO).toLocaleDateString("es-CL", { day:"numeric", month:"long" }) : "primer reporte") + ". Los registros de más de 90 días se borran, así que no llega más atrás que eso."
+        : N === 0 ? "Desde el " + (AV_INICIO ? inicioDe(AV_INICIO).toLocaleDateString("es-CL", { day:"numeric", month:"long" }) : "primer reporte") + ". Los registros de más de " + DIAS_HISTORIAL + " días se borran, así que no llega más atrás que eso."
+        : 2 * N > DIAS_HISTORIAL ? "Sin base de comparación: los registros de más de " + DIAS_HISTORIAL + " días se borran."
         : "Sin base de comparación: el periodo anterior tiene menos de 5 días con reporte.")
       + (N === 1 ? "" : " Una tarea no hecha pero explicada con motivo cuenta como cumplida.") + '</div>';
 
@@ -4980,7 +4985,7 @@ async function avancePdf(btn, datos, sem){
      ["Pendientes con motivo", act.pend + dl(act.pend, ant && ant.pend)]].forEach(r => {
       doc.setTextColor(...C.grafito); T(r[0], 22, y); doc.setTextColor(...C.tinta); T(r[1], 82, y); y += 5.6; });
     doc.setFontSize(8); doc.setTextColor(...C.grafito);
-    T(N === 1 ? "Entre paréntesis: diferencia con el cierre de ayer." : ant ? "Entre paréntesis: diferencia con los " + N + " días anteriores." : "Con 90 días no hay periodo anterior guardado para comparar.", 22, y + 1); y += 9;
+    T(N === 1 ? "Entre paréntesis: diferencia con el cierre de ayer." : ant ? "Entre paréntesis: diferencia con los " + N + " días anteriores." : "Sin base de comparación: el periodo anterior tiene menos de 5 días con reporte.", 22, y + 1); y += 9;
 
     /* áreas */
     sec(N === 1 ? "Avance por área" : "Tendencia por área");
@@ -5248,7 +5253,7 @@ async function avanceInformePdf(btn, admin){
     ["Cómo se calcula el %: de las tareas de la rutina de cada día, cuántas quedaron hechas o explicadas, sin importar quién las marcó.",
      "Una tarea no hecha pero explicada con motivo cuenta como cumplida.",
      "«Sin motivo» cuenta sólo las áreas que reportaron ese día; un área sin reporte se informa aparte. La vara es la rutina actual."
-       + (N === 0 ? " Los registros de más de 90 días se borran: «desde el inicio» no llega más atrás que eso." : "")
+       + (N === 0 ? " Los registros de más de " + DIAS_HISTORIAL + " días se borran: «desde el inicio» no llega más atrás que eso." : "")
     ].forEach(t => { doc.splitTextToSize(L(t), 170).forEach(l => { T(l, 22, y); y += 3.8; }); });
     piePdf(doc, F);
     compartirPdf(doc, "avance_" + (N === 0 ? "desde_inicio" : N + "dias") + "_" + (admin ? "administracion" : "equipo") + "_al_" + dias[dias.length - 1].f + ".pdf",

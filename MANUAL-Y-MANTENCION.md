@@ -140,7 +140,7 @@ subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno
   viaja `foto` (la primera, para lo ya guardado) y `fotos` (todas, si hay más de una); del lado
   de Supervisión/Inspección se lee con `fotosT(t)`. Cada foto tiene su propio archivo:
   `guia/<fecha>/<tarea>-<equipo>-<hora>.jpg`. Quitar una foto la saca del día; el archivo ya
-  subido lo borra la limpieza de 90 días.
+  subido lo borra la limpieza de 30 días.
 - **Marca PI («para informe»)** — campo `pi` en la tarea, botón **PI** en Semanal junto al 📸.
   El informe (PDF y conteo) lleva **solo las fotos de las tareas PI**; las demás se ven en
   Supervisión e Inspección. **PI exige foto** (`exigeFoto = req || pi`). Mientras **ninguna**
@@ -175,12 +175,13 @@ subir `CACHE` en `sw.js`. Todo lo que depende de ella lleva la clase `solo-turno
 
 ### Supervisión · Avance (5-oct-2026)
 
-Sub-pestaña **📊 Avance**: gráfico con el % de tareas hechas por día (7, 30 o 90 días), cifras
+Sub-pestaña **📊 Avance**: gráfico con el % de tareas hechas por día (hoy, 7, 30 días o desde el inicio), cifras
 comparadas con el periodo anterior, tendencia por área, participación por persona y PDF. No
 guarda nada: se calcula al abrirla leyendo `checklists`. Reglas: una tarea cuenta como hecha
 si cualquiera la reportó; el total del día es la **rutina actual** de ese día de la semana; un
 día cuenta «con reporte» solo si algún registro `guia-…` trae algo (tarea hecha, motivo o foto).
-El historial llega a **90 días** por la limpieza de los lunes. Solo para el mando.
+El historial llega a **30 días** por la limpieza de los lunes (`DIAS_HISTORIAL`): por eso 30 días
+no se compara con el periodo anterior (ya se borró). Solo para el mando.
 
 ### Varias sedes en una sola app y una sola base (6-oct-2026)
 
@@ -207,8 +208,9 @@ sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
 - **Toda consulta nueva a `checklists` debe usar `ckSel(client)`**, y todo nombre que vaya a la
   base, `nDB()`. Si no, una sede vería los datos de la otra.
 - La separación la hace la app, no la base: no es un muro de seguridad entre sedes.
-- **Pendiente:** revisar que la limpieza semanal de 90 días (Edge Function `limpiar-antiguos`)
-  alcance también las fotos de `s2/guia/<fecha>/`; hoy recorre las carpetas de La Florida.
+- La limpieza semanal (Edge Function `limpiar-antiguos`) recorre todas las sedes: borra los
+  registros `guia-…` y `s2~guia-…` y las carpetas `guia/<fecha>/` y `s2/guia/<fecha>/`
+  (28-oct-2026; antes solo recorría las carpetas de La Florida).
 - Solo de La Florida (no se copian a otras sedes): la lista de respaldo `USUARIOS_DEFAULT`, el
   permiso `INFORME_DIARIO_EXTRA` y los nombres que aparecen en los textos de Ayuda.
 
@@ -248,7 +250,7 @@ versiones: **para el equipo** (sin detalle por persona) y **para administración
 «Tareas cubiertas por administración»). «Hoy» y el Pulso semanal siguen saliendo de `avancePdf()`.
 
 - **Inicio real:** `AV_INICIO = "2026-10-04"` (La Florida). Ningún periodo cuenta días anteriores.
-  «Desde el inicio» no llega más atrás de 90 días, por la limpieza semanal.
+  «Desde el inicio» no llega más atrás de 30 días, por la limpieza semanal.
 - **Con motivo cuenta como cumplida** en el Avance de 7 días o más (`avResumen(…, cum = true)`).
   El Pulso de hoy y el Pulso semanal llaman sin `cum`: ahí el % sigue siendo sólo lo hecho.
 - **Comparación:** sólo si el periodo anterior tiene 5 o más días con reporte; si no, «sin base de
@@ -278,8 +280,8 @@ relee lo de los demás justo antes de armarse.
 |---|---|---|
 | La rutina (las 90 tareas) | Supabase, tabla `config`, clave `rutina` | alguien la edita en Semanal |
 | Usuarios y puestos | Supabase, tabla `usuarios` | se eliminan desde Supervisor |
-| Informe del día | Supabase, tabla `checklists` | pasa 90 días (*ver nota*) |
-| Fotos | Supabase Storage | pasa 90 días (las de referencia, nunca) (*ver nota*) |
+| Informe del día | Supabase, tabla `checklists` | pasa 30 días (*ver nota*) |
+| Fotos | Supabase Storage | pasa 30 días (las de referencia, nunca) (*ver nota*) |
 | Copia de las fotos del día en el teléfono | IndexedDB `francois-fotos` | pasan 4 días (si ya se subió) |
 | Fotos tomadas sin señal, por subir | lista `fotos.pend` en `localStorage` | se suben solas al volver la red |
 | Número de WhatsApp de los informes | Supabase, tabla `config`, clave `wa_informe` | lo cambia alguien de mando en 👥 Usuarios |
@@ -291,6 +293,11 @@ relee lo de los demás justo antes de armarse.
 > madrugada en Chile), que llama con `net.http_post` a una Edge Function del proyecto. Para verla:
 > `select jobname, schedule, command from cron.job;` y el código en Supabase → Edge Functions.
 > Si se toca, cuidar que siga sin borrar `rutina/` ni las fotos de referencia.
+>
+> **28-oct-2026:** baja de 90 a **30 días** y recorre todas las sedes. La copia del código está
+> en `supabase/limpiar-antiguos.ts` (lo que corre es lo publicado en Supabase: si se cambia, pegarlo
+> allá y cambiar también `DIAS_HISTORIAL` en `index.html`). Con body `{"prueba":true}` solo cuenta
+> lo que borraría; responde por sede, por ejemplo `"archivos":{"lf":120,"s2":8}`.
 
 **La distinción que más importa:** actualizar la app renueva la *caché de archivos*, que es
 otra cosa distinta del *localStorage*. Por eso una actualización **nunca** desmarca tareas.
