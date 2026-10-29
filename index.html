@@ -241,6 +241,7 @@
   .msg-tipo.felicitacion.on{background:#E6F4EA;border-color:#8FCDA6;color:#1E6B3A}
   .msg-tipo.observacion.on{background:#FFF4DC;border-color:#E8C98A;color:#8A5F0E}
   .msg-tipo.aviso.on{background:#F4F0FF;border-color:#B9A6F5;color:#3D2A8C}
+  .msg-tipo.dia.on{background:var(--crema);border-color:var(--coral);color:var(--coral-d)}
   .msg-acc{display:flex;gap:8px;margin-top:6px}
   .msg-enviar,.msg-cancel{flex:1;border:0;border-radius:13px;padding:14px 8px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer}
   .msg-enviar{background:var(--coral);color:var(--crema)}
@@ -981,7 +982,7 @@
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
         <li><b>Sin señal</b> sigue marcando y sacando fotos: quedan guardadas en el teléfono y se suben solas cuando vuelve la conexión.</li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
-        <li><b>💬 Mensajes</b>: si alguien de mando comenta una de tus fotos (👏 felicitación u 👁 observación), al abrir la app con tu nombre verás <b>«🔔 Tienes mensajes nuevos»</b>. Tócalo, lee y marca <b>Entendido</b>. El comentario también queda <b>bajo la tarea</b> en tu guía de ese día. Son <b>privados</b>: solo los ves tú y el mando. Los anteriores quedan en el botón <b>💬 Mensajes</b>.</li>
+        <li><b>💬 Mensajes</b>: si alguien de mando comenta una de tus fotos (👏 felicitación u 👁 observación), al abrir la app con tu nombre verás <b>«🔔 Tienes mensajes nuevos»</b>. Tócalo, lee y marca <b>Entendido</b>. El comentario también queda <b>bajo la tarea</b> en tu guía de ese día. El mando también puede escribirte un mensaje suelto, a ti o a todo el equipo (o a los de tu puesto), y sobre una tarea de hoy o de mañana. Son <b>privados</b>: solo los ves tú y el mando. Los anteriores quedan en el botón <b>💬 Mensajes</b>.</li>
       </ul>
       <h3>🗓️ Pestaña Semanal — solo lectura</h3>
       <p>Ves la rutina completa de la semana y las <b>fotos de referencia</b> (cómo debe quedar cada cosa). La editan los dueños, el encargado y el encargado de local.</p>
@@ -4674,19 +4675,34 @@ async function pintarMensajes(root){
     });
   }catch(e){}
 }
-/* tarjeta para escribir: con foto (o = datos de la foto) o suelta a una persona */
+/* tarjeta para escribir: con foto (o = datos de la foto) o suelta. Sin foto, el
+   «Para» ofrece además grupos —todo el equipo de la sede o los de un puesto,
+   según el puesto habitual de 👥 Usuarios— y el mensaje puede ir «sobre una
+   tarea» de hoy o de mañana: así queda bajo esa tarea en la guía de quien la
+   tiene ese día (igual que un comentario de foto). Un mensaje a un grupo se
+   guarda como una fila por persona, con su propio «visto». */
 function abrirMensaje(o){
   if(!esMando()){ alert("Solo quien es de mando puede enviar mensajes."); return; }
   if(!quienActual()){ alert("Elige tu nombre primero: el mensaje va firmado."); return; }
   o = o || {};
-  const gente = USUARIOS.filter(u => u.activo !== false && u.nombre !== quienActual()).map(u => u.nombre);
-  const fijo = o.para && gente.indexOf(o.para) >= 0;
+  const yo = quienActual();
+  const gente = USUARIOS.filter(u => u.activo !== false && u.nombre !== yo);
+  const nombres = gente.map(u => u.nombre);
+  const fijo = o.para && nombres.indexOf(o.para) >= 0;
+  const dePuesto = p => gente.filter(u => u.puesto === p).map(u => u.nombre);
+  const grupos = o.foto ? [] : [{ v:"*todos", n:"👥 Todo el equipo de " + SEDE_NOMBRE + " (" + nombres.length + ")" }]
+    .concat(PUESTOS.filter(p => dePuesto(p).length).map(p => ({ v:"*puesto:" + p, n:"👥 Los de " + p + " (" + dePuesto(p).length + ")" })));
   const ovl = document.createElement("div"); ovl.id = "msgOvl";
-  ovl.innerHTML = '<div class="cja"><h4>' + (o.foto ? "💬 Comentar la foto" : "💬 Mensaje a una persona") + '</h4>'
+  ovl.innerHTML = '<div class="cja"><h4>' + (o.foto ? "💬 Comentar la foto" : "💬 Mensaje") + '</h4>'
     + (o.tarea ? '<p class="tq">' + esc(limpio(o.tarea)) + '</p>' : "")
     + '<label class="msg-lab">Para</label>'
-    + '<select id="msgPara">' + (fijo ? "" : '<option value="">— elegir persona —</option>')
-    + gente.map(n => '<option' + (n === o.para ? " selected" : "") + '>' + esc(n) + '</option>').join("") + '</select>'
+    + '<select id="msgPara">' + (fijo ? "" : '<option value="">— elegir —</option>')
+    + (grupos.length ? '<optgroup label="Grupos">' + grupos.map(g => '<option value="' + esc(g.v) + '">' + esc(g.n) + '</option>').join("") + '</optgroup><optgroup label="Personas">' : "")
+    + nombres.map(n => '<option' + (n === o.para ? " selected" : "") + '>' + esc(n) + '</option>').join("")
+    + (grupos.length ? '</optgroup>' : "") + '</select>'
+    + (o.foto ? "" : '<label class="msg-lab">Sobre una tarea (opcional)</label>'
+        + '<div class="msg-tipos"><button class="msg-tipo dia on" data-d="0">Hoy</button><button class="msg-tipo dia" data-d="1">Mañana</button></div>'
+        + '<select id="msgTarea"></select>')
     + '<div class="msg-tipos"><button class="msg-tipo felicitacion on" data-t="felicitacion">👏 Felicitación</button>'
     + '<button class="msg-tipo observacion" data-t="observacion">👁 Observación</button>'
     + (o.foto ? "" : '<button class="msg-tipo aviso" data-t="aviso">📣 Aviso</button>') + '</div>'
@@ -4694,33 +4710,59 @@ function abrirMensaje(o){
     + '<div class="msg-acc"><button class="msg-enviar" id="msgEnviar">Enviar</button>'
     + '<button class="msg-cancel" id="msgCancel">Cancelar</button></div></div>';
   document.body.appendChild(ovl);
-  const txt = ovl.querySelector("#msgTexto"), sel = ovl.querySelector("#msgPara");
+  const txt = ovl.querySelector("#msgTexto"), sel = ovl.querySelector("#msgPara"), selT = ovl.querySelector("#msgTarea");
   const cerrar = () => ovl.remove();
-  let tipo = "felicitacion";
+  let tipo = "felicitacion", diaOff = 0;   // diaOff: 0 = hoy, 1 = mañana
+  /* las tareas de ese día de la semana, agrupadas como en la guía (Turno 1 y cada puesto) */
+  const tareasDe = off => { const wd = (new Date().getDay() + off) % 7; return (RUTINA.base || []).concat((RUTINA.dias && RUTINA.dias[wd]) || []); };
+  function pintarTareas(){
+    if(!selT) return;
+    const ts = tareasDe(diaOff);
+    selT.innerHTML = '<option value="">— ninguna —</option>' + [["", "🌅 Turno 1"]].concat(PUESTOS.map(p => [p, p])).map(([p, n]) => {
+      const de = ts.filter(x => (x.p || "") === p);
+      return de.length ? '<optgroup label="' + esc(n) + '">' + de.map(x => '<option value="' + esc(x.id) + '">' + esc(soloTarea(x.t)) + '</option>').join("") + '</optgroup>' : "";
+    }).join("");
+  }
+  pintarTareas();
+  if(selT) selT.addEventListener("change", () => {
+    /* al elegir una tarea sin haber elegido destinatario: los de su puesto, o todo el equipo */
+    if(sel.value) return;
+    const x = tareasDe(diaOff).find(t => t.id === selT.value); if(!x) return;
+    sel.value = (x.p && dePuesto(x.p).length) ? "*puesto:" + x.p : "*todos";
+  });
   ovl.addEventListener("click", async e => {
     if(e.target === ovl || e.target.closest("#msgCancel")) return cerrar();
+    const db = e.target.closest(".msg-tipo.dia");
+    if(db){ diaOff = +db.dataset.d; ovl.querySelectorAll(".msg-tipo.dia").forEach(b => b.classList.toggle("on", b === db)); pintarTareas(); return; }
     const tb = e.target.closest(".msg-tipo");
-    if(tb){ tipo = tb.dataset.t; ovl.querySelectorAll(".msg-tipo").forEach(b => b.classList.toggle("on", b === tb)); return; }
+    if(tb){ tipo = tb.dataset.t; ovl.querySelectorAll(".msg-tipo:not(.dia)").forEach(b => b.classList.toggle("on", b === tb)); return; }
     const env = e.target.closest("#msgEnviar"); if(!env) return;
     const para = sel.value, texto = txt.value.trim();
     if(!para){ alert("Elige a quién va el mensaje."); return; }
     if(!texto){ txt.focus(); return; }
+    /* a quiénes va: una persona, todo el equipo o los de un puesto */
+    const dest = para === "*todos" ? nombres : para.indexOf("*puesto:") === 0 ? dePuesto(para.slice(8)) : [para];
+    if(!dest.length){ alert("No hay nadie en ese grupo."); return; }
     const client = getSB(); if(!client){ alert("Sin conexión con la base."); return; }
     env.disabled = true; env.textContent = "Enviando…";
     try{
       await vfSesion(client);
-      const fila = { de: nDB(quienActual()), para: nDB(para), tipo, texto };
-      if(o.foto) fila.foto = o.foto;
-      if(o.tarea) fila.tarea = limpio(o.tarea);
-      if(o.tid) fila.tarea_id = o.tid;
-      if(/^\d{4}-\d{2}-\d{2}$/.test(o.dia || "")) fila.dia = o.dia;
-      const { error } = await client.from("mensajes").insert(fila);
+      const base = { de: nDB(yo), tipo, texto };
+      if(o.foto) base.foto = o.foto;
+      if(o.tarea) base.tarea = limpio(o.tarea);
+      if(o.tid) base.tarea_id = o.tid;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(o.dia || "")) base.dia = o.dia;
+      if(selT && selT.value){
+        const x = tareasDe(diaOff).find(t => t.id === selT.value);
+        if(x){ base.tarea = limpio(x.t); base.tarea_id = x.id; base.dia = fechaISO(new Date(Date.now() + diaOff * 864e5)); }
+      }
+      const { error } = await client.from("mensajes").insert(dest.map(n => Object.assign({ para: nDB(n) }, base)));
       if(error) throw error;
       cerrar();
       pintarMensajes(document.getElementById("supChecklists"));
       pintarMensajes(document.getElementById("inspCont"));
       if(document.getElementById("supPanelMensajes").style.display !== "none") cargarEnviados();
-      if(!o.foto) alert("Mensaje enviado a " + para + ". Lo verá al abrir la app con su nombre.");
+      if(!o.foto) alert("Mensaje enviado a " + (dest.length === 1 ? dest[0] + ". Lo verá" : dest.length + " personas. Lo verán") + " al abrir la app con su nombre.");
     }catch(err){
       env.disabled = false; env.textContent = "Enviar";
       alert("No se pudo enviar: " + ((err && err.message) || err));
@@ -5374,21 +5416,35 @@ async function cargarEnviados(){
   const client = getSB(); if(!client){ cont.innerHTML = '<div class="sinreg">Sin conexión con la base.</div>'; return; }
   try{
     await vfSesion(client);
-    const { data, error } = await client.from("mensajes").select("*").order("created_at", { ascending:false }).limit(150);
+    const { data, error } = await client.from("mensajes").select("*").order("created_at", { ascending:false }).limit(300);
     if(error) throw error;
     const ms = (data || []).filter(m => deMiSede(m.para)).map(msgUI).filter(m => m.de !== "(prueba)" && m.para !== "(prueba)");
     if(!ms.length){ cont.innerHTML = '<div class="sinreg">Todavía no se ha enviado ningún mensaje.<br><small>Se envían con 💬 Comentar bajo una foto, o con 💬 Mensaje arriba.</small></div>'; return; }
+    /* un mensaje a un grupo es una fila por persona (mismo texto, firma y hora):
+       acá se vuelven a juntar para ver de un vistazo quién lo leyó y quién no */
+    const envios = [];
+    ms.forEach(m => {
+      const k = [m.de, m.tipo, m.texto, m.tarea || "", m.foto || "", m.created_at].join("|");
+      let g = envios.find(x => x.k === k);
+      if(!g){ g = { k, m, paras: [] }; envios.push(g); }
+      g.paras.push(m);
+    });
     const sin = ms.filter(m => !m.leido_at).length;
     cont.innerHTML = '<div class="ck-tot">' + ms.length + (ms.length === 1 ? " mensaje" : " mensajes")
       + " · <b>" + sin + "</b> sin leer</div>"
-      + ms.map(m => {
-          const t = MSG_TIPOS[m.tipo] || MSG_TIPOS.observacion;
-          return '<div class="env-item' + (m.leido_at ? "" : " sin") + '">'
+      + envios.map(g => {
+          const m = g.m, t = MSG_TIPOS[m.tipo] || MSG_TIPOS.observacion;
+          const vistos = g.paras.filter(x => x.leido_at), faltan = g.paras.filter(x => !x.leido_at);
+          const grupo = g.paras.length > 1;
+          return '<div class="env-item' + (faltan.length ? " sin" : "") + '">'
             + '<div class="env-cab"><span class="msg-chip ' + esc(m.tipo) + '">' + t[0] + " " + t[1] + '</span>'
-            + '<span class="env-est">' + (m.leido_at ? "✓ visto · " + esc(msgFecha(m.leido_at)) : "sin leer") + '</span></div>'
-            + '<div class="env-para">Para <b>' + esc(m.para) + '</b>' + (m.de ? " · de " + esc(m.de) : " · sin firma")
+            + '<span class="env-est">' + (grupo ? vistos.length + " de " + g.paras.length + " lo vieron"
+                                               : (m.leido_at ? "✓ visto · " + esc(msgFecha(m.leido_at)) : "sin leer")) + '</span></div>'
+            + '<div class="env-para">Para <b>' + (grupo ? g.paras.length + " personas" : esc(m.para)) + '</b>' + (m.de ? " · de " + esc(m.de) : " · sin firma")
             + " · " + esc(msgFecha(m.created_at)) + '</div>'
-            + (m.tarea ? '<div class="msg-tarea">' + (m.foto ? "📷 " : "") + esc(m.tarea) + '</div>' : "")
+            + (grupo ? '<div class="env-para">' + (vistos.length ? "✓ " + esc(vistos.map(x => x.para).join(", ")) : "")
+                + (faltan.length ? (vistos.length ? " · " : "") + "sin leer: " + esc(faltan.map(x => x.para).join(", ")) : "") + '</div>' : "")
+            + (m.tarea ? '<div class="msg-tarea">' + (m.foto ? "📷 " : "") + esc(m.tarea) + (m.dia ? " · " + esc(m.dia) : "") + '</div>' : "")
             + '<div class="env-txt">' + esc(m.texto) + '</div></div>';
         }).join("");
   }catch(e){

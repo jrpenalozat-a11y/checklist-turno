@@ -334,7 +334,7 @@ relee lo de los demás justo antes de armarse.
 | Copia de las fotos del día en el teléfono | IndexedDB `francois-fotos` | pasan 4 días (si ya se subió) |
 | Fotos tomadas sin señal, por subir | lista `fotos.pend` en `localStorage` | se suben solas al volver la red |
 | Número de WhatsApp de los informes | Supabase, tabla `config`, clave `wa_informe` | lo cambia alguien de mando en 👥 Usuarios |
-| Mensajes del mando (felicitación / observación) | Supabase, tabla `mensajes` (`SQL-mensajes.sql`) | no se borran solos; desde la app no se pueden editar ni borrar |
+| Mensajes del mando (felicitación / observación / aviso): a una persona, a los de un puesto o a todo el equipo de la sede, opcionalmente sobre una tarea de hoy o de mañana | Supabase, tabla `mensajes` (`SQL-mensajes.sql`); un mensaje a un grupo es una fila por persona, con su propio «visto» | no se borran solos; desde la app no se pueden editar ni borrar |
 | Marcado del día, motivos, extras | `localStorage` del teléfono | se borran los **datos del sitio** |
 
 > **Nota (29-sep-2026):** la limpieza **no está en el código de la app, pero sí existe en
