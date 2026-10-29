@@ -2747,7 +2747,7 @@ async function abrirUsuarios(){
       const edita = admin && !u.global;
       const info = edita
         ? rolSelect(u.rol, u.id) + ' ' + puestoSelect(u.puesto || "", u.id)
-        : '<div class="usr-r">' + esc(rolLabel(u.rol)) + (u.puesto ? " · " + esc(u.puesto) : "") + (u.global ? " · todas las sedes" : "") + '</div>';
+        : '<div class="usr-r">' + esc(rolLabel(u.rol)) + (u.puesto ? " · " + esc(u.puesto) : "") + (u.global ? " · propiedad general" : "") + '</div>';
       const acc = admin
         ? '<div class="usr-acc">' + (edita ? '<button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>' : "")
           + '<button class="usr-toggle usr-pin" data-n="' + esc(u.nombre) + '" title="Reiniciar PIN">🔑</button>'
