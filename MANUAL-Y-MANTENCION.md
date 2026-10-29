@@ -209,8 +209,9 @@ sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
 - **Los dueños (María José y Maximiliano) son uno solo para las tres sedes.** Su registro en
   `usuarios` va **sin prefijo** (el de La Florida) y la app lo muestra en todas las sedes, con el
   mismo nombre y el mismo PIN (`usrSede()` los incluye; el PIN se comprueba con `nAuth()`, que usa
-  el nombre tal como está en la base). Un dueño nuevo agregado desde cualquier sede se guarda sin
-  prefijo. En 👥 Usuarios de otra sede salen con «todas las sedes» y sólo se les puede reiniciar el
+  el nombre tal como está en la base). En un teléfono donde ya escribió su PIN en una sede, el
+  dueño entra en las otras sin volver a escribirlo (`global.pinok`, clave sin prefijo de sede).
+  Un dueño nuevo agregado desde cualquier sede se guarda sin prefijo. En 👥 Usuarios de otra sede salen con «todas las sedes» y sólo se les puede reiniciar el
   PIN; se editan desde La Florida. Las copias por sede que existían (`s2:María Jose`…) se
   desactivan con `SQL-duenos-todas-las-sedes.sql`, para que no salgan dos veces.
 - **Toda consulta nueva a `checklists` debe usar `ckSel(client)`**, y todo nombre que vaya a la

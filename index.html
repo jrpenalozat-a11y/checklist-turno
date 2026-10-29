@@ -19,7 +19,7 @@
    cuál está (clave «sede»). La Florida («lf») es la original y NO lleva
    prefijo en ninguna parte: sus datos quedan exactamente como estaban.
    Las demás sedes se separan con un prefijo en cada lugar donde se guarda algo:
-     · este teléfono (localStorage) ........ «s2::clave»
+     · este teléfono (localStorage) ........ «s2::clave» (las «global.*» van sin prefijo: son del teléfono entero)
      · tabla config ........................ «s2:rutina», «s2:rutina_log»…
      · usuarios, PIN, mensajes (nombres) ... «s2:Nombre»
        (los DUEÑOS van sin prefijo y valen para todas las sedes: ver usrSede)
@@ -51,7 +51,9 @@
   };
   if(id !== "lf" && LS){
     var pre = id + "::";
-    var k = function(o, key){ return (o === LS && key !== "sede") ? pre + key : key; };
+    /* «global.*» no lleva prefijo: vale para todas las sedes en este teléfono
+       (p. ej. los dueños que ya escribieron su PIN aquí) */
+    var k = function(o, key){ return (o === LS && key !== "sede" && String(key).indexOf("global.") !== 0) ? pre + key : key; };
     P.getItem    = function(key){ return g.call(this, k(this, key)); };
     P.setItem    = function(key, v){ return st.call(this, k(this, key), v); };
     P.removeItem = function(key){ return rm.call(this, k(this, key)); };
@@ -2579,9 +2581,22 @@ function rolDe(nombre){ const u = USUARIOS.find(x => x.nombre === nombre); retur
    Se pide al elegir el nombre y sólo la PRIMERA vez en cada teléfono: el
    equipo recuerda quién ya se verificó en él. El hash vive en la base y la
    comprobación ocurre en el servidor, que sólo responde sí o no. */
-function pinVerificados(){ try{ return JSON.parse(localStorage.getItem("quien.pinok") || "[]"); }catch(e){ return []; } }
-function pinGuardar(n){ try{ const a = pinVerificados(); if(a.indexOf(n) < 0){ a.push(n); localStorage.setItem("quien.pinok", JSON.stringify(a)); } }catch(e){} }
-function pinOlvidar(n){ try{ localStorage.setItem("quien.pinok", JSON.stringify(pinVerificados().filter(x => x !== n))); }catch(e){} }
+/* «Ya se verificó en este teléfono» se recuerda por sede («quien.pinok»). Los
+   dueños, que son uno solo para los tres locales, se recuerdan además en
+   «global.pinok», sin prefijo: si María José ya escribió su PIN en La Florida
+   con este teléfono, en Puerto Varas o Maximarket entra sin volver a escribirlo. */
+function esDuenoUnico(n){ const u = USUARIOS.find(x => x.nombre === n); return !!u && rolNorm(u.rol) === "dueño" && (!SEDE_PRE || u.global === true); }
+function pinLista(k){ try{ return JSON.parse(localStorage.getItem(k) || "[]"); }catch(e){ return []; } }
+function pinVerificados(){ return pinLista("quien.pinok").concat(pinLista("global.pinok")); }
+function pinGuardar(n){
+  try{
+    const k = esDuenoUnico(n) ? "global.pinok" : "quien.pinok";
+    const a = pinLista(k); if(a.indexOf(n) < 0){ a.push(n); localStorage.setItem(k, JSON.stringify(a)); }
+  }catch(e){}
+}
+function pinOlvidar(n){
+  try{ ["quien.pinok", "global.pinok"].forEach(k => localStorage.setItem(k, JSON.stringify(pinLista(k).filter(x => x !== n)))); }catch(e){}
+}
 
 async function pedirPin(n){
   const yaAqui = pinVerificados().indexOf(n) >= 0;
@@ -2649,6 +2664,8 @@ async function gateSupervisor(){
      Sin esto, los teléfonos ya desbloqueados nunca migraban al PIN. */
   const yo = quienActual();
   if(localStorage.getItem("sup_ok") === "pin:" + yo) return true;
+  /* este teléfono ya comprobó su PIN (en esta sede o, si es dueño, en cualquiera) */
+  if(pinVerificados().indexOf(yo) >= 0){ try{ localStorage.setItem("sup_ok", "pin:" + yo); }catch(e){} return true; }
   await esperarSB(3000);
   const client = getSB();
   if(!client){ alert("No hay conexión para verificar tu PIN. Intenta de nuevo con internet."); return false; }
