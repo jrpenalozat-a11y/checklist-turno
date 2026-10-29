@@ -916,7 +916,7 @@
       <div class="rango" style="margin-bottom:0">Elige tu nombre: tu trabajo queda registrado a tu nombre</div>
       <div class="quien-grid" id="quienLista"><div class="sinreg">Cargando…</div></div>
       <!-- se ve sólo cuando la lista es del respaldo (la base no respondió); tocar el texto muestra el motivo -->
-      <div class="quien-aviso" id="quienAviso" hidden><span id="quienAvisoTxt">Lista sin actualizar</span> · <button type="button" id="quienReintentar">Reintentar</button></div>
+      <div class="quien-aviso" id="quienAviso" hidden><span id="quienAvisoTxt">Lista sin actualizar</span> · <button type="button" id="quienReintentar">Reintentar</button> · <button type="button" id="quienReiniciar">Reiniciar app</button></div>
       <button class="quien-skip" id="quienSkip">Entrar sin identificarme</button>
     </div>
     <div id="quienPaso2" hidden>
@@ -996,9 +996,11 @@
         <li><b>📲 Instalar</b>: deja la app en tu pantalla de inicio. <b>📤 Compartir</b>: pasa la app a otro.</li>
         <li>Si la cámara o la ubicación no funcionan: toca el <b>🔒</b> junto a la dirección → Permisos → Permitir, y recarga.</li>
         <li>Funciona sin internet para lo básico; las fotos y la supervisión necesitan conexión.</li>
+        <li>Si algo se ve viejo o no carga (nombres, tareas): <b>🔄 Reiniciar app</b>, aquí abajo. No borra nada de lo marcado.</li>
       </ul>
     </div>
     <div class="fila2">
+      <button class="accion" id="ayudaReiniciar">🔄 Reiniciar app</button>
       <button class="accion cerrar" id="ayudaCerrar">Cerrar</button>
     </div>
   </div>
@@ -2329,8 +2331,19 @@ btnCompartirApp.addEventListener("click", async () => {
    sólo se renueva el código. Nadie necesita borrar caché. */
 if("serviceWorker" in navigator){
   let reg = null, hayNueva = false;
-  const abiertaEn = Date.now();      // cuándo se cargó esta página
-  let visibleDesde = Date.now();     // cuándo se abrió / volvió a mirar la app por última vez
+  let recargarCuandoSePueda = false;  // hay versión nueva y esta página es vieja: recargar en cuanto se pueda
+  const abiertaEn = Date.now();       // cuándo se cargó esta página
+
+  /* ¿Se puede recargar ahora sin cortar a nadie? Nadie escribiendo, ninguna
+     cámara abierta y ninguna ventana en uso (fotos, supervisor, informes…);
+     la pantalla de quién entra no cuenta: es sólo una lista. */
+  function momentoSeguro(){
+    const a = document.activeElement;
+    if(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && a.value) return false;
+    if(vfStream || camStream) return false;
+    return !document.querySelector(".overlay.on:not(#quienOvl), #inspOvl.on, #sedeOvl");
+  }
+  function aplicarSiSePuede(){ if(recargarCuandoSePueda && momentoSeguro()) location.reload(); }
 
   function avisarNueva(){
     if(document.getElementById("updBar")) return;
@@ -2353,12 +2366,13 @@ if("serviceWorker" in navigator){
           hayNueva = true;
           /* En iPhone la app queda viva en memoria por días: al «abrirla» no se
              vuelve a cargar y seguía corriendo el código viejo hasta salir y
-             volver DOS veces. Si la versión nueva se encuentra justo al volver a
-             la app (la revisión de visibilitychange, abajo), se aplica al tiro:
-             nadie está a mitad de algo. Si aparece más tarde, se avisa y se
-             aplica en la próxima vuelta, como antes. Una página recién cargada
-             ya trae el HTML nuevo (red primero en sw.js): no hace falta recargar. */
-          if(Date.now() - abiertaEn > 60000 && Date.now() - visibleDesde < 8000){ location.reload(); return; }
+             volver DOS veces. Ahora una página vieja (más de un minuto abierta)
+             se recarga sola apenas encuentra la versión nueva, en cuanto sea un
+             momento seguro (se revisa cada minuto, abajo); mientras tanto queda
+             el aviso para hacerlo a mano. Una página recién cargada ya trae el
+             HTML nuevo (red primero en sw.js): sólo avisa, no hace falta recargar. */
+          recargarCuandoSePueda = Date.now() - abiertaEn > 60000;
+          if(recargarCuandoSePueda && momentoSeguro()){ location.reload(); return; }
           avisarNueva();
         });
       });
@@ -2369,11 +2383,11 @@ if("serviceWorker" in navigator){
   // al volver a la app (la vuelve a mirar tras dejarla de lado): revisa y aplica sola
   document.addEventListener("visibilitychange", () => {
     if(document.visibilityState !== "visible") return;
-    visibleDesde = Date.now();
     if(hayNueva){ location.reload(); return; }   // momento seguro: no está escribiendo
     buscarActualizacion();
   });
   setInterval(buscarActualizacion, 30 * 60 * 1000);   // y cada 30 min si queda abierta
+  setInterval(aplicarSiSePuede, 60 * 1000);           // versión nueva pendiente: se aplica en cuanto se pueda
 }
 
 /* ---- Fase 1: usuarios / roles + clave de supervisor ---- */
@@ -2953,6 +2967,12 @@ document.getElementById("quienReintentar").addEventListener("click", async e => 
 document.getElementById("quienAvisoTxt").addEventListener("click", () => {
   if(usuariosError) alert("No se pudo bajar la lista de personas de la base.\nMotivo: " + usuariosError);
 });
+/* «Reiniciar app» (aquí y en Ayuda): vuelve a cargar la página entera. El HTML
+   se baja de la red, así que también trae la versión nueva si la hay. Es la
+   salida cuando Reintentar no alcanza (p. ej. supabase-js nunca llegó del CDN).
+   No borra nada: lo marcado vive en localStorage. */
+document.getElementById("quienReiniciar").addEventListener("click", () => location.reload());
+document.getElementById("ayudaReiniciar").addEventListener("click", () => location.reload());
 /* el aviso de la guía diaria abre el mismo diálogo (paso 1 o paso 2 según falte) */
 document.getElementById("guiaAviso").addEventListener("click", e => {
   if(e.target.closest("#avisoQuien")) abrirQuien(!!quienActual());

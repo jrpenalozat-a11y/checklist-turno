@@ -399,9 +399,9 @@ Esta app es útil porque es corta. La forma más segura de arruinarla es llenarl
 
 | Síntoma | Qué hacer |
 |---|---|
-| No aparece la versión nueva | Cerrar la app y volver a abrirla. **Nunca borrar caché.** |
+| No aparece la versión nueva | Ayuda → **🔄 Reiniciar app**, o cerrar la app y volver a abrirla. Una app que lleva rato abierta se recarga sola al encontrar la versión nueva. **Nunca borrar caché.** |
 | No aparecen las tareas | Revisar conexión. Sin señal muestra lo último guardado. |
-| No sale mi nombre | Que un supervisor lo agregue en Supervisor → Usuarios. Si bajo la lista dice **«Lista sin actualizar»**, el teléfono no pudo bajar la lista de la base: con señal, tocar **Reintentar** (tocar el aviso muestra el motivo). |
+| No sale mi nombre | Que un supervisor lo agregue en Supervisor → Usuarios. Si bajo la lista dice **«Lista sin actualizar»**, el teléfono no pudo bajar la lista de la base: con señal, tocar **Reintentar** (tocar el aviso muestra el motivo) o **Reiniciar app**. |
 | No deja enviar el informe | Falta poner el motivo de algún pendiente. Es a propósito. |
 | No reproduce / no toma foto | Dar permiso de cámara al navegador. La foto debe ser en vivo. |
 
