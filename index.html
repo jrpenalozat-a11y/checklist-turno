@@ -614,6 +614,10 @@
   .quien-btn.sel{background:var(--coral);border-color:var(--coral);color:var(--crema)}
   .quien-btn.sel small{color:var(--crema)}
   .quien-skip{margin-top:14px;font-size:12px;color:var(--grafito);background:none;border:0;text-decoration:underline;cursor:pointer;font-family:inherit}
+  /* aviso discreto bajo la lista cuando la gente no se pudo bajar de la base */
+  .quien-aviso{margin-top:10px;font-size:12px;color:var(--grafito)}
+  .quien-aviso button{font:inherit;font-weight:600;color:var(--coral-d);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+  .quien-aviso button:disabled{text-decoration:none;opacity:.6}
   /* guías integradas (ayuda / manual) */
   .guia-doc{font-size:13.5px;line-height:1.55;color:var(--tinta)}
   .guia-doc h3{font-size:12.5px;color:var(--coral-d);margin:16px 0 4px;text-transform:uppercase;letter-spacing:.05em}
@@ -911,6 +915,8 @@
       <h2>¿Quién está entrando?</h2>
       <div class="rango" style="margin-bottom:0">Elige tu nombre: tu trabajo queda registrado a tu nombre</div>
       <div class="quien-grid" id="quienLista"><div class="sinreg">Cargando…</div></div>
+      <!-- se ve sólo cuando la lista es del respaldo (la base no respondió); tocar el texto muestra el motivo -->
+      <div class="quien-aviso" id="quienAviso" hidden><span id="quienAvisoTxt">Lista sin actualizar</span> · <button type="button" id="quienReintentar">Reintentar</button></div>
       <button class="quien-skip" id="quienSkip">Entrar sin identificarme</button>
     </div>
     <div id="quienPaso2" hidden>
@@ -2323,6 +2329,8 @@ btnCompartirApp.addEventListener("click", async () => {
    sólo se renueva el código. Nadie necesita borrar caché. */
 if("serviceWorker" in navigator){
   let reg = null, hayNueva = false;
+  const abiertaEn = Date.now();      // cuándo se cargó esta página
+  let visibleDesde = Date.now();     // cuándo se abrió / volvió a mirar la app por última vez
 
   function avisarNueva(){
     if(document.getElementById("updBar")) return;
@@ -2341,7 +2349,17 @@ if("serviceWorker" in navigator){
         const nuevo = r.installing; if(!nuevo) return;
         nuevo.addEventListener("statechange", () => {
           // sólo avisa si YA había una versión corriendo (si no, es la primera instalación)
-          if(nuevo.state === "installed" && navigator.serviceWorker.controller){ hayNueva = true; avisarNueva(); }
+          if(nuevo.state !== "installed" || !navigator.serviceWorker.controller) return;
+          hayNueva = true;
+          /* En iPhone la app queda viva en memoria por días: al «abrirla» no se
+             vuelve a cargar y seguía corriendo el código viejo hasta salir y
+             volver DOS veces. Si la versión nueva se encuentra justo al volver a
+             la app (la revisión de visibilitychange, abajo), se aplica al tiro:
+             nadie está a mitad de algo. Si aparece más tarde, se avisa y se
+             aplica en la próxima vuelta, como antes. Una página recién cargada
+             ya trae el HTML nuevo (red primero en sw.js): no hace falta recargar. */
+          if(Date.now() - abiertaEn > 60000 && Date.now() - visibleDesde < 8000){ location.reload(); return; }
+          avisarNueva();
         });
       });
       buscarActualizacion();
@@ -2351,6 +2369,7 @@ if("serviceWorker" in navigator){
   // al volver a la app (la vuelve a mirar tras dejarla de lado): revisa y aplica sola
   document.addEventListener("visibilitychange", () => {
     if(document.visibilityState !== "visible") return;
+    visibleDesde = Date.now();
     if(hayNueva){ location.reload(); return; }   // momento seguro: no está escribiendo
     buscarActualizacion();
   });
@@ -2450,22 +2469,13 @@ function llenarSelectColab(){
   llenarPersona(inRecibe,  "— quién recibe —", (d.recibe  || "").trim());
   if(quienOvl.classList.contains("on")) renderQuien();                        // refresca la pantalla de inicio
 }
-async function cargarUsuarios(){
-  const client = getSB();
-  if(client){
-    try{
-      await vfSesion(client);
-      const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
-      const gente = error ? [] : usrSede(data);
-      if(!error && gente.length){
-        USUARIOS = gente;
-        /* copia local de la lista: si mañana se corta la red, cada uno sigue
-           encontrando su nombre y puede marcar */
-        try{ localStorage.setItem("usuarios_cache", JSON.stringify(gente.map(u => ({ nombre:u.nombre, rol:u.rol, activo:u.activo, puesto:u.puesto })))); }catch(e){}
-        llenarSelectColab(); aplicarModoAdmin(); return;
-      }
-    }catch(e){}
-  }
+/* De dónde salió la lista que está en pantalla: true = del respaldo (la copia
+   de este teléfono o la lista fija) porque la base no respondió; false = de la
+   base. Con true, la pantalla de quién entra muestra «Lista sin actualizar». */
+let usuariosRespaldo = false;
+let usuariosError = "";        // último motivo por el que no se pudo bajar la lista (se ve tocando el aviso)
+let usuariosCargando = null;   // consulta en curso: las llamadas seguidas se suman a ella, no la repiten
+function usuariosDesdeRespaldo(){
   /* sin base: primero la última lista que se bajó en este teléfono; si nunca
      se bajó, la lista fija de los 14 */
   let cache = null;
@@ -2473,6 +2483,51 @@ async function cargarUsuarios(){
   USUARIOS = (cache && cache.length) ? cache : (SEDE_ID === "lf" ? USUARIOS_DEFAULT : []).map(u => ({ ...u, activo:true }));
   llenarSelectColab();
   aplicarModoAdmin();
+}
+function cargarUsuarios(){
+  if(!usuariosCargando) usuariosCargando = cargarUsuariosBase().finally(() => { usuariosCargando = null; });
+  return usuariosCargando;
+}
+async function cargarUsuariosBase(){
+  if(!SB_OK){ usuariosDesdeRespaldo(); return; }   // sin base configurada: respaldo y listo, sin aviso
+  let client = getSB();
+  if(!client){
+    /* supabase-js llega por CDN con defer y en un teléfono lento puede tardar
+       más que la espera del arranque. Antes eso dejaba la lista del respaldo
+       para siempre y sin aviso; ahora se pinta el respaldo al tiro y se sigue
+       esperando la librería para bajar la lista real apenas llegue. */
+    if(!USUARIOS.length) usuariosDesdeRespaldo();
+    if(await esperarSB(20000)) client = getSB();
+  }
+  if(client){
+    try{
+      await vfSesion(client);
+      const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
+      if(error) throw error;
+      const gente = usrSede(data);
+      if(gente.length){
+        USUARIOS = gente;
+        usuariosRespaldo = false; usuariosError = "";
+        /* copia local de la lista: si mañana se corta la red, cada uno sigue
+           encontrando su nombre y puede marcar */
+        try{ localStorage.setItem("usuarios_cache", JSON.stringify(gente.map(u => ({ nombre:u.nombre, rol:u.rol, activo:u.activo, puesto:u.puesto })))); }catch(e){}
+        llenarSelectColab(); aplicarModoAdmin(); return;
+      }
+      usuariosError = "la base respondió sin personas de la sede " + SEDE_ID + " (" + (data || []).length + " filas en total)";
+      console.warn("usuarios: " + usuariosError);
+    }catch(e){
+      /* antes el error se tragaba en silencio y no había cómo saber por qué la
+         lista quedaba vieja; queda en la consola (iPhone: Safari del Mac →
+         Desarrollo → el teléfono) y en el aviso de la pantalla de quién entra */
+      usuariosError = (e && e.message) ? e.message : String(e);
+      console.error("usuarios: no se pudo bajar la lista de la base", e);
+    }
+  } else {
+    usuariosError = "supabase-js no llegó del CDN";
+    console.warn("usuarios: " + usuariosError + "; se usa el respaldo");
+  }
+  usuariosRespaldo = true;
+  usuariosDesdeRespaldo();
 }
 
 async function sha256(s){
@@ -2806,7 +2861,8 @@ function actualizarQuienUI(){
 function renderQuien(){
   const cont = document.getElementById("quienLista");
   const activos = USUARIOS.filter(u => u.activo !== false);
-  if(!activos.length){ cont.innerHTML = '<div class="sinreg">Cargando…</div>'; return; }
+  document.getElementById("quienAviso").hidden = !usuariosRespaldo;   // «Lista sin actualizar · Reintentar»
+  if(!activos.length){ cont.innerHTML = '<div class="sinreg">' + (usuariosRespaldo ? "No se pudo bajar la lista de personas." : "Cargando…") + '</div>'; return; }
   cont.innerHTML = activos.map(u =>
     '<button class="quien-btn" data-n="' + esc(u.nombre) + '"><span>' + esc(u.nombre) + '</span><small>'
     + rolLabel(u.rol) + (u.puesto ? " · " + esc(u.puesto) : "") + '</small></button>'
@@ -2837,7 +2893,7 @@ function renderPuestos(){
 }
 function abrirQuien(paso2){
   if(paso2){ quienPaso1.hidden = true; quienPaso2.hidden = false; renderPuestos(); }
-  else { quienPaso1.hidden = false; quienPaso2.hidden = true; renderQuien(); }
+  else { quienPaso1.hidden = false; quienPaso2.hidden = true; renderQuien(); cargarUsuarios(); }  // y se vuelve a bajar la lista: aquí es donde importa que esté al día
   quienOvl.classList.add("on");
 }
 document.getElementById("quienLista").addEventListener("click", async e => {
@@ -2882,6 +2938,21 @@ document.getElementById("quienSkip").addEventListener("click", () => quienOvl.cl
    sin volver, sin saltar y sin poder cerrar tocando fuera */
 document.getElementById("puestoVolver").addEventListener("click", () => abrirQuien(false));
 btnQuien.addEventListener("click", () => abrirQuien(false));
+/* Si la lista quedó del respaldo, se vuelve a intentar sola al volver a la app
+   y al recuperar conexión (abrir la pantalla ya la refresca siempre, arriba).
+   El botón «Reintentar» del aviso hace lo mismo a mano. */
+function reintentarUsuarios(){ if(usuariosRespaldo && navigator.onLine !== false) cargarUsuarios(); }
+document.addEventListener("visibilitychange", () => { if(!document.hidden) reintentarUsuarios(); });
+window.addEventListener("online", reintentarUsuarios);
+document.getElementById("quienReintentar").addEventListener("click", async e => {
+  const b = e.currentTarget;
+  b.disabled = true; b.textContent = "Actualizando…";
+  try{ await cargarUsuarios(); }catch(err){}
+  b.disabled = false; b.textContent = "Reintentar";
+});
+document.getElementById("quienAvisoTxt").addEventListener("click", () => {
+  if(usuariosError) alert("No se pudo bajar la lista de personas de la base.\nMotivo: " + usuariosError);
+});
 /* el aviso de la guía diaria abre el mismo diálogo (paso 1 o paso 2 según falte) */
 document.getElementById("guiaAviso").addEventListener("click", e => {
   if(e.target.closest("#avisoQuien")) abrirQuien(!!quienActual());
