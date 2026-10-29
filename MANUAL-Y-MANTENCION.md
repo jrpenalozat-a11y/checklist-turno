@@ -198,7 +198,7 @@ sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
 |---|---|---|---|
 | Este teléfono (`localStorage`) | `guia.dia.…` | `s2::guia.dia.…` | bloque «SEDE» del `<head>` |
 | Tabla `config` | `rutina`, `rutina_log`, `wa_informe` | `s2:rutina`… | `cfgK()` en `getConfig`/`setConfig` |
-| `usuarios`, PIN, `mensajes`, accesos | `Ricardo` | `s2:Ricardo` | `nDB()` al escribir, `nUI()`/`usrSede()`/`msgUI()` al leer |
+| `usuarios`, PIN, `mensajes`, accesos | `Ricardo` | `s2:Ricardo` (los dueños, sin prefijo en todas) | `nDB()` al escribir, `nUI()`/`usrSede()`/`msgUI()` al leer |
 | Registros del día (`checklists`) | `guia-AAAA-MM-DD-equipo` | `s2~guia-…` | `CK_PRE` y `ckSel()` (toda consulta pasa por ahí) |
 | Fotos (bucket) | `guia/…`, `rutina/…` | `s2/guia/…`, `s2/rutina/…` | `FOTO_PRE` |
 
@@ -206,6 +206,13 @@ sedes se separan con el prefijo de su `id` en cada lugar donde se guarda algo:
   entrar hay que crear a mano a la primera persona de mando (fila en `usuarios` con nombre
   `<id>:<Nombre>`); esa persona crea su PIN al entrar y agrega al resto en 👥 Usuarios.
   En `s2` se creó `s2:Ricardo` (encargado); en `s3`, con `SQL-maximarket-pv-inicio.sql`.
+- **Los dueños (María José y Maximiliano) son uno solo para las tres sedes.** Su registro en
+  `usuarios` va **sin prefijo** (el de La Florida) y la app lo muestra en todas las sedes, con el
+  mismo nombre y el mismo PIN (`usrSede()` los incluye; el PIN se comprueba con `nAuth()`, que usa
+  el nombre tal como está en la base). Un dueño nuevo agregado desde cualquier sede se guarda sin
+  prefijo. En 👥 Usuarios de otra sede salen con «todas las sedes» y sólo se les puede reiniciar el
+  PIN; se editan desde La Florida. Las copias por sede que existían (`s2:María Jose`…) se
+  desactivan con `SQL-duenos-todas-las-sedes.sql`, para que no salgan dos veces.
 - **Toda consulta nueva a `checklists` debe usar `ckSel(client)`**, y todo nombre que vaya a la
   base, `nDB()`. Si no, una sede vería los datos de la otra.
 - La separación la hace la app, no la base: no es un muro de seguridad entre sedes.

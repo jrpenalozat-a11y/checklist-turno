@@ -22,6 +22,7 @@
      · este teléfono (localStorage) ........ «s2::clave»
      · tabla config ........................ «s2:rutina», «s2:rutina_log»…
      · usuarios, PIN, mensajes (nombres) ... «s2:Nombre»
+       (los DUEÑOS van sin prefijo y valen para todas las sedes: ver usrSede)
      · registros del día (checklists) ...... «s2~guia-AAAA-MM-DD-equipo»
      · fotos en el bucket .................. «s2/guia/…», «s2/rutina/…»
    Para sumar una sede: una línea más en SEDES. Para cambiar un nombre: sólo
@@ -1396,8 +1397,19 @@ const cfgK = clave => SEDE_PRE + clave;
 function nDB(n){ return n && SEDE_PRE ? SEDE_PRE + n : n; }
 function nUI(n){ return SEDE_PRE && n && String(n).indexOf(SEDE_PRE) === 0 ? String(n).slice(SEDE_PRE.length) : n; }
 function deMiSede(n){ n = String(n || ""); return SEDE_PRE ? n.indexOf(SEDE_PRE) === 0 : !RX_OTRA_SEDE.test(n); }
-/* la tabla usuarios es una sola: se deja la gente de esta sede, con su nombre limpio */
-function usrSede(data){ return (data || []).filter(u => deMiSede(u.nombre)).map(u => ({ ...u, nombre: nUI(u.nombre) })); }
+/* la tabla usuarios es una sola: se deja la gente de esta sede, con su nombre limpio.
+   Los DUEÑOS son de los tres locales: su registro vive una sola vez, sin
+   prefijo (como La Florida), y aparece en todas las sedes con el mismo nombre
+   y el mismo PIN. «db» guarda el nombre tal como está en la base (para el
+   PIN); «global» marca al dueño que no es de esta sede en particular. */
+function esDuenoGlobal(u){ return !!SEDE_PRE && !RX_OTRA_SEDE.test(String(u.nombre || "")) && rolNorm(u.rol) === "dueño"; }
+function usrSede(data){
+  return (data || []).filter(u => deMiSede(u.nombre) || esDuenoGlobal(u))
+    .map(u => ({ ...u, db: u.nombre, global: esDuenoGlobal(u), nombre: nUI(u.nombre) }));
+}
+/* nombre con el que la persona está en la base, para el PIN: el de la sede
+   («s2:Ana») o, si es dueño, el global («María José») */
+function nAuth(n){ const u = USUARIOS.find(x => x.nombre === n); return u && u.db ? u.db : nDB(n); }
 function msgUI(m){ return { ...m, de: nUI(m.de), para: nUI(m.para) }; }
 /* registros del día de ESTA sede */
 function ckSel(client){
@@ -2525,7 +2537,7 @@ async function cargarUsuariosBase(){
         usuariosRespaldo = false; usuariosError = "";
         /* copia local de la lista: si mañana se corta la red, cada uno sigue
            encontrando su nombre y puede marcar */
-        try{ localStorage.setItem("usuarios_cache", JSON.stringify(gente.map(u => ({ nombre:u.nombre, rol:u.rol, activo:u.activo, puesto:u.puesto })))); }catch(e){}
+        try{ localStorage.setItem("usuarios_cache", JSON.stringify(gente.map(u => ({ nombre:u.nombre, rol:u.rol, activo:u.activo, puesto:u.puesto, db:u.db, global:u.global })))); }catch(e){}
         llenarSelectColab(); aplicarModoAdmin(); return;
       }
       usuariosError = "la base respondió sin personas de la sede " + SEDE_ID + " (" + (data || []).length + " filas en total)";
@@ -2578,7 +2590,7 @@ async function pedirPin(n){
   if(!client) return yaAqui;                   // sin conexión: sólo pasa quien ya se verificó aquí
   try{ await vfSesion(client); }catch(e){}
 
-  const t = await client.rpc("tiene_pin", { p_nombre: nDB(n) });
+  const t = await client.rpc("tiene_pin", { p_nombre: nAuth(n) });
   if(t.error) return true;                     // la base aún no tiene el sistema: no bloquear a nadie
   /* se consulta siempre, aunque el equipo lo recuerde: así un PIN reiniciado
      por un dueño obliga a crear uno nuevo en vez de seguir entrando */
@@ -2590,13 +2602,13 @@ async function pedirPin(n){
     const p2 = prompt("Repítelo para confirmar:");
     if(p2 == null) return false;
     if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
-    const c = await client.rpc("crear_pin", { p_nombre: nDB(n), p_hash: await sha256(p1.trim()) });
+    const c = await client.rpc("crear_pin", { p_nombre: nAuth(n), p_hash: await sha256(p1.trim()) });
     if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
     alert("PIN creado. Es tuyo: no lo compartas.\nSi lo olvidas, un dueño te lo reinicia desde 👥 Usuarios.");
   } else if(!yaAqui){
     const pin = prompt("PIN de " + n + ":");
     if(pin == null) return false;
-    const v = await client.rpc("verificar_pin", { p_nombre: nDB(n), p_hash: await sha256((pin || "").trim()) });
+    const v = await client.rpc("verificar_pin", { p_nombre: nAuth(n), p_hash: await sha256((pin || "").trim()) });
     if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
     if(!v.data){ alert("PIN incorrecto."); return false; }
   }
@@ -2648,7 +2660,7 @@ async function gateSupervisor(){
      Si el SQL todavía no está corrido, se cae al método viejo sin romper nada. */
   let tienePin = null;
   try{
-    const r = await client.rpc("tiene_pin", { p_nombre: nDB(yo) });
+    const r = await client.rpc("tiene_pin", { p_nombre: nAuth(yo) });
     if(!r.error) tienePin = !!r.data;
   }catch(e){}
 
@@ -2660,13 +2672,13 @@ async function gateSupervisor(){
       const p2 = prompt("Repítelo para confirmar:");
       if(p2 == null) return false;
       if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
-      const c = await client.rpc("crear_pin", { p_nombre: nDB(yo), p_hash: await sha256(p1.trim()) });
+      const c = await client.rpc("crear_pin", { p_nombre: nAuth(yo), p_hash: await sha256(p1.trim()) });
       if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
       alert("PIN creado. Es tuyo y solo tuyo: no lo compartas.\nSi lo olvidas, un dueño lo borra desde Supabase y creas otro.");
     } else {
       const pin = prompt("PIN de " + yo + ":");
       if(pin == null) return false;
-      const v = await client.rpc("verificar_pin", { p_nombre: nDB(yo), p_hash: await sha256(pin.trim()) });
+      const v = await client.rpc("verificar_pin", { p_nombre: nAuth(yo), p_hash: await sha256(pin.trim()) });
       if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
       if(!v.data){ alert("PIN incorrecto."); return false; }
     }
@@ -2713,13 +2725,16 @@ async function abrirUsuarios(){
     const aviso = admin ? "" : '<div class="sem-vacio" style="margin-bottom:8px">👀 Solo lectura. A los usuarios los gestionan los dueños y el encargado (María José, Maximiliano, Ricardo).</div>';
     usrLista.innerHTML = USUARIOS.length ? (aviso + USUARIOS.map(u => {
       const act = u.activo !== false;
-      const info = admin
+      /* un dueño global es un solo registro para los tres locales: se edita
+         desde La Florida; desde otra sede sólo se le puede reiniciar el PIN */
+      const edita = admin && !u.global;
+      const info = edita
         ? rolSelect(u.rol, u.id) + ' ' + puestoSelect(u.puesto || "", u.id)
-        : '<div class="usr-r">' + esc(rolLabel(u.rol)) + (u.puesto ? " · " + esc(u.puesto) : "") + '</div>';
+        : '<div class="usr-r">' + esc(rolLabel(u.rol)) + (u.puesto ? " · " + esc(u.puesto) : "") + (u.global ? " · todas las sedes" : "") + '</div>';
       const acc = admin
-        ? '<div class="usr-acc"><button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>'
+        ? '<div class="usr-acc">' + (edita ? '<button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>' : "")
           + '<button class="usr-toggle usr-pin" data-n="' + esc(u.nombre) + '" title="Reiniciar PIN">🔑</button>'
-          + '<button class="usr-del" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" aria-label="Eliminar" title="Eliminar">🗑</button></div>'
+          + (edita ? '<button class="usr-del" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" aria-label="Eliminar" title="Eliminar">🗑</button>' : "") + '</div>'
         : "";
       return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>' + info + '</div>' + acc + '</div>';
     }).join("")) : '<div class="sinreg">Todavía no hay usuarios en esta sede. Agrégalos abajo.</div>';
@@ -2740,7 +2755,7 @@ usrLista.addEventListener("click", async e => {
     rp.disabled = true;
     try{
       await vfSesion(client);
-      const r = await client.rpc("reiniciar_pin", { p_nombre: nDB(quien), p_admin: nDB(quienActual()), p_hash_admin: await sha256((mio || "").trim()) });
+      const r = await client.rpc("reiniciar_pin", { p_nombre: nAuth(quien), p_admin: nAuth(quienActual()), p_hash_admin: await sha256((mio || "").trim()) });
       if(r.error) throw r.error;
       if(!r.data){ alert("No se pudo reiniciar. Revisa que tu PIN sea correcto y que seas dueño o encargado."); return; }
       pinOlvidar(quien);
@@ -2795,7 +2810,9 @@ document.getElementById("usrAgregar").addEventListener("click", async () => {
   const puesto = document.getElementById("usrPuesto").value || null;
   try{
     await vfSesion(client);
-    const { error } = await client.from("usuarios").insert(puesto ? { nombre:nDB(nombre), rol, puesto } : { nombre:nDB(nombre), rol });
+    /* un dueño nuevo es de los tres locales: va sin prefijo (ver usrSede) */
+    const nombreDB = rol === "dueño" ? nombre : nDB(nombre);
+    const { error } = await client.from("usuarios").insert(puesto ? { nombre:nombreDB, rol, puesto } : { nombre:nombreDB, rol });
     if(error) throw error;
     document.getElementById("usrNombre").value = ""; await abrirUsuarios();
   }
