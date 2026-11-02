@@ -259,8 +259,6 @@ def validar(rut, sede, con_fotos):
             errores.append("%s: %s pide foto obligatoria (req/pi): sácala o usa --con-fotos si Jaime lo pidió" % (donde, i))
         if set(x) - {"id", "t", "p", "req", "pi"}:
             errores.append("%s: %s tiene campos de más: %s" % (donde, i, ", ".join(sorted(set(x) - {"id", "t", "p", "req", "pi"}))))
-        if "$rv$" in str(x.get("t", "")):
-            errores.append("%s: %s contiene «$rv$»" % (donde, i))
     return errores
 
 
@@ -290,9 +288,9 @@ def sql(a):
 -- Generado con herramientas/planilla-a-rutina.py; copia legible: {os.path.basename(a.json)}.
 -- ===================================================================
 
-do $do$
+do $$
 declare
-  v    text := $rv${v}$rv$;
+  v    text := '{q(v)}';
   logv text := '[{{"f":"' || to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
                || '","q":"Ricardo","a":"cargó la rutina inicial","t":"{q(json.dumps(resumen, ensure_ascii=False)[1:-1])}"}}]';
   tipo text;
@@ -321,7 +319,7 @@ begin
   select '{s}:Ricardo', 'encargado', true
   where not exists (select 1 from public.usuarios where nombre = '{s}:Ricardo');
 end
-$do$;
+$$;
 
 -- Revisión: debe decir «rutina cargada», {fijas} fijas y {ndias} días, y aparecer {s}:Ricardo.
 -- Si dice «ya tenía tareas: no se tocó», avísale a Claude antes de seguir.
