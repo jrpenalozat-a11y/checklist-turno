@@ -286,6 +286,34 @@ del final de la planilla (tareas variables en Trello) no es rutina. Sin fotos ob
 Se carga con `SQL-rutina-maximarket-pv.sql` (no pisa una `s3:rutina` con tareas). En el informe
 PDF, los puestos que ya se llaman «Turno…» no llevan el prefijo «Turno 2 ·».
 
+### Felicitaciones y fanfarria (2-nov-2026)
+
+Las metas las calcula la base con `SQL-felicitaciones.sql` (requiere `SQL-pulso.sql`), no el
+teléfono: así cada una sale una sola vez aunque el equipo use varios teléfonos. La app llama a
+`felicitaciones_leer(sede)` al abrir, al volver a la app y al marcar, y solo muestra.
+
+- **Partida:** el primer día con tareas marcadas, a nivel de local.
+- **30, 50, 70 y 90 %:** promedio de los últimos 7 días cerrados con reporte, con 3 días como
+  mínimo, por local y por área. El día en curso no cuenta porque sube de 0 a 100 en cada turno.
+  Si se saltan varias de golpe, se anuncia solo la más alta.
+- **100 %:** el local, un día con todas las tareas y todas las fotos obligatorias. Un área, 7 días
+  seguidos así. Explicar por qué no hay foto sirve para el porcentaje, no para la fanfarria.
+- **Rachas:** 7, 14 y 28 días seguidos del local sobre 95 %. Un día sin reportes no la corta.
+- **«¡Casi!»:** tareas al 100 % con fotos pendientes. Le sale solo a quien marcó esas tareas,
+  porque una foto sobre la tarea que marcó otra persona no sube a su registro.
+- **Quién ve qué:** lo del local, todo el equipo; lo de un área, quienes marcaron tareas en ella.
+  Cada persona lo ve una vez, y lo ya visto queda en `localStorage` (`felic.vistas.<nombre>`).
+  Un aviso deja de salir a los 7 días.
+
+Al instalar el SQL, lo ya logrado queda anotado sin anunciarse: cada sede parte donde va, sin
+mensajes retroactivos. Para cambiar textos: `FELIC_TXT` en `index.html`. Para cambiar reglas:
+`felic_revisar` en el SQL, y volver a correrlo.
+
+`fanfarria.mp3` (6,7 s, estéreo, 128 kbps) es una composición propia para François, mezclada con
+los instrumentos FluidR3 GM de Frank Wen (licencia CC BY 3.0): el crédito va en el Manual del
+supervisor y no se puede quitar. El teléfono solo abre el sonido dentro de un toque: quien marca
+lo último oye la fanfarria sola; quien la ve al abrir la app tiene el botón «Oír la fanfarria».
+
 ### De la planilla a la rutina: `herramientas/planilla-a-rutina.py` (28-oct-2026)
 
 Las reglas con que se tradujeron La Florida y Puerto Varas, en un script de dos pasos:
@@ -355,6 +383,7 @@ relee lo de los demás justo antes de armarse.
 | Fotos tomadas sin señal, por subir | lista `fotos.pend` en `localStorage` | se suben solas al volver la red |
 | Número de WhatsApp de los informes | Supabase, tabla `config`, clave `wa_informe` | lo cambia alguien de mando en 👥 Usuarios |
 | Mensajes del mando (felicitación / observación / aviso): a una persona, a los de un puesto o a todo el equipo de la sede, opcionalmente sobre una tarea de hoy o de mañana | Supabase, tabla `mensajes` (`SQL-mensajes.sql`); un mensaje a un grupo es una fila por persona, con su propio «visto» | no se borran solos; desde la app no se pueden editar ni borrar |
+| Metas logradas (felicitaciones) | Supabase, tablas `felicitaciones` y `felicitaciones_revision` (`SQL-felicitaciones.sql`) | no se borran solas |
 | Marcado del día, motivos, extras | `localStorage` del teléfono | se borran los **datos del sitio** |
 
 > **Nota (29-sep-2026):** la limpieza **no está en el código de la app, pero sí existe en

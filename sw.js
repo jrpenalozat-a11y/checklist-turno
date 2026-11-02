@@ -1,8 +1,8 @@
 /* Service worker mínimo para François Checklist.
    HTML: network-first (siempre lo más nuevo con conexión).
    Íconos/otros locales: cache-first. No cachea CDNs ni Supabase. */
-const CACHE = "cf-v70";
-const CORE = ["./manifest.json", "./icon-192.png", "./icon-512.png", "./logo-francois.png",
+const CACHE = "cf-v71";
+const CORE = ["./manifest.json", "./icon-192.png", "./icon-512.png", "./logo-francois.png", "./fanfarria.mp3",
               "./fonts/Montserrat-Regular.ttf", "./fonts/Montserrat-SemiBold.ttf", "./fonts/Montserrat-Bold.ttf"];
 
 self.addEventListener("install", e => {

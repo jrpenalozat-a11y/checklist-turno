@@ -97,6 +97,42 @@
   #sedeOvl .sede-op.on{background:transparent;color:#FEECD6;border:2px solid #FEECD6}
   #sedeOvl .sede-no{margin-top:6px;padding:11px 18px;border:0;background:none;color:#FEECD6;font-family:inherit;font-weight:700;font-size:13.5px;
     text-decoration:underline;cursor:pointer}
+  /* felicitaciones: tarjeta para las metas, pantalla completa para el 100 % */
+  #felicOvl{position:fixed;inset:0;z-index:100001;background:rgba(59,46,42,.6);display:flex;align-items:center;justify-content:center;padding:22px}
+  #felicOvl .cja{position:relative;width:100%;max-width:340px;max-height:88vh;overflow:auto;background:var(--panel);color:var(--tinta);
+    border-radius:20px;padding:22px 20px 18px;text-align:center}
+  #felicOvl h4{margin:0 0 6px;font-family:inherit;font-weight:800;font-size:21px;line-height:1.2}
+  #felicOvl p{margin:0 0 16px;font-size:14px;line-height:1.4;color:var(--grafito)}
+  .fe-tag{font-size:11px;letter-spacing:.04em;color:var(--grafito);margin-bottom:14px}
+  .fe-ico{width:68px;height:68px;margin:0 auto 14px;border-radius:50%;background:var(--coral);color:#fff;display:flex;align-items:center;
+    justify-content:center;font-weight:800;font-size:24px}
+  .fe-ico small{font-size:13px;margin-left:2px}
+  .fe-esc{display:flex;gap:5px;margin:0 0 18px}
+  .fe-esc i{flex:1;height:7px;border-radius:99px;background:var(--linea)}
+  .fe-esc i.on{background:var(--coral)}
+  .fe-falta{margin:0 0 16px;padding:10px 12px 10px 28px;border:1.5px dashed #E8C98A;border-radius:12px;background:#FFF8EC;color:#8A5F10;
+    font-size:12.5px;line-height:1.35;text-align:left}
+  .fe-ok{display:block;width:100%;padding:14px;border:0;border-radius:13px;background:var(--coral);color:#fff;font-family:inherit;font-weight:800;
+    font-size:15px;cursor:pointer}
+  .fe-no{margin-top:6px;padding:9px 16px;border:0;background:none;color:var(--grafito);font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+  #felicOvl.cien{background:var(--coral);overflow:hidden}
+  #felicOvl.cien .cja{max-width:360px;background:none;color:#fff;padding:0}
+  #felicOvl.cien .fe-tag{color:#FEECD6}
+  #felicOvl.cien h4{font-size:27px;margin-bottom:8px}
+  #felicOvl.cien p{color:#FEECD6;font-size:15px}
+  #felicOvl.cien .fe-ok{background:#fff;color:#C63F39}
+  .fe-tro{width:86px;height:86px;margin:0 auto 12px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:42px}
+  .fe-cien{font-weight:800;font-size:58px;line-height:1;margin-bottom:10px}
+  .fe-cif{display:flex;gap:8px;margin:0 0 18px}
+  .fe-cif span{flex:1;padding:11px 8px;border-radius:12px;background:var(--coral-d);color:#fff;font-weight:700;font-size:12.5px;line-height:1.25}
+  .fe-son{display:block;width:100%;margin-bottom:9px;padding:12px;border:2px solid #FEECD6;border-radius:13px;background:none;color:#fff;
+    font-family:inherit;font-weight:800;font-size:14px;cursor:pointer}
+  .fe-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .fe-conf i{position:absolute;border-radius:2px;transform:rotate(25deg)}   /* quieto si el teléfono pide menos movimiento */
+  @media (prefers-reduced-motion:no-preference){
+    .fe-conf i{top:-14px!important;animation:feCae linear 3 both}
+  }
+  @keyframes feCae{to{transform:translateY(112vh) rotate(720deg)}}
 
   .topbar{display:flex;gap:8px;margin-top:12px}
   .mini{flex:1;border:1px solid var(--linea);background:var(--panel);border-radius:10px;font-family:inherit;
@@ -1048,6 +1084,12 @@
       </ul>
       <h3 class="solo-turno">📊 Registro semanal</h3>
       <p class="solo-turno">Efectividad de los traspasos del checklist (promedio %, detalle por día), con PDF y exportar/importar respaldo.</p>
+      <h3>🎉 Felicitaciones</h3>
+      <ul>
+        <li>El Checklist felicita solo, por local y por área, igual en todas las sedes: al partir, al pasar <b>30, 50, 70 y 90 %</b> (promedio de los últimos 7 días cerrados, con 3 días como mínimo) y por <b>rachas</b> del local de 7, 14 y 28 días sobre 95 %. Cada meta sale una sola vez y no hay nada que configurar.</li>
+        <li>La <b>fanfarria</b> del local llega con un día completo, con todas las fotos; la de un área, con 7 días seguidos así. Explicar por qué no hay foto sirve para el porcentaje, no para la fanfarria: si falta una foto, quien marcó la tarea ve «¡Casi!».</li>
+        <li>Fanfarria compuesta para François con los instrumentos FluidR3 GM de Frank Wen, licencia <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.</li>
+      </ul>
       <h3>🗄️ Datos y limpieza automática</h3>
       <ul>
         <li>Todo se guarda en <b>Supabase</b> (proyecto François): fotos, traspasos, usuarios y rutina.</li>
@@ -2354,7 +2396,7 @@ if("serviceWorker" in navigator){
     const a = document.activeElement;
     if(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && a.value) return false;
     if(vfStream || camStream) return false;
-    return !document.querySelector(".overlay.on:not(#quienOvl), #inspOvl.on, #sedeOvl");
+    return !document.querySelector(".overlay.on:not(#quienOvl), #inspOvl.on, #sedeOvl, #felicOvl");
   }
   function aplicarSiSePuede(){ if(recargarCuandoSePueda && momentoSeguro()) location.reload(); }
 
@@ -2965,6 +3007,7 @@ document.getElementById("puestoListo").addEventListener("click", () => {
   areaSel = "mio";
   if(typeof renderGuia === "function") renderGuia();
   if(typeof revisarMensajes === "function") revisarMensajes();   // entró otra persona: sus mensajes
+  if(typeof felicRevisar === "function") felicRevisar();         // y lo que le toque celebrar
 });
 document.getElementById("quienSkip").addEventListener("click", () => quienOvl.classList.remove("on"));
 /* volver al paso 1: si elegiste mal el nombre quedabas atrapado en el paso 2,
@@ -4259,6 +4302,7 @@ function areaTerminada(){
   return porExplicar(marcables, st).filter(x => !mot[x.id]).length === 0;
 }
 function avisarSiTerminada(){
+  felicTrasMarcar();
   if(!quienActual() || !puestosHoy()) return;
   if(areaSel === "todos") return;
   const k = "aviso.fin." + fechaISO(new Date()) + "." + areaSel;
@@ -4400,7 +4444,7 @@ async function tomarFoto(id){
   try{
     if(!getSB()) throw new Error("sin base");
     await subirFoto(path, blob);
-    syncGuiaRemoto();
+    syncGuiaRemoto().then(() => felicRevisar());     // puede ser la foto que faltaba para la fanfarria
   }catch(err){
     setFotosPend(fotosPend().concat(path));
     avisoFotoPend();
@@ -5562,6 +5606,178 @@ document.getElementById("guiaLista").addEventListener("click", e => {
 document.getElementById("btnMensajes").addEventListener("click", () => verMensajes(MIS_MSG.some(m => !m.leido_at)));
 document.addEventListener("visibilitychange", () => { if(!document.hidden) revisarMensajes(); });
 
+/* ---- Felicitaciones ----
+   Las metas las decide la base (SQL-felicitaciones.sql), no el teléfono: así
+   cada una sale una sola vez aunque el equipo use varios teléfonos. Aquí solo
+   se muestran, y cada persona las ve una vez: las de un área, si trabajó en
+   ella; las del local, todos. Sin señal o sin ese SQL la app sigue igual. */
+const FELIC_TXT = {
+  partida:["¡Se prendió la máquina!", "Primer día listo. Bienvenidos al Checklist."],
+  30:["¡30 % y subiendo!", "Esto recién se está calentando."],
+  50:["¡Mitad del camino!", "Ustedes pueden, sigan así."],
+  70:["¡Felicidades, van muy bien!", "Ya se escucha la banda a lo lejos."],
+  90:["¡90 %!", "Ya huele a fanfarria."],
+  racha7:["¡7 días seguidos sobre 95 %!", "La banda ya no quiere irse a su casa."],
+  racha14:["¡14 días seguidos sobre 95 %!", "Esto ya es costumbre, y de las buenas."],
+  racha28:["¡4 semanas seguidas sobre 95 %!", "Esto ya es leyenda. Gracias, equipo."]
+};
+const FELIC_PASOS = ["30", "50", "70", "90", "100"];   // la escalera de la tarjeta
+const FELIC_FRENO = 5 * 60 * 1000;                     // entre revisiones mientras se trabaja
+let felicCola = [], felicHoy = null, felicUlt = 0, felicLeyendo = false;
+let felicTimer = null, felicEspera = null, felicCtx = null, felicBuf = null, felicSrc = null;
+
+function felicArea(h){ return h.alcance === "local" ? "" : h.alcance === "gen" ? "Turno 1" : h.alcance; }
+function felicVistas(){ try{ return JSON.parse(localStorage.getItem("felic.vistas." + quienActual()) || "[]"); }catch(e){ return []; } }
+function felicVista(id){ try{ localStorage.setItem("felic.vistas." + quienActual(), JSON.stringify(felicVistas().concat(id).slice(-200))); }catch(e){} }
+function felicOrden(h){
+  if(h.meta === "100") return h.alcance === "local" ? 0 : 1;
+  if(h.meta.indexOf("racha") === 0) return 2;
+  return h.alcance === "local" ? 3 : 4;
+}
+async function felicRevisar(){
+  const client = getSB();
+  if(!client || felicLeyendo || !navigator.onLine || !quienActual() || !puestosHoy()) return;
+  felicLeyendo = true; felicUlt = Date.now();
+  try{
+    await vfSesion(client);
+    const { data, error } = await client.rpc("felicitaciones_leer", { p_sede:SEDE_ID });
+    if(!error && data){
+      const yo = quienActual(), vistas = felicVistas();
+      felicHoy = data.hoy;
+      felicCola = (data.hitos || []).filter(h => vistas.indexOf(h.id) < 0 && (!h.personas.length || h.personas.indexOf(yo) >= 0))
+        .sort((a, b) => felicOrden(a) - felicOrden(b)).slice(0, 3);
+      felicMostrar();
+    }
+  }catch(e){}
+  felicLeyendo = false;
+}
+/* Al marcar: si el área quedó completa se mira al tiro, para celebrar en el
+   momento; si no, de vez en cuando (así sale la partida del local). */
+function felicTrasMarcar(){
+  if(!quienActual() || !puestosHoy()) return;
+  const st = cargarDia(), its = contablesDe(areaSel);
+  const completa = its.length > 0 && its.every(x => listo(st, x.id));
+  if(completa) felicAudio();                           // este toque es el que abre el sonido
+  else if(Date.now() - felicUlt < FELIC_FRENO) return;
+  clearTimeout(felicTimer);
+  felicTimer = setTimeout(async () => { await syncGuiaRemoto(); felicRevisar(); }, completa ? 2500 : 8000);
+}
+document.addEventListener("visibilitychange", () => { if(!document.hidden && Date.now() - felicUlt > FELIC_FRENO) felicRevisar(); });
+
+/* Tareas al 100 % con fotos por tomar. El aviso va a quien las marcó: una foto
+   sobre la tarea que marcó otra persona no sube a su registro. */
+function felicCasi(){
+  const h = felicHoy, yo = quienActual();
+  const mias = ((h && h.fotos) || []).filter(f => (f.q || []).indexOf(yo) >= 0);
+  if(!mias.length) return null;
+  const local = h.tot > 0 && h.ok === h.tot;
+  const area = local ? null : (h.areas || []).find(a => a.tot > 0 && a.ok === a.tot && mias.some(f => f.a === a.a));
+  if(!local && !area) return null;
+  const k = "felic.casi." + h.f + "." + (local ? "local" : area.a);
+  try{ if(localStorage.getItem(k)) return null; }catch(e){}
+  return { k, area:area ? felicArea({ alcance:area.a }) : "", fotos:local ? mias : mias.filter(f => f.a === area.a) };
+}
+function felicMostrar(){
+  if(document.getElementById("felicOvl")) return;
+  const casi = felicCola.length ? null : felicCasi();
+  if(!felicCola.length && !casi) return;
+  /* no se interrumpe nada: espera a que se cierre lo que esté abierto */
+  if(document.hidden || vfStream || camStream || document.querySelector(".overlay.on, #inspOvl.on, #sedeOvl, #motOvl, #msgOvl")){
+    clearTimeout(felicEspera); felicEspera = setTimeout(felicMostrar, 2000); return;
+  }
+  if(casi){ try{ localStorage.setItem(casi.k, "1"); }catch(e){} return felicFotos(casi); }
+  const h = felicCola.shift();
+  felicVista(h.id);
+  if(h.meta === "100") return felicCien(h);
+  if(FELIC_TXT[h.meta]) return felicTarjeta(h);
+  felicMostrar();
+}
+function felicAbrir(html, clase){
+  const ovl = document.createElement("div"); ovl.id = "felicOvl";
+  if(clase) ovl.className = clase;
+  ovl.innerHTML = html;
+  document.body.appendChild(ovl);
+  return ovl;
+}
+function felicCerrar(ovl){ ovl.remove(); felicMostrar(); }
+function felicTarjeta(h){
+  const t = FELIC_TXT[h.meta], area = felicArea(h), paso = FELIC_PASOS.indexOf(h.meta);
+  const ico = paso >= 0 ? h.meta + "<small>%</small>" : h.meta === "partida" ? "🎉" : "🔥";
+  const ovl = felicAbrir('<div class="cja"><div class="fe-tag">' + esc(SEDE_NOMBRE + (area ? " · " + area : h.meta === "partida" ? " · Primer día" : "")) + '</div>'
+    + '<div class="fe-ico">' + ico + '</div><h4>' + esc(t[0]) + '</h4><p>' + esc(t[1]) + '</p>'
+    + (paso >= 0 ? '<div class="fe-esc">' + FELIC_PASOS.map((p, i) => "<i" + (i <= paso ? ' class="on"' : "") + "></i>").join("") + '</div>' : "")
+    + '<button class="fe-ok">¡Gracias!</button></div>');
+  ovl.querySelector(".fe-ok").addEventListener("click", () => felicCerrar(ovl));
+}
+function felicFotos(c){
+  const n = c.fotos.length, nom = t => soloTarea(t).replace(/^\[[^\]]*\]\s*/, "");
+  const ovl = felicAbrir('<div class="cja"><div class="fe-tag">' + esc(SEDE_NOMBRE + (c.area ? " · " + c.area : "")) + '</div>'
+    + '<div class="fe-ico">📸</div><h4>¡Casi!</h4>'
+    + '<p>Tareas al 100 %, pero ' + (n === 1 ? "falta 1 foto" : "faltan " + n + " fotos") + '. La fanfarria está esperando en la puerta.</p>'
+    + '<ul class="fe-falta">' + c.fotos.slice(0, 5).map(f => "<li>" + esc(nom(f.t)) + "</li>").join("")
+    + (n > 5 ? "<li>… y " + (n - 5) + " más</li>" : "") + '</ul>'
+    + '<button class="fe-ok">Tomar las fotos</button><button class="fe-no">Después</button></div>');
+  ovl.querySelector(".fe-no").addEventListener("click", () => felicCerrar(ovl));
+  ovl.querySelector(".fe-ok").addEventListener("click", () => {
+    ovl.remove();
+    areaSel = c.fotos[0].a;
+    mostrarTab("guia");
+    const li = document.querySelector("#guiaLista li.sinfoto");
+    if(li) li.scrollIntoView({ block:"center", behavior:"smooth" });
+  });
+}
+function felicConfeti(){
+  const col = ["#FEECD6", "#FFFFFF", "#E8C98A", "#B7791F", "#3B2E2A"], r = Math.random;
+  let h = "";
+  for(let i = 0; i < 130; i++)
+    h += '<i style="left:' + (r() * 100).toFixed(1) + "%;top:" + (r() * 100).toFixed(1) + "%;background:" + col[i % col.length]
+      + ";width:" + Math.round(5 + r() * 6) + "px;height:" + Math.round(8 + r() * 7) + "px"
+      + ";animation-delay:" + (r() * 2.5).toFixed(2) + "s;animation-duration:" + (2.6 + r() * 2).toFixed(2) + 's"></i>';
+  return '<div class="fe-conf" aria-hidden="true">' + h + "</div>";
+}
+function felicCien(h){
+  const area = felicArea(h), deHoy = felicHoy && felicHoy.f === h.dia;
+  const tareas = area ? "7 de 7 días al 100 %"
+    : deHoy ? felicHoy.tot + " de " + felicHoy.tot + " tareas de hoy"
+    : "Todas las tareas del " + new Date(h.dia + "T12:00:00").toLocaleDateString("es-CL", { weekday:"long", day:"numeric" });
+  const ovl = felicAbrir(felicConfeti() + '<div class="cja"><div class="fe-tag">' + esc(SEDE_NOMBRE + (area ? " · " + area : "")) + '</div>'
+    + '<div class="fe-tro">🏆</div><div class="fe-cien">100 %</div>'
+    + "<h4>" + (area ? "¡SEMANA PERFECTA!" : "¡LO LOGRARON!") + "</h4>"
+    + "<p>Muchas felicidades" + (area ? ", " + esc(area) + "," : "") + " y gracias por tu ayuda.</p>"
+    + '<div class="fe-cif"><span>' + esc(tareas) + '</span><span>Todas las fotos</span></div>'
+    + '<button class="fe-son" hidden>🎺 Oír la fanfarria</button>'
+    + '<button class="fe-ok">¡Gracias!</button></div>', "cien");
+  const son = ovl.querySelector(".fe-son"), tocar = () => felicSonar().then(ok => { son.hidden = ok; });
+  tocar();
+  son.addEventListener("click", tocar);
+  ovl.querySelector(".fe-ok").addEventListener("click", () => felicCerrar(ovl));
+}
+/* El teléfono solo abre el sonido dentro de un toque. Quien marca lo último ya
+   lo tiene abierto; el resto, al abrir la app, ve el botón «Oír la fanfarria». */
+function felicAudio(){
+  try{
+    if(!felicCtx){ const C = window.AudioContext || window.webkitAudioContext; if(C) felicCtx = new C(); }
+    if(felicCtx && felicCtx.state !== "running") return felicCtx.resume().catch(() => {});
+  }catch(e){}
+  return Promise.resolve();
+}
+async function felicSonar(){
+  const abre = felicAudio();
+  if(!felicCtx) return false;
+  try{
+    await Promise.race([abre, new Promise(r => setTimeout(r, 500))]);    // sin toque, resume() no responde nunca
+    if(felicCtx.state !== "running") return false;
+    if(!felicBuf){
+      const ab = await (await fetch("fanfarria.mp3")).arrayBuffer();
+      felicBuf = await new Promise((ok, no) => felicCtx.decodeAudioData(ab, ok, no));
+    }
+    if(felicSrc) try{ felicSrc.stop(); }catch(e){}
+    felicSrc = felicCtx.createBufferSource();
+    felicSrc.buffer = felicBuf; felicSrc.connect(felicCtx.destination); felicSrc.start();
+    return true;
+  }catch(e){ return false; }
+}
+
 (async function init(){
   aplicarModoSup(localStorage.getItem("sup_ok") === "pin:" + quienActual());  // aplica modo supervisor (tras cargar todo)
   actualizarQuienUI();
@@ -5590,7 +5806,7 @@ document.addEventListener("visibilitychange", () => { if(!document.hidden) revis
     arranqueLocal(hash.length > 0);
   }
   // supabase-js carga con defer: cuando esté, refresca usuarios y rutina desde la base
-  esperarSB(4000).then(ok => { if(ok){ cargarUsuarios(); cargarRutina(); revisarMensajes(); } });
+  esperarSB(4000).then(ok => { if(ok){ cargarUsuarios(); cargarRutina(); revisarMensajes(); felicRevisar(); } });
 })();
 
 /* ---- Sede: rótulo del encabezado y selector ----
