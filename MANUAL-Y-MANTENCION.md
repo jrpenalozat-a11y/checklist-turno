@@ -233,7 +233,7 @@ de pestañas en `ORDEN_TABS`.
 |---|---|
 | `lf` La Florida | Cocina · Caja · Barismo/Vitrina · Terminados · Salón |
 | `s2` Puerto Varas | Salón · Caja · Barismo/Vitrina · **Heladería** |
-| `s3` Maximarket PV | Caja · Sala (*provisorios, hasta tener su planilla*) |
+| `s3` Maximarket PV | Turno 2 · Turno 3 · Reposición · Cafetería · Horno/Cocina |
 
 La rutina inicial de Puerto Varas sale de la planilla `TAREAS DIARIAS FRANCOIS PV.ods`
 (carpeta `Escritorio\checklist puerto varas`, con la copia legible `rutina-puerto-varas.json`),
@@ -272,6 +272,19 @@ Puerto Varas: parte **vacía**, con los puestos provisorios Caja y Sala.
   cuenta (Informe François PV, Informe Maximarket PV; ver el README de `informe-francois`) y el
   panel lee la bitácora de la sede con que se entró. El panel suma además la página privada
   **Panorama** (`panorama.js`, solo Ricardo): los tres negocios juntos y el análisis de Supervisandro.
+
+### Rutina de Maximarket PV (2-nov-2026)
+
+Sale de `PLANILLA_TAREAS_DIARIAS_Y_DE_CIERRE_MAXIMARKET.xlsx`. La planilla va por turnos de
+caja, así que los puestos de `s3` quedaron así: Turno 1 (cajero) → sin puesto y `[APERTURA]`
+(salvo contar cigarros y limpiar baños al terminar el turno); Turno 2 y Turno 3 (cajero) →
+puestos «Turno 2» y «Turno 3»; Reponedor(a) → «Reposición»; los dos bloques «Al cierre» →
+puestos «Cafetería» y «Horno/Cocina» con `[CIERRE]`. 74 tareas fijas + «Limpiar los salseros
+de completos» (Turno 2, lunes y viernes) y «Limpiar el salsero» (Turno 3, miércoles). Se quitó
+la segunda «Limpieza de vidrios y superficies» de Reposición (estaba repetida tal cual). La nota
+del final de la planilla (tareas variables en Trello) no es rutina. Sin fotos obligatorias.
+Se carga con `SQL-rutina-maximarket-pv.sql` (no pisa una `s3:rutina` con tareas). En el informe
+PDF, los puestos que ya se llaman «Turno…» no llevan el prefijo «Turno 2 ·».
 
 ### De la planilla a la rutina: `herramientas/planilla-a-rutina.py` (28-oct-2026)
 

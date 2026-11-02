@@ -2418,13 +2418,14 @@ const ROLES_SUPERVISOR = ["dueño", "encargado", "encargado de local"];  // role
 /* Puestos de cada sede. Puerto Varas no tiene Cocina ni Terminados y sí
    Heladería; sus otras áreas usan los nombres de La Florida (Turno 2 general =
    Salón, Barra/caja = Caja, Cafetería/pastelería = Barismo/Vitrina). Maximarket
-   PV (minimarket) parte con Caja y Sala, provisorios hasta tener su planilla:
-   se cambian sin problema mientras no tenga tareas ni equipo. Una sede sin
-   lista propia usa la de La Florida. */
+   PV (minimarket) sigue su planilla (2-nov-2026): la caja va por turnos
+   (Turno 1 = sin puesto; Turno 2 y Turno 3 = puestos), más Reposición y las
+   áreas de cierre Cafetería y Horno/Cocina. Una sede sin lista propia usa la
+   de La Florida. */
 const PUESTOS_SEDE = {
   lf: ["Cocina", "Caja", "Barismo/Vitrina", "Terminados", "Salón"],
   s2: ["Salón", "Caja", "Barismo/Vitrina", "Heladería"],
-  s3: ["Caja", "Sala"]
+  s3: ["Turno 2", "Turno 3", "Reposición", "Cafetería", "Horno/Cocina"]
 };
 const PUESTOS = PUESTOS_SEDE[SEDE_ID] || PUESTOS_SEDE.lf;
 /* el selector de «Agregar» en 👥 Usuarios viene escrito en el HTML: se rehace con los de la sede */
@@ -4163,7 +4164,7 @@ async function informeDiarioPdf(fecha, btn, cual){
       return;
     }
     const grupos = [{ n:"Turno 1", its:lista.filter(x => !x.p) }]
-      .concat(AREAS_TAB.slice(1).map(a => ({ n:"Turno 2 · " + a.n, its:lista.filter(x => x.p === a.a) })))
+      .concat(AREAS_TAB.slice(1).map(a => ({ n:(/^turno/i.test(a.n) ? "" : "Turno 2 · ") + a.n, its:lista.filter(x => x.p === a.a) })))
       .filter(g => g.its.length);
     const hechas = lista.filter(x => M[x.id] && M[x.id].ok).length;
     const pct = Math.round(hechas / lista.length * 100);
