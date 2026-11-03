@@ -370,6 +370,11 @@
   .btn-diario:disabled{opacity:.6}
   .ex-badge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;
     background:#F4F1FE;color:#5B3FD6;font-family:inherit;font-weight:600;font-size:10px;line-height:1.6;vertical-align:middle}
+  /* reconocimiento al anotar una tarea extra */
+  #extraOk{position:fixed;left:12px;right:12px;bottom:12px;z-index:99998;padding:13px 14px;border-radius:13px;
+    background:#256B4B;color:#fff;font-family:inherit;font-weight:600;font-size:13.5px;line-height:1.3;text-align:center;
+    box-shadow:0 6px 18px rgba(37,107,75,.32);opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;pointer-events:none}
+  #extraOk.ve{opacity:1;transform:none}
   /* aviso de versión nueva */
   #updBar{position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;border:0;cursor:pointer;
     padding:13px 14px;border-radius:13px;font-family:inherit;font-weight:600;font-size:13.5px;line-height:1.3;color:#fff;
@@ -590,6 +595,12 @@
   .ck-chk{margin-top:2px}
   .ck-sec{margin:13px 0 2px;font-family:inherit;font-weight:700;font-size:11px;line-height:1.2;letter-spacing:.06em;text-transform:uppercase;color:var(--grafito)}
   .ck-mot{margin-top:3px;font-size:12.5px;line-height:1.35;color:#9A6B12;font-weight:600}
+  /* tareas extra, arriba del Informe del día */
+  .ck-extras{border:1.5px solid #E8C98A;border-radius:12px;padding:10px 12px 4px;margin:0 0 12px;background:#FFF8EC}
+  .cx-h{font-family:inherit;font-weight:700;font-size:12px;line-height:1.2;letter-spacing:.05em;text-transform:uppercase;color:#9A6B12;margin-bottom:6px}
+  .cx-i{padding:7px 0;border-top:1px solid #F1E1BE}
+  .cx-t{font-family:inherit;font-weight:600;font-size:14px;line-height:1.3;color:var(--tinta)}
+  .cx-q{margin-top:2px;font-family:inherit;font-weight:600;font-size:11.5px;line-height:1.3;color:#9A6B12}
   /* gestión de usuarios */
   .usr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--linea)}
   .usr-row.off{opacity:.5}
@@ -1015,7 +1026,7 @@
         <li>Las tareas con <b>📷 foto para el informe</b> llevan su foto en el informe todos los días. Las demás fotos las ve el supervisor en la app. Qué tareas van al informe lo deciden los dueños, el encargado y el encargado de local.</li>
         <li><b>Lo que ya hizo otra persona hoy aparece marcado</b> en todos los teléfonos, con su nombre y la hora en verde: no hay que hacerlo ni marcarlo de nuevo.</li>
         <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
-        <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área.</li>
+        <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área. Las tareas extra realizadas las ve destacadas Supervisión.</li>
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
         <li><b>Sin señal</b> sigue marcando y sacando fotos: quedan guardadas en el teléfono y se suben solas cuando vuelve la conexión.</li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
@@ -1064,7 +1075,7 @@
       <h3>👀 Supervisión (el tablero)</h3>
       <ul>
         <li class="solo-turno"><b>📸 Traspasos</b>: tablero tipo Trello por turno (Apertura / Cambio / Cierre) con foto, colaborador, <b>puesto</b>, hora del servidor y 📍 ubicación (toca para abrir el mapa). Filtros: Todos / Hoy / 7 días.</li>
-        <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
+        <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Arriba, el recuadro <b>⭐ Tareas extra</b> junta las que el equipo hizo además de la rutina, con persona, área y hora. Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
         <li><b>💬 Comentar</b> (bajo cada foto, en Informe del día e Inspección): elige <b>👏 Felicitación</b> u <b>👁 Observación</b>, escribe y envía. Le llega a quien sacó la foto cuando abre la app; bajo la foto verás si ya lo leyó (<b>✓ visto</b>). <b>💬 Mensaje</b> (arriba) manda uno sin foto a una persona. Un mensaje enviado no se puede editar ni borrar.</li>
         <li><b>📊 Avance</b> (sub-pestaña): el historial en un gráfico. Eliges hoy, 7 días, 30 días o desde el inicio y ves el % de tareas hechas cada día, las cifras comparadas con el periodo anterior (en 30 días no hay comparación: lo anterior ya se borró), la tendencia de cada área y, con <b>Ver por persona</b>, quién usó la app. Se puede enviar en PDF. El historial llega a 30 días.</li>
         <li><b>💬 Mensajes</b> (sub-pestaña): la lista de todo lo enviado, con <b>✓ visto</b> y la hora en que lo abrieron, o <b>sin leer</b>.</li>
@@ -1780,6 +1791,20 @@ function cobertura(filas){
     + (sin.length ? '<div class="cob-nota">«Sin reporte» no significa que no se haya hecho: puede que ese día no hubiera nadie en esa área.</div>' : "")
     + '</div>';
 }
+/* Lo que alguien hizo además de la rutina: arriba, para que no quede perdido al final de
+   su tarjeta. Solo las realizadas; los pendientes sin hacer y las notas siguen abajo. */
+function tareasExtra(filas){
+  const varios = ckFiltro !== "dia" && ckFiltro !== "hoy" && ckFiltro !== "ayer";
+  const L = filas.flatMap(r => (Array.isArray(r.estado.extras) ? r.estado.extras : [])
+    .filter(x => x.ok && x.k !== "nota").map(x => ({ ...x, r })));
+  if(!L.length) return "";
+  return '<div class="ck-extras"><div class="cx-h">⭐ Tareas extra · ' + L.length + '</div>'
+    + L.map(x => {
+        const dia = varios ? inicioDe(fechaDeReg(x.r)).toLocaleDateString("es-CL", { weekday:"short", day:"numeric", month:"short" }) : "";
+        const pie = [(x.por && x.por.q) || x.r.estado.entrega || "—", x.p, dia, x.por && x.por.h].filter(Boolean).join(" · ");
+        return '<div class="cx-i"><div class="cx-t">' + esc(x.t || "") + '</div><div class="cx-q">' + esc(pie) + '</div></div>';
+      }).join("") + '</div>';
+}
 async function cargarChecklists(){
   const cont = document.getElementById("supChecklists");
   pintarCkFiltros();
@@ -1809,7 +1834,7 @@ async function cargarChecklists(){
     const enc = filas.length + (filas.length === 1 ? " informe" : " informes")
       + (nombreFiltro() ? " · " + nombreFiltro() : "");
     const hechoDia = hechasPorDia(filas);
-    cont.innerHTML = '<div class="ck-tot">' + esc(enc) + '</div>' + cobertura(filas) + filas.map(r => {
+    cont.innerHTML = '<div class="ck-tot">' + esc(enc) + '</div>' + cobertura(filas) + tareasExtra(filas) + filas.map(r => {
       const e = r.estado;
       const otro = t => !t.ok && hechoDia[fechaDeReg(r) + "|" + t.id];     // la hizo otra persona ese día
       const quien = (e.entrega || "—") + (e.recibe ? " → " + e.recibe : "");
@@ -4338,6 +4363,17 @@ document.getElementById("areaTabs").addEventListener("click", e => {
   areaSel = b.dataset.a; renderGuia(); cargarOtros();
   b.scrollIntoView({ inline:"center", block:"nearest", behavior:"smooth" });
 });
+/* reconocimiento a quien anota una tarea extra: solo lo ve esa persona */
+let extraOkReloj = 0;
+function reconocerExtra(){
+  let t = document.getElementById("extraOk");
+  if(!t){ t = document.createElement("div"); t.id = "extraOk"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  const q = quienActual();
+  t.textContent = "⭐ ¡Bien hecho" + (q ? ", " + q : "") + "! Tu tarea extra quedó registrada.";
+  requestAnimationFrame(() => t.classList.add("ve"));
+  clearTimeout(extraOkReloj);
+  extraOkReloj = setTimeout(() => t.classList.remove("ve"), 3500);
+}
 /* agregar del día: tarea extra realizada / pendiente / nota */
 document.getElementById("extraAdd").addEventListener("click", e => {
   const a = e.target.closest(".eb");
@@ -4348,7 +4384,7 @@ document.getElementById("extraAdd").addEventListener("click", e => {
     const ex = cargarEx();
     const nuevo = { id:"ex" + Date.now().toString(36), t, a:areaActiva(), k:a.dataset.k };
     ex.push(nuevo); guardarEx(ex);
-    if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); st.por[nuevo.id] = sello(); guardarDia(st); }  // realizada = ya marcada
+    if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); st.por[nuevo.id] = sello(); guardarDia(st); reconocerExtra(); }  // realizada = ya marcada
     inp.value = ""; renderGuia(); syncGuiaRemoto(); avisarSiTerminada();
     return;
   }

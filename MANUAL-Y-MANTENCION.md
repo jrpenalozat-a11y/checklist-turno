@@ -45,7 +45,7 @@ leer 90 tareas para encontrar las suyas.
 - Lo que **no se marca queda pendiente** automáticamente, con su **motivo**.
 - **Agregar en el día**: una tarea extra que se realizó, un pendiente nuevo o una nota.
 - **Enviar informe** por WhatsApp del área, que no deja enviarse si falta algún motivo.
-- El supervisor ve todo en **🔑 Supervisor → 📋 Informe del día**, sin que nadie se lo mande.
+- El supervisor ve todo en **🔑 Supervisor → 📋 Informe del día**, sin que nadie se lo mande. Arriba, **⭐ Tareas extra** junta las realizadas con persona, área y hora; ninguna otra persona del equipo las ve.
 - **Traspaso verificado** con foto en vivo, ubicación y hora del servidor.
 - Funciona **sin conexión** y se instala como app en el teléfono.
 
