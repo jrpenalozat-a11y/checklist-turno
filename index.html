@@ -3027,6 +3027,11 @@ document.getElementById("quienLista").addEventListener("click", async e => {
   const b = e.target.closest(".quien-btn"); if(!b) return;
   const n = b.dataset.n;
   if(!(await pedirPin(n))) return;            // cada uno entra con su PIN
+  fijarQuien(n);
+  abrirQuien(true);  // paso 2: ¿en qué puesto(s) hoy?
+});
+/* deja a «n» como la persona de este teléfono en esta sede (su PIN ya se comprobó) */
+function fijarQuien(n){
   try{ localStorage.setItem("quien.actual", n); }catch(err){}
   /* el candado es de la PERSONA, no del equipo: si entra alguien que no es de
      mando, el desbloqueo que dejó otro se cierra solo. Antes bastaba con que
@@ -3042,8 +3047,52 @@ document.getElementById("quienLista").addEventListener("click", async e => {
   aplicarModoAdmin();                                       // re-evalúa permisos con la nueva identidad
   if(typeof renderSemanal === "function") renderSemanal();
   if(typeof renderGuia === "function") renderGuia();
-  abrirQuien(true);  // paso 2: ¿en qué puesto(s) hoy?
-});
+}
+/* Un dueño de las tres sedes que en este teléfono ya está adentro en otra sede
+   (y ahí ya escribió su PIN) entra solo al pasar a esta: sin elegir su nombre,
+   sin PIN y con acceso de Supervisión para hoy, como si nunca hubiera salido.
+   María José pasaba de La Florida y Puerto Varas a Maximarket y Maximarket le
+   pedía todo de nuevo. Se consulta igual la base: si le reiniciaron el PIN, no
+   entra solo y se le pregunta como a todos. */
+function duenoEnOtraSede(){
+  if(!SEDE_PRE || quienActual()) return "";
+  const comun = pinListaComun();
+  for(const s of SEDES){
+    if(s.id === SEDE_ID) continue;
+    const n = LS_LF.get((s.id === "lf" ? "" : s.id + "::") + "quien.actual");
+    if(n && comun.indexOf(n) >= 0) return n;     // el dueño global se llama igual en todas las sedes
+  }
+  return "";
+}
+async function entrarSolo(){
+  const n = duenoEnOtraSede();
+  if(!n || !duenoGlobal(n)) return false;
+  const client = getSB();
+  if(client){
+    try{
+      await vfSesion(client);
+      const t = await client.rpc("tiene_pin", { p_nombre: nAuth(n) });
+      if(!t.error && !t.data){ pinOlvidar(n); return false; }   // PIN reiniciado: que cree uno nuevo
+    }catch(e){}
+  }
+  if(quienActual()) return true;               // alguien eligió a mano mientras tanto
+  pinGuardar(n);
+  try{ localStorage.setItem("sup_ok", "pin:" + n); }catch(e){}
+  fijarQuien(n);
+  if(!puestosHoy()) setPuestosHoy(["Supervisor"]);
+  aplicarModoSup(true);
+  quienOvl.classList.remove("on");
+  areaSel = "mio";
+  if(typeof renderGuia === "function") renderGuia();
+  if(typeof revisarMensajes === "function") revisarMensajes();
+  if(typeof felicRevisar === "function") felicRevisar();
+  return true;
+}
+async function entrarSoloOPreguntar(){
+  if(await esperarSB(4000)){ try{ await cargarUsuarios(); }catch(e){} }
+  else if(!USUARIOS.length) usuariosDesdeRespaldo();
+  if(!(await entrarSolo()) && !quienActual()) abrirQuien(false);
+}
 document.getElementById("puestoLista").addEventListener("click", e => {
   const b = e.target.closest(".quien-btn"); if(!b) return;
   b.classList.toggle("sel");  // multi-selección
@@ -5844,7 +5893,8 @@ async function felicSonar(){
 (async function init(){
   aplicarModoSup(localStorage.getItem("sup_ok") === "pin:" + quienActual());  // aplica modo supervisor (tras cargar todo)
   actualizarQuienUI();
-  if(!quienActual()) setTimeout(() => abrirQuien(false), 350);       // 1º: ¿quién está entrando?
+  if(!quienActual() && duenoEnOtraSede()) entrarSoloOPreguntar();   // dueño ya adentro en otra sede: entra solo
+  else if(!quienActual()) setTimeout(() => abrirQuien(false), 350);  // 1º: ¿quién está entrando?
   else if(!puestosHoy()) setTimeout(() => abrirQuien(true), 350);    // nuevo día: ¿en qué puesto(s) hoy?
   limpiarDiasViejos();
   cargarRutina();  // pinta al tiro con el cache local; se refresca cuando SB esté listo
