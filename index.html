@@ -45,6 +45,12 @@
   window.SEDE_NOMBRE = sede.n;
   window.SEDE_ELEGIDA = elegida;
   window.SEDE_LS = id === "lf" ? "" : id + "::";      // prefijo en este teléfono
+  /* lectura y escritura directas de las claves SIN prefijo (las de La Florida),
+     desde cualquier sede: las usa el PIN de los dueños, que es uno para las tres */
+  window.LS_LF = {
+    get: crudo,
+    set: function(key, v){ try{ st.call(LS, key, v); }catch(e){} }
+  };
   window.sedeElegir = function(nueva){
     try{ st.call(LS, "sede", nueva); }catch(e){}
     if(nueva !== id) location.reload();
@@ -2648,11 +2654,32 @@ function rolDe(nombre){ const u = USUARIOS.find(x => x.nombre === nombre); retur
    equipo recuerda quién ya se verificó en él. El hash vive en la base y la
    comprobación ocurre en el servidor, que sólo responde sí o no. */
 function pinVerificados(){ try{ return JSON.parse(localStorage.getItem("quien.pinok") || "[]"); }catch(e){ return []; } }
-function pinGuardar(n){ try{ const a = pinVerificados(); if(a.indexOf(n) < 0){ a.push(n); localStorage.setItem("quien.pinok", JSON.stringify(a)); } }catch(e){} }
-function pinOlvidar(n){ try{ localStorage.setItem("quien.pinok", JSON.stringify(pinVerificados().filter(x => x !== n))); }catch(e){} }
+/* Un dueño de las tres sedes es UN registro con UN PIN: si ya lo escribió en
+   este teléfono en cualquier sede, las otras lo reconocen y no se lo vuelven a
+   pedir (María José pasaba de La Florida a Maximarket y Maximarket le pedía el
+   PIN de nuevo). Se anota con su nombre de la base en la lista de La Florida,
+   la clave sin prefijo, que en La Florida es la misma de siempre. Cada vez se
+   consulta igual la base: si un dueño le reinicia el PIN, deja de valer en todas. */
+function pinListaComun(){ try{ return JSON.parse(LS_LF.get("quien.pinok") || "[]"); }catch(e){ return []; } }
+function duenoGlobal(n){ const u = USUARIOS.find(x => x.nombre === n); return u && u.global ? u : null; }
+function pinYaAqui(n){
+  if(pinVerificados().indexOf(n) >= 0) return true;
+  const g = duenoGlobal(n);
+  return !!(g && pinListaComun().indexOf(g.db) >= 0);
+}
+function pinGuardar(n){
+  try{ const a = pinVerificados(); if(a.indexOf(n) < 0){ a.push(n); localStorage.setItem("quien.pinok", JSON.stringify(a)); } }catch(e){}
+  const g = duenoGlobal(n);
+  if(g){ const c = pinListaComun(); if(c.indexOf(g.db) < 0){ c.push(g.db); LS_LF.set("quien.pinok", JSON.stringify(c)); } }
+}
+function pinOlvidar(n){
+  try{ localStorage.setItem("quien.pinok", JSON.stringify(pinVerificados().filter(x => x !== n))); }catch(e){}
+  const g = duenoGlobal(n);
+  if(g) LS_LF.set("quien.pinok", JSON.stringify(pinListaComun().filter(x => x !== g.db)));
+}
 
 async function pedirPin(n){
-  const yaAqui = pinVerificados().indexOf(n) >= 0;
+  const yaAqui = pinYaAqui(n);
   await esperarSB(4000);
   const client = getSB();
   if(!client) return yaAqui;                   // sin conexión: sólo pasa quien ya se verificó aquí
