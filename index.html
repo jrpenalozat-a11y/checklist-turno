@@ -630,6 +630,11 @@
     font-size:15px;padding:8px 10px;cursor:pointer;line-height:1}
   .usr-del:active{background:var(--rojo-suave)}
   .usr-acc{display:flex;gap:6px;flex:none}
+  .usr-full{font-size:11px;color:var(--grafito);margin-top:2px}
+  .usr-falta{font-size:11px;font-weight:700;color:var(--rojo);margin-top:2px}
+  .usr-plazo{border:1px solid var(--ambar);background:#FFF3DC;color:var(--tinta);border-radius:10px;padding:9px 11px;font-size:12.5px;margin:0 0 10px}
+  .usr-plazo.vencido{border-color:var(--rojo);background:#FDE4E1}
+  .usr-vista{flex-basis:100%;font-size:11.5px;color:var(--grafito);margin:-2px 2px 0}
   .usr-add{display:flex;gap:8px;margin:16px 0 4px;flex-wrap:wrap}
   .usr-add input,.usr-add select{flex:1;min-width:96px;border:1px solid var(--linea);border-radius:10px;
     background:var(--papel);font-family:inherit;font-size:14px;padding:10px 11px;color:var(--tinta)}
@@ -905,7 +910,9 @@
     <div class="rango">Dueños/encargado ven Supervisión · colaboradores registran</div>
     <div id="usrLista"></div>
     <div class="usr-add">
-      <input id="usrNombre" type="text" placeholder="Nombre nuevo" autocomplete="off">
+      <input id="usrNombres" type="text" placeholder="Nombres (todos)" autocomplete="off" autocapitalize="words">
+      <input id="usrApellidos" type="text" placeholder="Apellidos (los dos)" autocomplete="off" autocapitalize="words">
+      <div class="usr-vista" id="usrVista">Nombres y apellidos completos. En las apps se verá «primer nombre + primer apellido».</div>
       <select id="usrRol">
         <option value="colaborador">Colaborador</option>
         <option value="encargado de local">Encargado de local</option>
@@ -2813,6 +2820,20 @@ async function gateSupervisor(){
   alert("Clave incorrecta."); return false;
 }
 
+/* ---- nombres y apellidos completos (lo mismo en Mi Turno: SQL-personal-checklist-miturno.sql en el-pase).
+   Se guardan completos y las apps muestran «primer nombre + primer apellido».
+   A la gente que ya estaba se le completa con ✍️ antes del plazo. ---- */
+const PLAZO_NOMBRES = "2026-11-15";
+const PERS_PART = ["de", "del", "la", "las", "los", "da", "das", "do", "dos", "di", "van", "von", "san", "santa", "y"];
+const persLimpio = t => String(t || "").replace(/\s+/g, " ").trim();
+const persMayus = t => persLimpio(t).split(" ").map((w, i) => w && w === w.toLowerCase() && !(i && PERS_PART.includes(w)) ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
+function persPrimero(t){ const p = persLimpio(t).split(" ").filter(Boolean), r = []; let i = 0; while(i < p.length - 1 && PERS_PART.includes(p[i].toLowerCase())) r.push(p[i++]); if(p[i]) r.push(p[i]); return r.join(" "); }
+const persCorto = (n, a) => persLimpio(n) && persLimpio(a) ? persPrimero(n) + " " + persPrimero(a) : "";
+function persHoyISO(){ const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function plazoNombresTxt(){
+  const d = new Date(PLAZO_NOMBRES + "T12:00:00");
+  return { vencido: persHoyISO() > PLAZO_NOMBRES, txt: d.toLocaleDateString("es-CL", { weekday:"long", day:"numeric", month:"long" }) };
+}
 async function abrirUsuarios(){
   usrOvl.classList.add("on");
   usrLista.innerHTML = '<div class="sinreg">Cargando…</div>';
@@ -2820,15 +2841,24 @@ async function abrirUsuarios(){
   if(!client){ usrLista.innerHTML = '<div class="sinreg">Falta configurar Supabase.</div>'; return; }
   try{
     await vfSesion(client);
-    const { data, error } = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
+    /* con nombres y apellidos; si todavía no se corre el SQL nuevo, como antes */
+    let r = await client.from("usuarios").select("id,nombre,rol,activo,puesto,nombres,apellidos").order("rol").order("nombre");
+    const conNombres = !r.error;
+    if(r.error) r = await client.from("usuarios").select("id,nombre,rol,activo,puesto").order("rol").order("nombre");
+    const { data, error } = r;
     if(error) throw error;
     USUARIOS = usrSede(data); llenarSelectColab();
     const admin = esAdmin();
+    const faltan = conNombres ? USUARIOS.filter(u => u.activo !== false && !persLimpio(u.apellidos)) : [];
+    const pz = plazoNombresTxt();
+    const plazo = faltan.length && admin ? '<div class="usr-plazo' + (pz.vencido ? " vencido" : "") + '">✍️ <b>' + faltan.length + (faltan.length === 1 ? " persona" : " personas") + " sin nombres y apellidos completos.</b> "
+      + (pz.vencido ? "El plazo venció el " + esc(pz.txt) + ": complétalos ya." : "Complétalos antes del " + esc(pz.txt) + " con el botón ✍️ de cada uno.")
+      + " Quien tiene un solo nombre no aparece en Mi Turno hasta completarlo.</div>" : "";
     const addBox = usrOvl.querySelector(".usr-add"); if(addBox) addBox.style.display = admin ? "flex" : "none";
     const claveBtn = document.getElementById("usrClave"); if(claveBtn) claveBtn.style.display = admin ? "" : "none";
     const destBtn = document.getElementById("usrDestino"); if(destBtn) destBtn.style.display = admin ? "" : "none";
     const aviso = admin ? "" : '<div class="sem-vacio" style="margin-bottom:8px">👀 Solo lectura. A los usuarios los gestionan los dueños y el encargado (María José, Maximiliano, Ricardo).</div>';
-    usrLista.innerHTML = USUARIOS.length ? (aviso + USUARIOS.map(u => {
+    usrLista.innerHTML = USUARIOS.length ? (aviso + plazo + USUARIOS.map(u => {
       const act = u.activo !== false;
       /* un dueño global es un solo registro para los tres locales: se edita
          desde La Florida; desde otra sede sólo se le puede reiniciar el PIN */
@@ -2836,12 +2866,14 @@ async function abrirUsuarios(){
       const info = edita
         ? rolSelect(u.rol, u.id) + ' ' + puestoSelect(u.puesto || "", u.id)
         : '<div class="usr-r">' + esc(rolLabel(u.rol)) + (u.puesto ? " · " + esc(u.puesto) : "") + (u.global ? " · todas las sedes" : "") + '</div>';
+      const completo = conNombres ? (persLimpio(u.apellidos) ? '<div class="usr-full">' + esc(persLimpio(u.nombres) + " " + persLimpio(u.apellidos)) + "</div>" : '<div class="usr-falta">Falta nombre completo</div>') : "";
       const acc = admin
-        ? '<div class="usr-acc">' + (edita ? '<button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>' : "")
+        ? '<div class="usr-acc">' + (edita && conNombres ? '<button class="usr-toggle usr-completar" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" data-nom="' + esc(u.nombres || "") + '" data-ap="' + esc(u.apellidos || "") + '" title="Nombres y apellidos completos">✍️</button>' : "")
+          + (edita ? '<button class="usr-toggle" data-id="' + u.id + '" data-activo="' + act + '">' + (act ? "Desactivar" : "Activar") + '</button>' : "")
           + '<button class="usr-toggle usr-pin" data-n="' + esc(u.nombre) + '" title="Reiniciar PIN">🔑</button>'
           + (edita ? '<button class="usr-del" data-id="' + u.id + '" data-n="' + esc(u.nombre) + '" aria-label="Eliminar" title="Eliminar">🗑</button>' : "") + '</div>'
         : "";
-      return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>' + info + '</div>' + acc + '</div>';
+      return '<div class="usr-row' + (act ? "" : " off") + '"><div style="flex:1;min-width:0"><div class="usr-n">' + esc(u.nombre) + '</div>' + completo + info + '</div>' + acc + '</div>';
     }).join("")) : '<div class="sinreg">Todavía no hay usuarios en esta sede. Agrégalos abajo.</div>';
   }catch(e){
     usrLista.innerHTML = '<div class="sinreg">No se pudo cargar (¿corriste el SQL de usuarios?):<br>' + esc((e && e.message) || String(e)) + '</div>';
@@ -2867,6 +2899,24 @@ usrLista.addEventListener("click", async e => {
       alert("Listo. " + quien + " creará un PIN nuevo la próxima vez que entre.");
     }catch(err){ alert("No se pudo reiniciar: " + ((err && err.message) || err)); }
     finally{ rp.disabled = false; }
+    return;
+  }
+  /* completar nombres y apellidos de quien ya estaba (no cambia cómo aparece en el Checklist) */
+  const cp = e.target.closest(".usr-completar");
+  if(cp){
+    const nombres = prompt("Nombres completos de " + cp.dataset.n + " (todos):", cp.dataset.nom || cp.dataset.n.split(" ")[0]);
+    if(nombres == null) return;
+    const apellidos = prompt("Apellidos de " + cp.dataset.n + " (los dos):", cp.dataset.ap || "");
+    if(apellidos == null) return;
+    const ns = persMayus(nombres), ap = persMayus(apellidos);
+    if(ns.length < 2 || ap.length < 2){ alert("Faltan los nombres o los apellidos."); return; }
+    cp.disabled = true;
+    try{
+      await vfSesion(client);
+      const { error } = await client.from("usuarios").update({ nombres:ns, apellidos:ap }).eq("id", cp.dataset.id);
+      if(error) throw error;
+      await abrirUsuarios();
+    }catch(err){ alert("No se pudo guardar: " + ((err && err.message) || err)); cp.disabled = false; }
     return;
   }
   const del = e.target.closest(".usr-del");
@@ -2908,21 +2958,35 @@ usrLista.addEventListener("change", async e => {
 });
 document.getElementById("usrAgregar").addEventListener("click", async () => {
   if(!esAdmin()){ alert("Solo los dueños y el encargado pueden agregar usuarios."); return; }
-  const nombre = document.getElementById("usrNombre").value.trim();
+  const ns = persMayus(document.getElementById("usrNombres").value), ap = persMayus(document.getElementById("usrApellidos").value);
   const rol = document.getElementById("usrRol").value;
-  if(!nombre) return;
+  if(ns.length < 2 || ap.length < 2){ alert("Escribe los nombres y los apellidos completos (los dos apellidos si los tiene)."); return; }
+  /* se ve «primer nombre + primer apellido»; si ya hay alguien así en este local, con los dos apellidos */
+  let nombre = persCorto(ns, ap);
+  if(USUARIOS.some(u => persLimpio(u.nombre).toLowerCase() === nombre.toLowerCase())) nombre = persPrimero(ns) + " " + ap;
+  if(USUARIOS.some(u => persLimpio(u.nombre).toLowerCase() === nombre.toLowerCase())){ alert("Ya hay una persona llamada " + nombre + " en este local."); return; }
   const client = getSB(); if(!client){ alert("Falta configurar Supabase."); return; }
   const puesto = document.getElementById("usrPuesto").value || null;
   try{
     await vfSesion(client);
     /* un dueño nuevo es de los tres locales: va sin prefijo (ver usrSede) */
     const nombreDB = rol === "dueño" ? nombre : nDB(nombre);
-    const { error } = await client.from("usuarios").insert(puesto ? { nombre:nombreDB, rol, puesto } : { nombre:nombreDB, rol });
+    const fila = { nombre:nombreDB, rol, nombres:ns, apellidos:ap }; if(puesto) fila.puesto = puesto;
+    const { error } = await client.from("usuarios").insert(fila);
     if(error) throw error;
-    document.getElementById("usrNombre").value = ""; await abrirUsuarios();
+    document.getElementById("usrNombres").value = ""; document.getElementById("usrApellidos").value = ""; usrVistaPintar(); await abrirUsuarios();
   }
-  catch(e){ alert("No se pudo agregar (¿corriste el SQL?): " + ((e && e.message) || e)); }
+  catch(e){
+    const m = (e && e.message) || String(e);
+    alert(/nombres|apellidos/.test(m) ? "Falta correr SQL-personal-checklist-miturno.sql en Supabase (está en la carpeta el-pase)." : "No se pudo agregar (¿corriste el SQL?): " + m);
+  }
 });
+function usrVistaPintar(){
+  const r = persCorto(persMayus(document.getElementById("usrNombres").value), persMayus(document.getElementById("usrApellidos").value));
+  document.getElementById("usrVista").textContent = r ? "En las apps se verá: «" + r + "»" : "Nombres y apellidos completos. En las apps se verá «primer nombre + primer apellido».";
+}
+document.getElementById("usrNombres").addEventListener("input", usrVistaPintar);
+document.getElementById("usrApellidos").addEventListener("input", usrVistaPintar);
 document.getElementById("usrClave").addEventListener("click", async () => {
   if(!esAdmin()){ alert("Solo los dueños y el encargado pueden cambiar la clave."); return; }
   const nuevo = prompt("Nueva clave de supervisor (mín. 4 caracteres):");
