@@ -224,8 +224,16 @@
   #motOvl .hist .hf{float:right;font-size:11px;opacity:.6}
   #motOvl .hist .ht{margin-top:2px;font-weight:600}
   #motOvl .hist .ha{margin-top:2px;font-size:11.5px;opacity:.65;text-decoration:line-through}
-  .sem-edit{flex:none;border:1px solid var(--linea);background:var(--panel);border-radius:9px;
-    font-size:14px;line-height:1;padding:6px 8px;cursor:pointer}
+  .sem-edit,.sem-dup{flex:none;border:1px solid var(--linea);background:var(--panel);border-radius:9px;
+    font-size:14px;line-height:1;padding:6px 8px;cursor:pointer;color:inherit;font-family:inherit}
+  /* quien edita la Semanal: el texto a todo el ancho y los botones en una fila
+     debajo; en el teléfono el texto quedaba en una columna angosta */
+  .sem-item.ed{flex-wrap:wrap;row-gap:6px}
+  .sem-item.ed .t{flex:1 1 100%}
+  .sem-item.ed .sem-acc{display:flex;align-items:center;gap:8px;margin-left:auto}
+  /* duplicar una tarea en otro turno o área: elegir una o varias */
+  #motOvl .op.on{border-color:#EA5650;background:#FDE7E2;color:#9C332E}
+  #motOvl .op.ya{opacity:.45;cursor:default}
   #semLog{width:100%;margin:0 0 10px;padding:10px;border-radius:11px;border:1.5px solid var(--linea);background:transparent;
     color:inherit;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
   /* tarea que ya hizo otra persona hoy */
@@ -392,7 +400,9 @@
   .sem-item .t{flex:1;min-width:0;word-break:break-word}
   .sem-del{flex:none;background:none;border:0;color:#CFC9BC;font-size:20px;cursor:pointer;padding:2px 6px;line-height:1}
   .sem-del:active{color:var(--rojo)}
-  .sem-add{display:flex;gap:8px;margin-top:8px}
+  .sem-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  /* en el teléfono la caja de texto va sola arriba: con el área y el botón al lado se salía de la pantalla */
+  @media (max-width:520px){ .sem-add input{flex:1 1 100%} .sem-add select.sem-psel{flex:1;max-width:none} }
   .sem-add input{flex:1;border:1px solid var(--linea);border-radius:9px;background:var(--papel);font-family:inherit;
     font-size:14px;padding:9px 11px;color:var(--tinta)}
   .sem-add input:focus{outline:none;border-color:var(--pino)}
@@ -3039,6 +3049,11 @@ function fijarQuien(n){
   if(!esMando()){
     try{ localStorage.removeItem("sup_ok"); }catch(err){}
     aplicarModoSup(false);
+  } else if(localStorage.getItem("sup_ok") === "pin:" + n){
+    /* quien manda y ya probó su PIN queda en Supervisión al tiro. Antes recién
+       la tenía al volver a abrir la app: María José entró a Maximarket y no le
+       salía el PI ni podía editar la Semanal */
+    aplicarModoSup(true);
   }
   actualizarQuienUI();
   // rellena lo que corresponda con la identidad
@@ -3078,9 +3093,8 @@ async function entrarSolo(){
   if(quienActual()) return true;               // alguien eligió a mano mientras tanto
   pinGuardar(n);
   try{ localStorage.setItem("sup_ok", "pin:" + n); }catch(e){}
-  fijarQuien(n);
+  fijarQuien(n);                               // con el sup_ok de arriba, queda en Supervisión
   if(!puestosHoy()) setPuestosHoy(["Supervisor"]);
-  aplicarModoSup(true);
   quienOvl.classList.remove("on");
   areaSel = "mio";
   if(typeof renderGuia === "function") renderGuia();
@@ -3805,6 +3819,10 @@ async function resumenSupervisor(){
             + (sinReporte ? " · " + sinReporte + " área(s) sin reporte" : "")
           : "Todavía no llega ningún informe de hoy.")
       + '<br><small>«Sin reporte» no significa que no se haya hecho: puede que no haya nadie en esa área.</small>'
+      + (puedeEditarRutina()
+          ? '<button id="rsSemanal" style="background:none;color:var(--grafito);border:1px solid var(--linea)">'
+            + '🗓️ Elegir qué tareas llevan foto (PI) o duplicarlas en otro turno</button>'
+          : "")
       + '<button class="btn-diario" data-diario="1">📋 Pulso diario · todo el local (PI)</button>'
       + '<button id="rsVerDetalle">👀 Ver el detalle con fotos</button>'
       + '<button id="rsTrabajar" style="background:none;color:var(--grafito);border:1px solid var(--linea)">Voy a trabajar un área</button>'
@@ -3826,6 +3844,7 @@ document.getElementById("resumenSup").addEventListener("click", e => {
     });
   }
   if(e.target.closest("#rsTrabajar")) abrirQuien(true);   // elegir un área concreta
+  if(e.target.closest("#rsSemanal")){ mostrarTab("semanal"); window.scrollTo({ top: document.getElementById("tabs").offsetTop - 8, behavior: "smooth" }); }
 });
 function renderGuia(){
   const cont = document.getElementById("guiaLista"); if(!cont) return;
@@ -4632,9 +4651,12 @@ function renderSemanal(){
         : (x.pi ? '<span class="pi-badge">PI · va al informe</span>' : "");
       const del = sup ? '<button class="sem-del" ' + dref + ' aria-label="Borrar">×</button>' : "";
       const edit = sup ? '<button class="sem-edit" ' + dref + ' aria-label="Editar el texto">✏️</button>' : "";
-      return '<div class="sem-item"><span class="t">' + esc(x.t) + badge + (sup && x.req ? ' <span class="req-badge">lleva foto</span>' : "")
-        + (sup && x.pi ? ' <span class="pi-badge">va al informe</span>' : "") + '</span>'
-        + thumb + edit + req + pi + cam + del + '</div>';
+      const dup = sup ? '<button class="sem-dup" ' + dref + ' title="Duplicar en otro turno o área" aria-label="Duplicar en otro turno o área">⧉</button>' : "";
+      const texto = '<span class="t">' + esc(x.t) + badge + (sup && x.req ? ' <span class="req-badge">lleva foto</span>' : "")
+        + (sup && x.pi ? ' <span class="pi-badge">va al informe</span>' : "") + '</span>';
+      return sup
+        ? '<div class="sem-item ed">' + texto + '<span class="sem-acc">' + thumb + edit + dup + req + pi + cam + del + '</span></div>'
+        : '<div class="sem-item">' + texto + thumb + '</div>';
     }).join("") : '<div class="sem-vacio">Sin tareas</div>';
     const add = sup
       ? '<div class="sem-add"><input type="text" placeholder="Agregar tarea…" autocomplete="off">'
@@ -4650,13 +4672,43 @@ function renderSemanal(){
     + (nPI ? "<b>" + nPI + "</b> de " + todasR.length + (nPI === 1 ? " tarea de la rutina va" : " tareas de la rutina van") + " al informe"
            : "Ninguna tarea marcada para el informe: por ahora lleva todas las fotos.") + '</div>';
   if(sup) html += '<button id="semLog">🕓 Ver quién cambió qué (historial)</button>';
-  html += sup ? '<div class="sem-vacio" style="margin-bottom:6px">✏️ = editar el texto · × = borrar · 📸 = la tarea exige foto · <b>PI</b> = sus fotos van al informe (y también exige foto). '
+  html += sup ? '<div class="sem-vacio" style="margin-bottom:6px">✏️ = editar el texto · ⧉ = duplicar en otro turno o área · × = borrar · 📸 = la tarea exige foto · <b>PI</b> = sus fotos van al informe (y también exige foto). '
       + (rutinaConPI() ? "" : "Mientras ninguna tarea tenga PI, el informe lleva todas las fotos.") + '</div>'
     : '<div class="sem-vacio" style="margin-bottom:6px">👀 Solo lectura. La rutina la editan los dueños, el encargado y el encargado de local (María José, Maximiliano, Ricardo y Ángel).</div>';
   html += grupo("Todos los días", RUTINA.base || [], "base");
   DIAS_SEM.forEach(([nom, wd]) => { html += grupo(nom, (RUTINA.dias && RUTINA.dias[wd]) || [], "dia", wd); });
   semanalCont.innerHTML = html;
   firmarThumbs("#semanalCont");
+}
+/* a qué turnos o áreas duplicar una tarea: se marcan uno o varios. Los que
+   ya la tienen (la original, o una copia con el mismo texto) salen apagados. */
+function elegirAreas(x, arr){
+  return new Promise(res => {
+    const prev = document.getElementById("motOvl"); if(prev) prev.remove();
+    const ops = [["", "🌅 Turno 1 (sin área)"]].concat(PUESTOS.map(p => [p, p]));
+    const ya = a => (x.p || "") === a || arr.some(t => t !== x && t.t === x.t && (t.p || "") === a);
+    const ovl = document.createElement("div"); ovl.id = "motOvl";
+    ovl.innerHTML = '<div class="cja"><h4>⧉ Duplicar en otro turno o área</h4>'
+      + '<p class="tq"><b>' + esc(x.t) + '</b><br>Elige uno o varios. La copia lleva lo mismo: foto exigida y PI.</p>'
+      + ops.map(([a, n]) => ya(a)
+          ? '<button class="op ya" disabled>' + esc(n) + ' · ya la tiene</button>'
+          : '<button class="op" data-a="' + esc(a) + '">' + esc(n) + '</button>').join("")
+      + '<button class="op qt" data-k="ok">⧉ Duplicar</button>'
+      + '<button class="op" data-k="no">Cancelar</button></div>';
+    document.body.appendChild(ovl);
+    const fin = v => { ovl.remove(); res(v); };
+    ovl.addEventListener("click", e => {
+      if(e.target === ovl) return fin(null);
+      const b = e.target.closest(".op"); if(!b || b.disabled) return;
+      if(b.dataset.k === "no") return fin(null);
+      if(b.dataset.k === "ok"){
+        const sel = [...ovl.querySelectorAll(".op.on")].map(o => o.dataset.a);
+        if(!sel.length){ alert("Elige al menos un turno o área."); return; }
+        return fin(sel);
+      }
+      b.classList.toggle("on");
+    });
+  });
 }
 function listaDe(tipo, wd){
   if(tipo === "base"){ if(!RUTINA.base) RUTINA.base = []; return RUTINA.base; }
@@ -4724,6 +4776,29 @@ if(semanalCont){
         await subirFoto(path, blob);          // primero sube; solo si funciona, referencia
         x.foto = path; await guardarRutina();
       }catch(err){ alert("No se pudo subir: " + ((err && err.message) || err)); }
+      return;
+    }
+    /* duplicar en otro turno o área: la misma tarea (texto, foto exigida y PI),
+       con id propio, justo debajo de la original. Lo pidió María José para
+       Maximarket, donde hay tareas que se hacen en cada turno. */
+    const dp = e.target.closest(".sem-dup");
+    if(dp){
+      if(!puedeEditarRutina()) return;
+      const arr = listaDe(dp.dataset.tipo, dp.dataset.wd);
+      const x = arr.find(t => t.id === dp.dataset.id); if(!x) return;
+      const destinos = await elegirAreas(x, arr);
+      if(!destinos || !destinos.length) return;
+      let i = arr.indexOf(x);
+      destinos.forEach(a => {
+        const c = { id:nuevoId(), t:x.t };
+        if(a) c.p = a;
+        if(x.req) c.req = true;
+        if(x.pi) c.pi = true;
+        arr.splice(++i, 0, c);
+      });
+      await guardarRutina();
+      const dia = dp.dataset.tipo === "dia" ? " (" + nombreDia(+dp.dataset.wd) + ")" : "";
+      for(const a of destinos) await anotarCambio("duplicó", x.t + " [" + (a || "Turno 1") + "]" + dia);
       return;
     }
     const del = e.target.closest(".sem-del");
