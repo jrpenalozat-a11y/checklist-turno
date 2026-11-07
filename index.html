@@ -2659,8 +2659,10 @@ async function getConfig(clave){
 }
 async function setConfig(clave, valor){
   const client = getSB(); if(!client) throw new Error("Falta configurar Supabase");
-  const { error } = await client.from("config").upsert({ clave:cfgK(clave), valor, updated_at:new Date().toISOString() });
-  if(error) throw error;
+  await rpcSeguro(client, "cl_config_guardar", { p_clave:cfgK(clave), p_valor:valor }, async () => {
+    const { error } = await client.from("config").upsert({ clave:cfgK(clave), valor, updated_at:new Date().toISOString() });
+    if(error) throw error;
+  });
 }
 /* rol de una persona SIN pasar por el candado (esAdmin/puedeEditarRutina exigen
    modo supervisor ya activo; acá necesitamos saberlo antes de abrirlo) */
@@ -2690,9 +2692,49 @@ function pinGuardar(n){
   if(g){ const c = pinListaComun(); if(c.indexOf(g.db) < 0){ c.push(g.db); LS_LF.set("quien.pinok", JSON.stringify(c)); } }
 }
 function pinOlvidar(n){
+  pinHBorrar(nAuth(n));
   try{ localStorage.setItem("quien.pinok", JSON.stringify(pinVerificados().filter(x => x !== n))); }catch(e){}
   const g = duenoGlobal(n);
   if(g) LS_LF.set("quien.pinok", JSON.stringify(pinListaComun().filter(x => x !== g.db)));
+}
+
+/* ---- escritura segura (SQL-escritura-segura-1.sql) ----
+   Crear, editar o borrar usuarios y guardar la config pasa por funciones de la
+   base que piden el PIN de quien lo hace y lo revisan allá, no en el teléfono.
+   Para no pedirlo en cada cambio, el teléfono guarda el hash del PIN de quien
+   ya lo escribió (el mismo dato que viaja al verificarlo). Si un teléfono venía
+   desbloqueado de antes y no lo tiene, se pide UNA vez. */
+function pinHMapa(){ try{ return JSON.parse(localStorage.getItem("pin.h") || "{}") || {}; }catch(e){ return {}; } }
+function pinHGuardar(db, h){ try{ const m = pinHMapa(); m[db] = h; localStorage.setItem("pin.h", JSON.stringify(m)); }catch(e){} }
+function pinHBorrar(db){ try{ const m = pinHMapa(); delete m[db]; localStorage.setItem("pin.h", JSON.stringify(m)); }catch(e){} }
+async function credEscritura(client){
+  const yo = quienActual(); if(!yo) throw new Error("Elige tu nombre primero");
+  const db = nAuth(yo);
+  let h = pinHMapa()[db];
+  if(!h){
+    const pin = prompt("Para guardar, confirma tu PIN (" + yo + "):");
+    if(pin == null) throw new Error("Cancelado");
+    h = await sha256(pin.trim());
+    const v = await client.rpc("verificar_pin", { p_nombre: db, p_hash: h });
+    if(v.error) throw v.error;
+    if(!v.data) throw new Error("PIN incorrecto");
+    pinHGuardar(db, h);
+  }
+  return { p_admin: db, p_hash: h };
+}
+/* Llama a la función segura; si la base todavía no la tiene (falta correr el
+   SQL), hace lo de siempre para no romper nada. */
+async function rpcSeguro(client, fn, args, comoAntes){
+  await vfSesion(client);
+  const cred = await credEscritura(client);
+  const r = await client.rpc(fn, Object.assign({}, cred, args));
+  if(r.error){
+    const m = (r.error.message || "") + " " + (r.error.code || "");
+    if(/PGRST202|Could not find the function|does not exist/i.test(m)) return comoAntes();
+    if(/PIN incorrecto/i.test(m)) pinHBorrar(cred.p_admin);
+    throw r.error;
+  }
+  return r.data;
 }
 
 async function pedirPin(n){
@@ -2714,15 +2756,19 @@ async function pedirPin(n){
     const p2 = prompt("Repítelo para confirmar:");
     if(p2 == null) return false;
     if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
-    const c = await client.rpc("crear_pin", { p_nombre: nAuth(n), p_hash: await sha256(p1.trim()) });
+    const h1 = await sha256(p1.trim());
+    const c = await client.rpc("crear_pin", { p_nombre: nAuth(n), p_hash: h1 });
     if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
+    pinHGuardar(nAuth(n), h1);
     alert("PIN creado. Es tuyo: no lo compartas.\nSi lo olvidas, un dueño te lo reinicia desde 👥 Usuarios.");
   } else if(!yaAqui){
     const pin = prompt("PIN de " + n + ":");
     if(pin == null) return false;
-    const v = await client.rpc("verificar_pin", { p_nombre: nAuth(n), p_hash: await sha256((pin || "").trim()) });
+    const hv = await sha256((pin || "").trim());
+    const v = await client.rpc("verificar_pin", { p_nombre: nAuth(n), p_hash: hv });
     if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
     if(!v.data){ alert("PIN incorrecto."); return false; }
+    pinHGuardar(nAuth(n), hv);
   }
   pinGuardar(n);
   /* Queda anotado quién escribió su PIN y cuándo. Al mover el PIN al momento de
@@ -2784,15 +2830,19 @@ async function gateSupervisor(){
       const p2 = prompt("Repítelo para confirmar:");
       if(p2 == null) return false;
       if(p1.trim() !== p2.trim()){ alert("Los PIN no coinciden. Prueba de nuevo."); return false; }
-      const c = await client.rpc("crear_pin", { p_nombre: nAuth(yo), p_hash: await sha256(p1.trim()) });
+      const h1 = await sha256(p1.trim());
+      const c = await client.rpc("crear_pin", { p_nombre: nAuth(yo), p_hash: h1 });
       if(c.error || !c.data){ alert("No se pudo crear el PIN" + (c.error ? ": " + c.error.message : ".")); return false; }
+      pinHGuardar(nAuth(yo), h1);
       alert("PIN creado. Es tuyo y solo tuyo: no lo compartas.\nSi lo olvidas, un dueño lo borra desde Supabase y creas otro.");
     } else {
       const pin = prompt("PIN de " + yo + ":");
       if(pin == null) return false;
-      const v = await client.rpc("verificar_pin", { p_nombre: nAuth(yo), p_hash: await sha256(pin.trim()) });
+      const hv = await sha256(pin.trim());
+      const v = await client.rpc("verificar_pin", { p_nombre: nAuth(yo), p_hash: hv });
       if(v.error){ alert("No se pudo verificar el PIN: " + v.error.message); return false; }
       if(!v.data){ alert("PIN incorrecto."); return false; }
+      pinHGuardar(nAuth(yo), hv);
     }
     localStorage.setItem("sup_ok", "pin:" + yo);   // el desbloqueo es de esta persona, no del equipo
     try{ client.from("accesos_supervision").insert({ nombre: nDB(yo) }); }catch(e){}   // queda registrado quién entró
@@ -2913,8 +2963,10 @@ usrLista.addEventListener("click", async e => {
     cp.disabled = true;
     try{
       await vfSesion(client);
-      const { error } = await client.from("usuarios").update({ nombres:ns, apellidos:ap }).eq("id", cp.dataset.id);
-      if(error) throw error;
+      await rpcSeguro(client, "cl_usr_editar", { p_id:cp.dataset.id, p_campos:{ nombres:ns, apellidos:ap } }, async () => {
+        const { error } = await client.from("usuarios").update({ nombres:ns, apellidos:ap }).eq("id", cp.dataset.id);
+        if(error) throw error;
+      });
       await abrirUsuarios();
     }catch(err){ alert("No se pudo guardar: " + ((err && err.message) || err)); cp.disabled = false; }
     return;
@@ -2925,9 +2977,12 @@ usrLista.addEventListener("click", async e => {
     del.disabled = true;
     try{
       /* columnas explícitas: pin_hash no se puede leer, y un select * fallaría */
-      const { data, error } = await client.from("usuarios").delete().eq("id", del.dataset.id).select("id,nombre");
-      if(error) throw error;
-      if(!data || !data.length){
+      const data = await rpcSeguro(client, "cl_usr_borrar", { p_id:del.dataset.id }, async () => {
+        const { data, error } = await client.from("usuarios").delete().eq("id", del.dataset.id).select("id,nombre");
+        if(error) throw error;
+        return data && data.length ? data[0] : null;
+      });
+      if(!data){
         alert("Falta el permiso de borrado en la base. Corre esto en el SQL Editor:\n\ncreate policy \"usuarios delete\" on public.usuarios for delete to authenticated using (true);");
         del.disabled = false; return;
       }
@@ -2938,7 +2993,13 @@ usrLista.addEventListener("click", async e => {
   }
   const b = e.target.closest(".usr-toggle"); if(!b) return;
   b.disabled = true;
-  try{ await client.from("usuarios").update({ activo: b.dataset.activo !== "true" }).eq("id", b.dataset.id); await abrirUsuarios(); }
+  const activo = b.dataset.activo !== "true";
+  try{
+    await rpcSeguro(client, "cl_usr_editar", { p_id:b.dataset.id, p_campos:{ activo } }, async () => {
+      await client.from("usuarios").update({ activo }).eq("id", b.dataset.id);
+    });
+    await abrirUsuarios();
+  }
   catch(err){ alert("No se pudo: " + ((err && err.message) || err)); b.disabled = false; }
 });
 usrLista.addEventListener("change", async e => {
@@ -2946,8 +3007,10 @@ usrLista.addEventListener("change", async e => {
   const client = getSB(); if(!client) return;
   const cambio = s.classList.contains("usr-puesto") ? { puesto: s.value || null } : { rol: s.value };
   try{
-    const { error } = await client.from("usuarios").update(cambio).eq("id", s.dataset.id);
-    if(error) throw error;
+    await rpcSeguro(client, "cl_usr_editar", { p_id:s.dataset.id, p_campos:cambio }, async () => {
+      const { error } = await client.from("usuarios").update(cambio).eq("id", s.dataset.id);
+      if(error) throw error;
+    });
     await abrirUsuarios();
   }catch(err){
     const m = (err && err.message) || String(err);
@@ -2972,8 +3035,10 @@ document.getElementById("usrAgregar").addEventListener("click", async () => {
     /* un dueño nuevo es de los tres locales: va sin prefijo (ver usrSede) */
     const nombreDB = rol === "dueño" ? nombre : nDB(nombre);
     const fila = { nombre:nombreDB, rol, nombres:ns, apellidos:ap }; if(puesto) fila.puesto = puesto;
-    const { error } = await client.from("usuarios").insert(fila);
-    if(error) throw error;
+    await rpcSeguro(client, "cl_usr_crear", { p_nombre:nombreDB, p_rol:rol, p_nombres:ns, p_apellidos:ap, p_puesto:puesto }, async () => {
+      const { error } = await client.from("usuarios").insert(fila);
+      if(error) throw error;
+    });
     document.getElementById("usrNombres").value = ""; document.getElementById("usrApellidos").value = ""; usrVistaPintar(); await abrirUsuarios();
   }
   catch(e){
