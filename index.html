@@ -354,6 +354,15 @@
   .msg-chip{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;margin-bottom:9px;background:#FFF4DC;color:#8A5F0E}
   .msg-chip.felicitacion{background:#E6F4EA;color:#1E6B3A}
   .msg-chip.aviso{background:#F4F0FF;color:#3D2A8C}
+  .msg-chip.respuesta{background:#E4EEF9;color:#1F4E82}
+  /* respuesta del encargado de local a un mensaje de la dueña */
+  .msg-cita{font-size:12.5px;line-height:1.4;color:var(--grafito);border-left:3px solid var(--linea);padding:2px 0 2px 9px;margin:0 0 8px;
+    white-space:pre-wrap;overflow-wrap:anywhere}
+  .env-resp{margin-top:8px;padding:8px 10px;border-radius:10px;background:#E4EEF9;color:#1F4E82;font-size:13px;line-height:1.4;
+    white-space:pre-wrap;overflow-wrap:anywhere}
+  .env-resp small{display:block;margin-top:3px;font-weight:600;opacity:.8}
+  .msg-resp-btn{display:inline-block;margin-top:9px;border:1.5px solid #9DBDE0;background:#F2F7FC;color:#1F4E82;border-radius:11px;
+    padding:9px 13px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
   .msg-img{display:block;width:100%;max-height:46vh;object-fit:contain;border-radius:10px;background:#EADCC8;margin-bottom:9px}
   .msg-tarea{font-size:12px;font-weight:600;color:var(--grafito);margin-bottom:6px}
   .msg-texto{font-size:15px;line-height:1.45;font-weight:500;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -384,6 +393,11 @@
   .btn-diario:disabled{opacity:.6}
   .ex-badge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;
     background:#F4F1FE;color:#5B3FD6;font-family:inherit;font-weight:600;font-size:10px;line-height:1.6;vertical-align:middle}
+  .ex-badge.ed{background:#EDE8DF;color:var(--grafito)}
+  /* corregir el texto de lo agregado hoy (solo quien lo escribió) */
+  .ex-ed{flex:none;margin-left:6px;border:1px solid var(--linea);background:var(--panel);color:var(--tinta);border-radius:9px;
+    padding:6px 9px;font-family:inherit;font-weight:700;font-size:13px;line-height:1;cursor:pointer}
+  .ck-ed{margin-top:3px;font-size:11.5px;line-height:1.35;color:var(--grafito);font-weight:600}
   /* reconocimiento al anotar una tarea extra */
   #extraOk{position:fixed;left:12px;right:12px;bottom:12px;z-index:99998;padding:13px 14px;border-radius:13px;
     background:#256B4B;color:#fff;font-family:inherit;font-weight:600;font-size:13.5px;line-height:1.3;text-align:center;
@@ -1049,7 +1063,7 @@
         <li>Las tareas con <b>📷 foto para el informe</b> llevan su foto en el informe todos los días. Las demás fotos las ve el supervisor en la app. Qué tareas van al informe lo deciden los dueños, el encargado y el encargado de local.</li>
         <li><b>Lo que ya hizo otra persona hoy aparece marcado</b> en todos los teléfonos, con su nombre y la hora en verde: no hay que hacerlo ni marcarlo de nuevo.</li>
         <li><b>Lo que no marcas queda pendiente</b> (franja ámbar). Toca <b>⏳ ¿Por qué?</b> y elige el motivo; al tenerlo, pasa a verde.</li>
-        <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área. Las tareas extra realizadas las ve destacadas Supervisión.</li>
+        <li><b>➕ Agregar en [área]</b>: escribe y elige <b>✅ Tarea extra realizada</b>, <b>⏳ Queda pendiente</b> o <b>📝 Nota</b>. Queda registrado (no se puede borrar) y suma al avance del área. Si te equivocaste al escribir, toca <b>✎</b> para corregir el texto: solo quien lo escribió, solo el mismo día, y queda marcado como <b>editado</b>. Las tareas extra realizadas las ve destacadas Supervisión.</li>
         <li><b>📤 Enviar informe</b>: elige <b>📄 PDF con las fotos</b> o <b>💬 Solo texto</b> y mándalo por WhatsApp: lleva las tareas que <b>no se pudieron hacer y su motivo</b>, los extras, las notas y las fotos con tu nombre. <b>No deja enviar si falta algún motivo.</b></li>
         <li><b>Sin señal</b> sigue marcando y sacando fotos: quedan guardadas en el teléfono y se suben solas cuando vuelve la conexión.</li>
         <li>Cada mañana <b>parte en blanco</b> otra vez.</li>
@@ -1101,7 +1115,7 @@
         <li><b>📋 Informe del día</b>: por persona y puesto, <b>qué no se pudo hacer y por qué</b> (marca las que quedaron sin motivo), las hechas con su <b>foto</b>, y lo que se <b>agregó en el día</b> (extras y notas). Arriba, el recuadro <b>⭐ Tareas extra</b> junta las que el equipo hizo además de la rutina, con persona, área y hora. Llega solo, sin que nadie lo envíe. Toca una foto para verla completa.</li>
         <li><b>💬 Comentar</b> (bajo cada foto, en Informe del día e Inspección): elige <b>👏 Felicitación</b> u <b>👁 Observación</b>, escribe y envía. Le llega a quien sacó la foto cuando abre la app; bajo la foto verás si ya lo leyó (<b>✓ visto</b>). <b>💬 Mensaje</b> (arriba) manda uno sin foto a una persona. Un mensaje enviado no se puede editar ni borrar.</li>
         <li><b>📊 Avance</b> (sub-pestaña): el historial en un gráfico. Eliges hoy, 7 días, 30 días o desde el inicio y ves el % de tareas hechas cada día, las cifras comparadas con el periodo anterior (en 30 días no hay comparación: lo anterior ya se borró), la tendencia de cada área y, con <b>Ver por persona</b>, quién usó la app. Se puede enviar en PDF. El historial llega a 30 días.</li>
-        <li><b>💬 Mensajes</b> (sub-pestaña): la lista de todo lo enviado, con <b>✓ visto</b> y la hora en que lo abrieron, o <b>sin leer</b>.</li>
+        <li><b>💬 Mensajes</b> (sub-pestaña): la lista de todo lo enviado, con <b>✓ visto</b> y la hora en que lo abrieron, o <b>sin leer</b>. En La Florida, <b>Ángel</b> puede tocar <b>↩ Responder</b> en los mensajes de María José (una respuesta por mensaje): a ella le llega como un mensaje más y queda bajo el original.</li>
         <li><b>Refrescar</b> actualiza la vista.</li>
       </ul>
       <h3>👥 Usuarios</h3>
@@ -1816,6 +1830,11 @@ function cobertura(filas){
 }
 /* Lo que alguien hizo además de la rutina: arriba, para que no quede perdido al final de
    su tarjeta. Solo las realizadas; los pendientes sin hacer y las notas siguen abajo. */
+/* texto corregido por quien lo escribió: a qué hora y qué decía antes */
+function exEditado(x){
+  return x.ed ? '<div class="ck-ed">✎ Editado' + (x.ed.h ? " a las " + esc(x.ed.h) : "")
+    + (x.ed.antes ? " · antes decía: «" + esc(x.ed.antes) + "»" : "") + '</div>' : "";
+}
 function tareasExtra(filas){
   const varios = ckFiltro !== "dia" && ckFiltro !== "hoy" && ckFiltro !== "ayer";
   const L = filas.flatMap(r => (Array.isArray(r.estado.extras) ? r.estado.extras : [])
@@ -1825,7 +1844,8 @@ function tareasExtra(filas){
     + L.map(x => {
         const dia = varios ? inicioDe(fechaDeReg(x.r)).toLocaleDateString("es-CL", { weekday:"short", day:"numeric", month:"short" }) : "";
         const pie = [(x.por && x.por.q) || x.r.estado.entrega || "—", x.p, dia, x.por && x.por.h].filter(Boolean).join(" · ");
-        return '<div class="cx-i"><div class="cx-t">' + esc(x.t || "") + '</div><div class="cx-q">' + esc(pie) + '</div></div>';
+        return '<div class="cx-i"><div class="cx-t">' + esc(x.t || "") + (x.ed ? ' <span class="ex-badge ed">editado</span>' : "")
+          + '</div><div class="cx-q">' + esc(pie) + '</div>' + exEditado(x) + '</div>';
       }).join("") + '</div>';
 }
 async function cargarChecklists(){
@@ -1934,6 +1954,7 @@ async function cargarChecklists(){
               + '<span class="ck-txt">' + (x.k === "nota" ? "📝 " : "") + esc(x.t || "")
               + (x.p ? ' <span class="sem-badge">' + esc(x.p) + '</span>' : "")
               + ' <span class="ex-badge">' + (x.k === "nota" ? "nota" : "extra") + '</span>'
+              + (x.ed ? '<span class="ex-badge ed">editado</span>' : "") + exEditado(x)
               + (x.por && x.por.q ? '<div class="ck-por">✓ ' + esc(x.por.q)
                   + (x.por.p ? " · " + esc(x.por.p) : "") + (x.por.h ? " · " + esc(x.por.h) : "") + '</div>' : "")
               + (x.motivo ? '<div class="ck-mot">↳ ' + esc(x.motivo) + '</div>' : "") + '</span></div>').join("");
@@ -3671,7 +3692,7 @@ async function syncGuiaRemoto(){
   const exYa = new Set(exMios.map(x => x.id));
   const exFuera = cargarEx().filter(x => !exYa.has(x.id) && st.done.has(x.id));
   const extras = exMios.concat(exFuera).map(x => ({ id:x.id, t:x.t, p:x.a || undefined, k:x.k,
-                                        ok:st.done.has(x.id), por:firma(x),
+                                        ok:st.done.has(x.id), por:firma(x), ed:x.ed || undefined,
                                         motivo:(x.k !== "nota" && !st.done.has(x.id) && mot[x.id]) || undefined }));
   const cod = CK_PRE + "guia-" + fechaISO(new Date()) + "-" + deviceId();
   const quien = quienActual() + (ps ? " (" + ps.join(", ") + ")" : "");
@@ -3790,6 +3811,49 @@ function extrasDe(area){
   if(area === "gen") return ex.filter(x => !x.a);
   if(area === "mio"){ const m = puestosHoy() || []; return m.length ? ex.filter(x => m.indexOf(x.a) >= 0) : ex; }
   return ex.filter(x => x.a === area);
+}
+/* Corregir el texto de algo agregado hoy. Solo quien lo escribió, solo el
+   mismo día (la lista parte en blanco cada mañana) y solo el texto: no se
+   borra ni cambia de tipo. Queda la marca «editado» y se guarda lo que decía
+   la primera vez, para que Supervisión lo vea. Lo pidió Jaime el 13-nov-2026:
+   María José se equivocó al escribir una tarea extra y no podía arreglarla. */
+function autorEx(x, st){ return x.q || (st && st.por && st.por[x.id] && st.por[x.id].q) || ""; }
+function puedeEditarEx(x, st){ const a = autorEx(x, st); return !a || a === quienActual(); }
+function btnEditarEx(x, st){
+  return puedeEditarEx(x, st) ? '<button class="ex-ed" data-exed="' + esc(x.id) + '" aria-label="Corregir el texto">✎</button>' : "";
+}
+function editarExtra(id){
+  const x0 = cargarEx().find(x => x.id === id); if(!x0) return;
+  if(!puedeEditarEx(x0, cargarDia())){ alert("Solo quien lo escribió puede corregirlo."); return; }
+  const ovl = document.createElement("div"); ovl.id = "motOvl";
+  ovl.innerHTML = '<div class="cja"><h4>✎ Corregir el texto</h4>'
+    + '<p class="tq">Solo cambia el texto. Queda marcado como «editado».</p>'
+    + '<input type="text" id="exEdTxt" autocomplete="off">'
+    + '<button class="op qt" data-ed="ok">Guardar</button>'
+    + '<button class="op" data-ed="">Cancelar</button></div>';
+  document.body.appendChild(ovl);
+  const inp = ovl.querySelector("#exEdTxt"); inp.value = x0.t || "";
+  const cerrar = () => ovl.remove();
+  ovl.addEventListener("click", e => {
+    if(e.target === ovl) return cerrar();
+    const b = e.target.closest(".op"); if(!b) return;
+    if(!b.dataset.ed) return cerrar();
+    const t = inp.value.trim();
+    if(!t){ inp.focus(); return; }
+    const ex = cargarEx(), x = ex.find(y => y.id === id);
+    if(x && t !== x.t){
+      x.ed = { h: new Date().toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false }),
+               antes: (x.ed && x.ed.antes) || x.t };
+      x.t = t;
+      guardarEx(ex);
+    }
+    cerrar(); renderGuia(); syncGuiaRemoto();
+  });
+  ovl.addEventListener("keydown", e => {
+    if(e.key === "Enter" && e.target === inp){ e.preventDefault(); ovl.querySelector(".op.qt").click(); }
+    if(e.key === "Escape") cerrar();
+  });
+  setTimeout(() => inp.focus({ preventScroll:true }), 60);
 }
 /* lo que cuenta para el avance: rutina + agregados marcables (las notas no cuentan) */
 function contablesDe(area){ return itemsDe(area).concat(extrasDe(area).filter(x => x.k !== "nota")); }
@@ -4005,7 +4069,7 @@ function renderGuia(){
     const zona = esExtra ? x.a : x.p;
     const bad = ((areaSel === "todos" || areaSel === "mio") && zona)
       ? '<span class="sem-badge">' + esc(zona) + '</span>' : "";
-    const tag = esExtra ? '<span class="ex-badge">extra</span>' : "";
+    const tag = esExtra ? '<span class="ex-badge">extra</span>' + (x.ed ? '<span class="ex-badge ed">editado</span>' : "") : "";
     const m = mot[x.id];
     /* tarea que exige foto: se avisa antes de marcarla, y si se marca sin la
        foto hay que explicar por qué — si no, no se puede enviar el informe */
@@ -4027,6 +4091,7 @@ function renderGuia(){
       + '<span class="gtexto">' + esc(esExtra ? x.t : limpio(x.t)) + bad + tag + req + deOtro + '</span>'
       + (esExtra || !puedeMarcarPI() ? "" : '<button class="sem-pi' + (x.pi ? " on" : "") + '" data-pi="' + x.id
           + '" aria-label="' + (x.pi ? "Sus fotos van al informe" : "Agregar sus fotos al informe") + '">PI</button>')
+      + (esExtra ? btnEditarEx(x, st) : "")
       + foto(x) + btn + com + '</li>';
   }
   const MOM = [["ap","🌅 Apertura"], ["du","☀️ Durante el turno"], ["ci","🌙 Al cierre"]];
@@ -4047,7 +4112,8 @@ function renderGuia(){
           const zona = (areaSel === "todos" || areaSel === "mio") && x.a
             ? '<span class="sem-badge">' + esc(x.a) + '</span>' : "";
           return '<li class="nota"><span class="gtexto">📝 ' + esc(x.t) + zona
-            + '<span class="ex-badge">nota</span></span></li>';
+            + '<span class="ex-badge">nota</span>' + (x.ed ? '<span class="ex-badge ed">editado</span>' : "") + '</span>'
+            + btnEditarEx(x, st) + '</li>';
         }).join("");
   }
   cont.innerHTML = html || '<li class="vacio">No hay tareas para esta área hoy.<br>El supervisor las agrega en la pestaña «Semanal».</li>';
@@ -4541,7 +4607,7 @@ document.getElementById("extraAdd").addEventListener("click", e => {
     const t = (inp.value || "").trim();
     if(!t){ inp.focus(); return; }
     const ex = cargarEx();
-    const nuevo = { id:"ex" + Date.now().toString(36), t, a:areaActiva(), k:a.dataset.k };
+    const nuevo = { id:"ex" + Date.now().toString(36), t, a:areaActiva(), k:a.dataset.k, q:quienActual() || undefined };
     ex.push(nuevo); guardarEx(ex);
     if(a.dataset.k === "ok"){ const st = cargarDia(); st.done.add(nuevo.id); st.por[nuevo.id] = sello(); guardarDia(st); reconocerExtra(); }  // realizada = ya marcada
     inp.value = ""; renderGuia(); syncGuiaRemoto(); avisarSiTerminada();
@@ -4555,6 +4621,12 @@ document.getElementById("extraAdd").addEventListener("keydown", e => {
   if(e.target.id === "exTxt" && e.key === "Enter"){
     e.preventDefault(); document.querySelector('#extraAdd .eb[data-k="ok"]').click();
   }
+});
+/* corregir el texto de algo agregado hoy */
+document.getElementById("guiaLista").addEventListener("click", e => {
+  const b = e.target.closest(".ex-ed"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  editarExtra(b.dataset.exed);
 });
 /* motivo de un pendiente */
 document.getElementById("guiaLista").addEventListener("click", e => {
@@ -4955,7 +5027,64 @@ function limpiarDiasViejos(){
    y marcar leído: un mensaje enviado no se edita ni se borra.
    Privados: cada uno ve los suyos; el mando los ve bajo cada foto. */
 /* aviso = novedad general (no es sobre el trabajo de la persona); puede ir sin firma */
-const MSG_TIPOS = { felicitacion:["👏", "Felicitación"], observacion:["👁", "Observación"], aviso:["📣", "Aviso"] };
+const MSG_TIPOS = { felicitacion:["👏", "Felicitación"], observacion:["👁", "Observación"], aviso:["📣", "Aviso"], respuesta:["↩", "Respuesta"] };
+/* ---- Respuestas ----
+   Solo Ángel (encargado de local de La Florida) puede responder, y solo los
+   mensajes que María José manda en La Florida, vayan a él o a otra persona:
+   él los ve todos en Supervisión › Mensajes. Una respuesta por mensaje, para
+   que esto no se vuelva un chat. Es una fila más de `mensajes` (tipo
+   «respuesta», `respuesta_a` = el mensaje original; SQL-mensajes-respuestas.sql):
+   a ella le llega como cualquier mensaje y, como todos, no se edita ni se borra.
+   Es una regla de la app: la base no distingue quién escribe. */
+const RESP_QUIEN = SEDE_ID === "lf" ? ["angel magallanes"] : [];
+const RESP_A = ["maria jose"];
+function sinTilde(s){ return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim(); }
+function yoRespondo(){ return RESP_QUIEN.indexOf(sinTilde(quienActual())) >= 0; }
+function puedeResponder(m){ return yoRespondo() && m.tipo !== "respuesta" && RESP_A.indexOf(sinTilde(m.de)) >= 0; }
+function abrirRespuesta(m, alEnviar){
+  if(!puedeResponder(m)) return;
+  const yo = quienActual();
+  const ovl = document.createElement("div"); ovl.id = "msgOvl";
+  ovl.innerHTML = '<div class="cja"><h4>↩ Responder a ' + esc(m.de) + '</h4>'
+    + '<div class="msg-cita">' + esc(m.texto) + '</div>'
+    + '<textarea id="msgTexto" maxlength="500" rows="3" placeholder="Escribe la respuesta…"></textarea>'
+    + '<p class="tq">Una respuesta por mensaje. No se puede editar ni borrar.</p>'
+    + '<div class="msg-acc"><button class="msg-enviar" id="msgEnviar">Enviar</button>'
+    + '<button class="msg-cancel" id="msgCancel">Cancelar</button></div></div>';
+  document.body.appendChild(ovl);
+  const txt = ovl.querySelector("#msgTexto");
+  const cerrar = () => ovl.remove();
+  ovl.addEventListener("click", async e => {
+    if(e.target === ovl || e.target.closest("#msgCancel")) return cerrar();
+    const env = e.target.closest("#msgEnviar"); if(!env) return;
+    const texto = txt.value.trim();
+    if(!texto){ txt.focus(); return; }
+    const client = getSB(); if(!client){ alert("Sin conexión con la base."); return; }
+    env.disabled = true; env.textContent = "Enviando…";
+    try{
+      await vfSesion(client);
+      /* por si ya la respondió desde otro teléfono */
+      const ya = await client.from("mensajes").select("id").eq("respuesta_a", m.id).limit(1);
+      if(ya.error) throw ya.error;
+      if(ya.data && ya.data.length){ cerrar(); alert("Ese mensaje ya tiene respuesta."); if(alEnviar) alEnviar(); return; }
+      const fila = { de: nDB(yo), para: nDB(m.de), tipo: "respuesta", texto, respuesta_a: m.id };
+      if(m.tarea) fila.tarea = m.tarea;
+      if(m.dia) fila.dia = m.dia;
+      const { error } = await client.from("mensajes").insert(fila);
+      if(error) throw error;
+      cerrar();
+      alert("Respuesta enviada a " + m.de + ". La verá al abrir la app con su nombre.");
+      if(alEnviar) alEnviar();
+    }catch(err){
+      env.disabled = false; env.textContent = "Enviar";
+      const t = String((err && err.message) || err);
+      alert(/respuesta_a|mensajes_tipo_check|permission/i.test(t)
+        ? "Todavía no se puede responder: falta instalar las respuestas en la base (SQL-mensajes-respuestas.sql)."
+        : "No se pudo enviar: " + t);
+    }
+  });
+  setTimeout(() => txt.focus({ preventScroll:true }), 80);
+}
 function msgNombre(s){ return String(s || "").replace(/\s*\(.*\)\s*$/, "").trim(); }   // «Alison (Salón)» → «Alison»
 function msgBloque(o){
   if(!esMando()) return "";
@@ -5723,6 +5852,11 @@ document.getElementById("supAvance").addEventListener("click", e => {
 /* ---- Supervisión · sub-pestaña «Mensajes»: lo enviado y si ya se leyó ----
    Todos los mensajes (con o sin foto), del más nuevo al más viejo, con
    «✓ visto» y la hora en que lo abrieron, o «sin leer». */
+let ENV_MSG = {};   // mensajes de la lista por id, para el botón «Responder»
+document.getElementById("supMensajes").addEventListener("click", e => {
+  const b = e.target.closest(".msg-resp-btn"); if(!b) return;
+  const m = ENV_MSG[b.dataset.resp]; if(m) abrirRespuesta(m, cargarEnviados);
+});
 async function cargarEnviados(){
   const cont = document.getElementById("supMensajes");
   cont.innerHTML = '<div class="sinreg">Cargando…</div>';
@@ -5735,8 +5869,13 @@ async function cargarEnviados(){
     if(!ms.length){ cont.innerHTML = '<div class="sinreg">Todavía no se ha enviado ningún mensaje.<br><small>Se envían con 💬 Comentar bajo una foto, o con 💬 Mensaje arriba.</small></div>'; return; }
     /* un mensaje a un grupo es una fila por persona (mismo texto, firma y hora):
        acá se vuelven a juntar para ver de un vistazo quién lo leyó y quién no */
+    /* las respuestas van bajo el mensaje que contestan, no como un envío aparte
+       (salvo que el original ya no esté entre los últimos 300) */
+    const ids = new Set(ms.map(m => m.id));
+    const resp = ms.filter(m => m.respuesta_a && ids.has(m.respuesta_a));
+    ENV_MSG = {};
     const envios = [];
-    ms.forEach(m => {
+    ms.filter(m => resp.indexOf(m) < 0).forEach(m => {
       const k = [m.de, m.tipo, m.texto, m.tarea || "", m.foto || "", m.created_at].join("|");
       let g = envios.find(x => x.k === k);
       if(!g){ g = { k, m, paras: [] }; envios.push(g); }
@@ -5749,6 +5888,11 @@ async function cargarEnviados(){
           const m = g.m, t = MSG_TIPOS[m.tipo] || MSG_TIPOS.observacion;
           const vistos = g.paras.filter(x => x.leido_at), faltan = g.paras.filter(x => !x.leido_at);
           const grupo = g.paras.length > 1;
+          const reps = resp.filter(r => g.paras.some(p => p.id === r.respuesta_a));
+          const pie = reps.map(r => '<div class="env-resp"><b>↩ ' + esc(r.de) + ':</b> ' + esc(r.texto)
+              + '<small>' + esc(msgFecha(r.created_at)) + " · " + (r.leido_at ? "✓ visto por " + esc(r.para) : "sin leer") + '</small></div>').join("")
+            + (!reps.length && puedeResponder(m) ? '<button class="msg-resp-btn" data-resp="' + esc(m.id) + '">↩ Responder</button>' : "");
+          ENV_MSG[m.id] = m;
           return '<div class="env-item' + (faltan.length ? " sin" : "") + '">'
             + '<div class="env-cab"><span class="msg-chip ' + esc(m.tipo) + '">' + t[0] + " " + t[1] + '</span>'
             + '<span class="env-est">' + (grupo ? vistos.length + " de " + g.paras.length + " lo vieron"
@@ -5758,7 +5902,7 @@ async function cargarEnviados(){
             + (grupo ? '<div class="env-para">' + (vistos.length ? "✓ " + esc(vistos.map(x => x.para).join(", ")) : "")
                 + (faltan.length ? (vistos.length ? " · " : "") + "sin leer: " + esc(faltan.map(x => x.para).join(", ")) : "") + '</div>' : "")
             + (m.tarea ? '<div class="msg-tarea">' + (m.foto ? "📷 " : "") + esc(m.tarea) + (m.dia ? " · " + esc(m.dia) : "") + '</div>' : "")
-            + '<div class="env-txt">' + esc(m.texto) + '</div></div>';
+            + '<div class="env-txt">' + esc(m.texto) + '</div>' + pie + '</div>';
         }).join("");
   }catch(e){
     cont.innerHTML = '<div class="sinreg">No se pudo cargar: ' + esc((e && e.message) || e) + '</div>';
@@ -5801,7 +5945,24 @@ async function revisarMensajes(){
     const { data, error } = await client.from("mensajes").select("*").eq("para", nDB(n))
       .order("created_at", { ascending:false }).limit(40);
     if(error || quienActual() !== n) return;
-    MIS_MSG = (data || []).map(msgUI);
+    const mios = (data || []).map(msgUI);
+    /* respuestas: a quien la recibe se le muestra el mensaje que le contestaron;
+       a quien puede responder, cuáles ya contestó. Si la base aún no tiene la
+       columna, esto falla callado y los mensajes se ven igual que antes. */
+    try{
+      const origs = [...new Set(mios.map(m => m.respuesta_a).filter(Boolean))];
+      if(origs.length){
+        const r = await client.from("mensajes").select("id,para,texto").in("id", origs);
+        (r.data || []).map(msgUI).forEach(o => mios.forEach(m => { if(m.respuesta_a === o.id) m.orig = o; }));
+      }
+      const mias = mios.filter(puedeResponder);
+      if(mias.length){
+        const r = await client.from("mensajes").select("respuesta_a,texto").in("respuesta_a", mias.map(m => m.id));
+        (r.data || []).forEach(x => { const m = mios.find(y => y.id === x.respuesta_a); if(m) m.resp = x.texto; });
+      }
+    }catch(e){}
+    if(quienActual() !== n) return;
+    MIS_MSG = mios;
     pintarAvisoMsg();
   }catch(e){}
 }
@@ -5816,8 +5977,12 @@ function msgTarjeta(m){
     + '<span class="msg-chip ' + esc(m.tipo) + '">' + t[0] + " " + t[1] + '</span>'
     + (m.foto ? '<img class="msg-img" data-foto="' + esc(m.foto) + '" src="' + PIX + '" alt="Foto comentada">' : "")
     + (m.tarea ? '<div class="msg-tarea">' + esc(m.tarea) + '</div>' : "")
+    + (m.orig ? '<div class="msg-cita">Tu mensaje' + (m.orig.para && m.orig.para !== m.de ? " a " + esc(m.orig.para) : "") + ": " + esc(m.orig.texto) + '</div>' : "")
     + '<div class="msg-texto">' + esc(m.texto) + '</div>'
-    + '<div class="msg-de">' + (m.de ? esc(m.de) + " · " : "") + esc(msgFecha(m.created_at)) + '</div></div>';
+    + '<div class="msg-de">' + (m.de ? esc(m.de) + " · " : "") + esc(msgFecha(m.created_at)) + '</div>'
+    + (m.resp ? '<div class="env-resp"><b>↩ Tu respuesta:</b> ' + esc(m.resp) + '</div>'
+       : puedeResponder(m) ? '<button class="msg-resp-btn" data-resp="' + esc(m.id) + '">↩ Responder</button>' : "")
+    + '</div>';
 }
 /* soloNuevos = de a uno, con «Entendido» (marca leído y pasa al siguiente);
    si no, la lista completa para releer */
@@ -5838,6 +6003,18 @@ function verMensajes(soloNuevos){
   };
   ovl.addEventListener("click", async e => {
     if(e.target === ovl || e.target.closest("#msgCancel")) return cerrar();
+    /* responder: se cierra la lista (lo que ya se vio queda leído) y se abre la respuesta */
+    const rb = e.target.closest(".msg-resp-btn");
+    if(rb){
+      const mr = lista.find(x => x.id === rb.dataset.resp); if(!mr) return;
+      if(!mr.leido_at){
+        mr.leido_at = new Date().toISOString();
+        const c = getSB();
+        if(c) vfSesion(c).then(() => c.from("mensajes").update({ leido_at:mr.leido_at }).eq("id", mr.id)).catch(() => {});
+      }
+      cerrar(); abrirRespuesta(mr, revisarMensajes);
+      return;
+    }
     if(!e.target.closest("#msgOk")) return;
     const m = lista[i];
     m.leido_at = new Date().toISOString();           // se marca al tiro en pantalla; la base va aparte
